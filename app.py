@@ -4,7 +4,20 @@ import matplotlib.pyplot as plt
 from github import Github
 from datetime import date
 import os
+# ... (imports) ...
 
+try:
+    TOKEN = st.secrets["GITHUB_TOKEN"]
+    REPO_NAME = st.secrets["REPO_NAME"]
+    
+    # Test de connexion immédiat
+    g = Github(TOKEN)
+    repo = g.get_repo(REPO_NAME) 
+    st.sidebar.success(f"✅ Connecté à : {repo.full_name}")
+except Exception as e:
+    st.error(f"❌ Erreur de connexion GitHub : {e}")
+    st.info("Vérifiez que REPO_NAME est bien 'pseudo/depot' et que le Token est valide.")
+    st.stop()
 # 1. CONFIGURATION & SECRETS
 try:
     TOKEN = st.secrets["GITHUB_TOKEN"]
@@ -97,3 +110,4 @@ if user_name:
             st.write(df)
     else:
         st.info("👋 Bienvenue ! Saisissez vos premières données dans la barre latérale.")
+

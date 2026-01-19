@@ -238,3 +238,4 @@ else:
                 st.rerun()
         else:
             st.info("Aucune donnée à gérer pour le moment.")
+            

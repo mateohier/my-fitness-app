@@ -102,8 +102,15 @@ def calculate_calories_burned(bmr_total_day, met, duration_minutes):
 
 def calculate_streak(df):
     if df.empty: return 0
-    dates = pd.to_datetime(df['date']).dt.date.unique()
-    dates.sort()
+    # On convertit en datetime avec gestion d'erreur au cas où
+    try:
+        dates = pd.to_datetime(df['date'], errors='coerce').dt.date.unique()
+        # On supprime les NaT (Not a Time) s'il y en a
+        dates = [d for d in dates if pd.notnull(d)]
+        dates.sort()
+    except:
+        return 0
+        
     if len(dates) == 0: return 0
     
     today = date.today()
@@ -129,10 +136,15 @@ def get_all_users_data():
             if file.name.endswith(".csv"):
                 username = file.name.replace(".csv", "")
                 csv_content = file.decoded_content.decode()
-                temp_df = pd.read_csv(StringIO(csv_content))
-                temp_df['date'] = pd.to_datetime(temp_df['date'])
-                temp_df['user'] = username
-                all_data.append(temp_df)
+                try:
+                    temp_df = pd.read_csv(StringIO(csv_content))
+                    # CORRECTION ICI AUSSI POUR LE CLASSEMENT
+                    temp_df['date'] = pd.to_datetime(temp_df['date'], errors='coerce')
+                    temp_df = temp_df.dropna(subset=['date'])
+                    temp_df['user'] = username
+                    all_data.append(temp_df)
+                except:
+                    continue # Si un fichier est corrompu, on l'ignore
         return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
     except:
         return pd.DataFrame()
@@ -204,7 +216,6 @@ if not st.session_state.user:
         sexe = col_s1.selectbox("Sexe", ["Homme", "Femme"])
         taille = col_s2.number_input("Taille (cm)", 100, 250, 175)
         
-        # --- NOUVEAU : ACTIVITÉ ---
         activite = st.sidebar.selectbox("Niveau d'activité quotidien", ACTIVITY_OPTIONS)
         
         poids_init = st.sidebar.number_input("Poids Initial (kg)", 20.0, 300.0, 75.0)
@@ -220,7 +231,7 @@ if not st.session_state.user:
                     "birth_date": str(dob),
                     "sexe": sexe,
                     "taille": taille,
-                    "activity_level": activite, # On sauvegarde le niveau
+                    "activity_level": activite,
                     "initial_weight": poids_init,
                     "objectif": obj_weight
                 }
@@ -254,7 +265,6 @@ if st.session_state.user:
         else:
             current_age = profile.get("age", 25)
         initial_w = profile.get("initial_weight", 75.0)
-        # Valeur par défaut si ancien profil
         user_activity = profile.get("activity_level", "Sédentaire (Bureau, peu de marche)")
     else:
         old_obj = get_file_content(f"user_data/{user}.obj")
@@ -266,7 +276,15 @@ if st.session_state.user:
 
     if csv_content:
         df = pd.read_csv(StringIO(csv_content))
-        df['date'] = pd.to_datetime(df['date'])
+        
+        # --- CORRECTION DU BUG PRINCIPAL ICI ---
+        # errors='coerce' transforme les dates invalides en NaT (Not a Time)
+        # au lieu de faire planter l'application.
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        
+        # On supprime les lignes où la date est invalide (NaT)
+        df = df.dropna(subset=['date'])
+        
         df = df.sort_values('date')
     else:
         df = pd.DataFrame(columns=["date", "poids", "sport", "minutes", "calories"])
@@ -315,7 +333,6 @@ if st.session_state.user:
     with tab3:
         st.header("Nouvelle séance")
         
-        # --- CALCUL AVANCÉ DU MÉTABOLISME ---
         raw_bmr = calculate_bmr(last_weight, profile['taille'], current_age, profile['sexe'])
         activity_factor = get_activity_multiplier(user_activity)
         maintenance_cal = raw_bmr * activity_factor
@@ -325,8 +342,6 @@ if st.session_state.user:
             💡 **Analyse Métabolique :**
             - Métabolisme de base (Coma) : **{int(raw_bmr)} kcal**
             - Dépense journalière réelle (TDEE sans sport) : **{int(maintenance_cal)} kcal**
-            
-            *Les calories du sport ci-dessous s'ajoutent à ce total !*
             """
         )
 
@@ -340,7 +355,6 @@ if st.session_state.user:
             met_values = {"Natation": 8, "Marche": 3.5, "Course": 10, "Vélo": 6, "Fitness": 5, "Musculation": 4, "Crossfit": 8}
             
             if st.form_submit_button("Valider"):
-                # Pour le sport, on utilise le BMR brut (la base) pour calculer l'effort supplémentaire
                 bmr_day = calculate_bmr(p_input, profile['taille'], current_age, profile['sexe'])
                 kcal = calculate_calories_burned(bmr_day, met_values.get(s_input, 5), m_input)
                 
@@ -376,7 +390,6 @@ if st.session_state.user:
             idx_sex = sex_options.index(current_sex) if current_sex in sex_options else 0
             new_sexe = c_up2.selectbox("Sexe", sex_options, index=idx_sex)
             
-            # --- NOUVEAU SELECTEUR D'ACTIVITÉ (UPDATE) ---
             curr_act = profile.get("activity_level", ACTIVITY_OPTIONS[0])
             idx_act = ACTIVITY_OPTIONS.index(curr_act) if curr_act in ACTIVITY_OPTIONS else 0
             new_activite = st.selectbox("Niveau d'activité quotidien", ACTIVITY_OPTIONS, index=idx_act)
@@ -390,7 +403,7 @@ if st.session_state.user:
             if st.form_submit_button("💾 Sauvegarder les modifications"):
                 profile['birth_date'] = str(new_dob)
                 profile['sexe'] = new_sexe
-                profile['activity_level'] = new_activite # Mise à jour
+                profile['activity_level'] = new_activite
                 profile['initial_weight'] = new_init_w
                 profile['taille'] = new_taille
                 profile['objectif'] = new_obj

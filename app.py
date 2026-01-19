@@ -115,7 +115,7 @@ if not user:
         """, 
         unsafe_allow_html=True
     )
-    st.image("https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.jpg", use_container_width=True)
+    #st.image("https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.jpg", use_container_width=True)
 
 else:
     # --- INTERFACE PRINCIPALE UNE FOIS CONNECTÉ ---
@@ -213,3 +213,4 @@ else:
                 df = df.drop(del_idx)
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
                 st.rerun()
+

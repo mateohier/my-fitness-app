@@ -46,6 +46,26 @@ def add_bg_from_github():
 # On appelle la fonction pour appliquer le fond
 add_bg_from_github()
 
+# --- PAGE D'ACCUEIL AVANT CONNEXION ---
+if not user:
+    st.markdown(
+        """
+        <div style="text-align: center; padding: 50px; background-color: rgba(0,0,0,0.5); border-radius: 20px;">
+            <h1 style="color: white; font-size: 40px;">Bienvenue ! 👋</h1>
+            <p style="color: #FFD700; font-size: 24px; font-weight: bold;">
+                👉 Pour commencer, cliquez en haut à gauche sur les deux flèches ( > )
+            </p>
+            <p style="color: white; font-size: 18px;">
+                Connectez-vous ou créez un compte pour suivre vos performances.
+            </p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    
+    # On affiche une image ou un logo si vous voulez, sinon le fond d'écran suffit
+    st.image("https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.jpg", use_container_width=True)
+
 # ===============================
 # 1. CONFIGURATION GITHUB
 # ===============================
@@ -223,6 +243,7 @@ if user:
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
                 st.success("Supprimé !")
                 st.rerun()
+
 
 
 

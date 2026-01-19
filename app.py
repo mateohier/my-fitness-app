@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from io import StringIO
 import hashlib
 import time
-import json  # Nouveau : pour gérer le profil complet
+import json
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
@@ -59,16 +59,20 @@ def save_file_to_github(path, content, message):
         st.error(f"Erreur de sauvegarde : {e}")
         return False
 
-# --- 4. FONCTIONS SCIENTIFIQUES (NOUVEAU) ---
+# --- 4. FONCTIONS SCIENTIFIQUES & CALCULS ---
+
+def calculate_age_from_dob(dob_str):
+    """Calcule l'âge précis à partir de la date de naissance (YYYY-MM-DD)."""
+    try:
+        dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+        today = date.today()
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    except:
+        return 25 # Valeur par défaut si erreur
+
 def calculate_bmr(weight, height_cm, age, gender):
-    """
-    Formule de Mifflin-St Jeor.
-    Calcule les calories brûlées au repos complet (BMR) en 24h.
-    """
-    # Formule de base
+    """Formule de Mifflin-St Jeor."""
     bmr = (10 * weight) + (6.25 * height_cm) - (5 * age)
-    
-    # Ajustement selon le sexe
     if gender == "Homme":
         bmr += 5
     else:
@@ -76,10 +80,6 @@ def calculate_bmr(weight, height_cm, age, gender):
     return bmr
 
 def calculate_calories_burned(bmr, met, duration_minutes):
-    """
-    Calcule les calories brûlées lors d'un sport en se basant sur le BMR.
-    Formule : (BMR / 24) * MET * Durée(heures)
-    """
     bmr_hourly = bmr / 24
     duration_hours = duration_minutes / 60
     return bmr_hourly * met * duration_hours
@@ -149,7 +149,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 7. SIDEBAR (AUTHENTIFICATION AMÉLIORÉE) ---
+# --- 7. SIDEBAR (AUTHENTIFICATION & PROFIL) ---
 st.sidebar.title("🔐 Accès Fitness")
 
 if not st.session_state.user:
@@ -167,34 +167,37 @@ if not st.session_state.user:
                 st.sidebar.error("Erreur d'identifiants.")
                 
     elif menu == "Créer un compte":
-        # --- NOUVEAU FORMULAIRE D'INSCRIPTION COMPLET ---
         st.sidebar.markdown("### 📝 Votre Profil")
+        # --- NOUVEAUX CHAMPS ---
+        dob = st.sidebar.date_input("Date de naissance", date(1995, 1, 1), min_value=date(1930, 1, 1), max_value=date.today())
         col_s1, col_s2 = st.sidebar.columns(2)
-        age = col_s1.number_input("Âge", 10, 99, 25)
-        sexe = col_s2.selectbox("Sexe", ["Homme", "Femme"])
-        taille = st.sidebar.number_input("Taille (cm)", 100, 230, 175)
+        sexe = col_s1.selectbox("Sexe", ["Homme", "Femme"])
+        taille = col_s2.number_input("Taille (cm)", 100, 230, 175)
+        
+        poids_init = st.sidebar.number_input("Poids Initial (kg)", 40.0, 160.0, 75.0)
         obj_weight = st.sidebar.number_input("Objectif Poids (kg)", 40.0, 150.0, 70.0)
         
         if st.sidebar.button("S'inscrire"):
             if get_file_content(f"user_data/{username}.pin"):
                 st.sidebar.error("Ce pseudo est déjà pris.")
             elif len(pin) == 4:
-                # 1. Sauvegarde PIN
                 save_file_to_github(f"user_data/{username}.pin", hash_pin(pin), "New PIN")
                 
-                # 2. Sauvegarde Profil Complet (JSON)
+                # Sauvegarde Profil avec Date Naissance et Poids Initial
                 profile_data = {
-                    "age": age,
+                    "birth_date": str(dob), # On sauvegarde en string
                     "sexe": sexe,
                     "taille": taille,
+                    "initial_weight": poids_init,
                     "objectif": obj_weight
                 }
                 save_file_to_github(f"user_data/{username}.json", json.dumps(profile_data), "New Profile")
                 
-                # 3. Sauvegarde CSV vide
-                save_file_to_github(f"user_data/{username}.csv", "date,poids,sport,minutes,calories", "Init CSV")
+                # On ajoute une première ligne dans le CSV avec le poids initial pour le graph
+                first_row = f"date,poids,sport,minutes,calories\n{date.today()}, {poids_init},Inscription,0,0"
+                save_file_to_github(f"user_data/{username}.csv", first_row, "Init CSV")
                 
-                st.sidebar.success("Profil créé avec succès !")
+                st.sidebar.success("Profil créé ! Connecte-toi.")
                 time.sleep(1)
 else:
     st.sidebar.markdown(f"👤 **{st.session_state.user.capitalize()}**")
@@ -206,18 +209,28 @@ else:
 if st.session_state.user:
     user = st.session_state.user
     
-    # Chargement Données
+    # Chargement
     csv_content = get_file_content(f"user_data/{user}.csv")
     json_profile = get_file_content(f"user_data/{user}.json")
     
-    # Gestion des anciens profils (Compatibilité)
+    # Gestion profil et calcul de l'âge dynamique
+    current_age = 25 # Défaut
+    initial_w = 75.0 # Défaut
+    
     if json_profile:
         profile = json.loads(json_profile)
+        # Gestion compatibilité (si vieux compte sans date de naissance)
+        if "birth_date" in profile:
+            current_age = calculate_age_from_dob(profile["birth_date"])
+        else:
+            current_age = profile.get("age", 25)
+        
+        initial_w = profile.get("initial_weight", 75.0)
     else:
-        # Valeurs par défaut si le fichier json n'existe pas (vieux comptes)
+        # Valeurs par défaut très anciens comptes
         old_obj = get_file_content(f"user_data/{user}.obj")
         profile = {
-            "age": 30, "sexe": "Homme", "taille": 175, 
+            "sexe": "Homme", "taille": 175, 
             "objectif": float(old_obj) if old_obj else 70.0
         }
 
@@ -228,24 +241,31 @@ if st.session_state.user:
     else:
         df = pd.DataFrame(columns=["date", "poids", "sport", "minutes", "calories"])
 
-    # Calculs Globaux
+    # Calculs KPI
     total_cal = df["calories"].sum() if not df.empty else 0
     rank_name, next_level, medal = get_rank(total_cal)
     current_streak = calculate_streak(df)
-    fat_lost_kg = total_cal / 7700
+    
+    # Poids actuel
+    last_weight = df.iloc[-1]['poids'] if not df.empty else initial_w
+    
+    # Perte de poids totale (Poids Initial - Poids Actuel)
+    total_lost = initial_w - last_weight
+    color_delta = "normal" if total_lost > 0 else "off"
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Accueil", "📈 Stats", "➕ Ajouter", "⚙️ Gestion", "🏆 Classement"])
 
     with tab1:
         st.title(f"Hello {user.capitalize()} !")
         
-        # Affichage du profil résumé
-        st.caption(f"Profil : {profile['sexe']}, {profile['age']} ans, {profile['taille']} cm | Objectif : {profile['objectif']} kg")
+        # Petit résumé du profil calculé
+        st.caption(f"Profil : {profile['sexe']} | {current_age} ans (calculé) | {profile['taille']} cm | Départ : {initial_w} kg")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{current_streak} Jours")
-        c2.metric("🍖 Gras brûlé", f"{fat_lost_kg:.2f} kg")
-        c3.metric("⚡ Total", f"{int(total_cal):,}")
+        # On affiche la perte de poids réelle ici
+        c2.metric("⚖️ Perte Totale", f"{total_lost:.1f} kg", f"Depuis {initial_w}kg", delta_color=color_delta)
+        c3.metric("⚡ Total Burn", f"{int(total_cal):,} kcal")
         c4.metric("🏅 Rang", rank_name)
         st.progress(min(total_cal / next_level, 1.0))
 
@@ -254,7 +274,10 @@ if st.session_state.user:
             c1, c2 = st.columns(2)
             with c1:
                 fig = px.line(df, x='date', y='poids', title="📉 Évolution Poids")
-                fig.add_hline(y=profile['objectif'], line_dash="dash", line_color="red")
+                # Ligne Objectif
+                fig.add_hline(y=profile['objectif'], line_dash="dash", line_color="green", annotation_text="Objectif")
+                # Ligne Poids Initial
+                fig.add_hline(y=initial_w, line_dash="dot", line_color="red", annotation_text="Départ")
                 st.plotly_chart(fig, use_container_width=True)
             with c2:
                 fig2 = px.bar(df, x='date', y='calories', title="🔥 Calories / Jour")
@@ -269,63 +292,70 @@ if st.session_state.user:
             st.info("Aucune donnée pour les graphiques.")
 
     with tab3:
-        st.header("Nouvelle séance (Calcul Précis)")
-        
-        # On calcule le BMR en direct pour montrer à l'utilisateur
-        last_w = df.iloc[-1]['poids'] if not df.empty else 70.0
-        current_bmr = calculate_bmr(last_w, profile['taille'], profile['age'], profile['sexe'])
-        st.info(f"💡 Ton métabolisme de base (BMR) est de **{int(current_bmr)} kcal/jour**.")
+        st.header("Nouvelle séance")
+        # Calcul du BMR avec l'âge dynamique
+        current_bmr = calculate_bmr(last_weight, profile['taille'], current_age, profile['sexe'])
+        st.info(f"💡 Métabolisme de base (âge {current_age} ans) : **{int(current_bmr)} kcal/jour**.")
 
         with st.form("add_sport"):
             col_a, col_b = st.columns(2)
             d_input = col_a.date_input("Date", date.today())
             s_input = col_b.selectbox("Sport", ["Natation", "Marche", "Course", "Vélo", "Fitness", "Musculation", "Crossfit"])
             
-            p_input = col_a.number_input("Poids actuel (kg)", 40.0, 160.0, float(last_w))
+            p_input = col_a.number_input("Poids actuel (kg)", 40.0, 160.0, float(last_weight))
             m_input = col_b.number_input("Durée (min)", 5, 300, 45)
-            
-            # Valeurs MET standard
             met_values = {"Natation": 8, "Marche": 3.5, "Course": 10, "Vélo": 6, "Fitness": 5, "Musculation": 4, "Crossfit": 8}
             
-            if st.form_submit_button("Valider la séance"):
-                # --- NOUVEAU CALCUL SCIENTIFIQUE ---
-                # On met à jour le BMR avec le poids du jour
-                bmr_day = calculate_bmr(p_input, profile['taille'], profile['age'], profile['sexe'])
-                selected_met = met_values.get(s_input, 5)
-                
-                # Calcul final
-                kcal = calculate_calories_burned(bmr_day, selected_met, m_input)
+            if st.form_submit_button("Valider"):
+                # Recalcul BMR jour J
+                bmr_day = calculate_bmr(p_input, profile['taille'], current_age, profile['sexe'])
+                kcal = calculate_calories_burned(bmr_day, met_values.get(s_input, 5), m_input)
                 
                 new_row = pd.DataFrame([{"date": d_input, "poids": p_input, "sport": s_input, "minutes": m_input, "calories": round(kcal, 2)}])
                 df = pd.concat([df, new_row], ignore_index=True)
-                
-                # Sauvegarde
-                save_file_to_github(f"user_data/{user}.csv", df.to_csv(index=False), "Add sport precise")
-                st.success(f"✅ Séance enregistrée : {int(kcal)} kcal (Ajusté selon âge/sexe)")
+                save_file_to_github(f"user_data/{user}.csv", df.to_csv(index=False), "Add sport")
+                st.success(f"✅ Séance enregistrée : {int(kcal)} kcal")
                 time.sleep(1)
                 st.rerun()
 
     with tab4:
-        st.subheader("Mes Données")
-        if not df.empty:
-            edited = st.data_editor(df, num_rows="dynamic")
-            if st.button("Sauvegarder les modifications"):
-                save_file_to_github(f"user_data/{user}.csv", edited.to_csv(index=False), "Edit")
-                st.rerun()
+        st.subheader("⚙️ Mettre à jour mon profil")
         
-        st.divider()
-        st.subheader("Mise à jour du profil")
-        # Permet de modifier l'âge ou la taille si on s'est trompé
-        with st.expander("Modifier mes infos physiques"):
-            new_age = st.number_input("Âge", 10, 99, profile['age'])
-            new_taille = st.number_input("Taille", 100, 230, profile['taille'])
-            new_obj = st.number_input("Objectif", 40.0, 150.0, float(profile['objectif']))
-            if st.button("Mettre à jour le profil"):
-                profile['age'] = new_age
+        # Conversion string date -> object date pour l'input
+        try:
+            default_dob = datetime.strptime(profile.get("birth_date", "1990-01-01"), "%Y-%m-%d").date()
+        except:
+            default_dob = date(1990, 1, 1)
+
+        with st.form("update_profile"):
+            c_up1, c_up2 = st.columns(2)
+            new_dob = c_up1.date_input("Date de naissance", default_dob, min_value=date(1930, 1, 1))
+            new_init_w = c_up2.number_input("Poids Initial (kg)", 40.0, 160.0, float(initial_w))
+            
+            c_up3, c_up4 = st.columns(2)
+            new_taille = c_up3.number_input("Taille (cm)", 100, 230, int(profile['taille']))
+            new_obj = c_up4.number_input("Objectif (kg)", 40.0, 150.0, float(profile['objectif']))
+            
+            if st.form_submit_button("💾 Sauvegarder les modifications"):
+                profile['birth_date'] = str(new_dob)
+                profile['initial_weight'] = new_init_w
                 profile['taille'] = new_taille
                 profile['objectif'] = new_obj
-                save_file_to_github(f"user_data/{user}.json", json.dumps(profile), "Update Profile")
-                st.success("Profil mis à jour !")
+                
+                # On enlève le champ "age" s'il existe car il est obsolète
+                if 'age' in profile: del profile['age']
+                
+                save_file_to_github(f"user_data/{user}.json", json.dumps(profile), "Update Profile Full")
+                st.success("Profil mis à jour ! L'âge et les calculs seront ajustés.")
+                time.sleep(1)
+                st.rerun()
+                
+        st.divider()
+        st.subheader("📝 Editer l'historique")
+        if not df.empty:
+            edited = st.data_editor(df, num_rows="dynamic")
+            if st.button("Sauvegarder l'historique"):
+                save_file_to_github(f"user_data/{user}.csv", edited.to_csv(index=False), "Edit CSV")
                 st.rerun()
 
     with tab5:
@@ -335,16 +365,15 @@ if st.session_state.user:
             last_7 = pd.Timestamp.now() - pd.Timedelta(days=7)
             df_week = df_all[df_all['date'] >= last_7]
             if not df_week.empty:
-                st.subheader("🔥 Top Brûleurs de Calories")
+                st.subheader("🔥 Top Brûleurs")
                 leaderboard = df_week.groupby("user")["calories"].sum().sort_values(ascending=False).head(3)
                 cols = st.columns(3)
                 medals = ["🥇", "🥈", "🥉"]
                 for i, (u, cal) in enumerate(leaderboard.items()):
                     with cols[i]:
                         st.markdown(f"<div class='podium-box'><h1>{medals[i]}</h1><h3>{u.capitalize()}</h3><p>{int(cal)} kcal</p></div>", unsafe_allow_html=True)
-                
                 st.divider()
-                st.subheader("👑 Rois & Reines par Sport")
+                st.subheader("👑 Champions par Sport")
                 sport_perf = df_week.groupby(['sport', 'user'])['minutes'].sum().reset_index()
                 best_per_sport = sport_perf.loc[sport_perf.groupby('sport')['minutes'].idxmax()]
                 grid = st.columns(3)
@@ -357,3 +386,4 @@ if st.session_state.user:
 
 else:
     st.markdown("<h1 style='text-align: center;'>Bienvenue sur Fitness Gamified</h1>", unsafe_allow_html=True)
+    

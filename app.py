@@ -62,7 +62,8 @@ def save_file_to_github(path, content, message):
         st.error(f"Erreur de sauvegarde : {e}")
         return False
 
-# --- 4. FONCTIONS SCIENTIFIQUES ---
+# --- 4. FONCTIONS SCIENTIFIQUES & CALCULS ---
+
 def calculate_age_from_dob(dob_str):
     try:
         dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
@@ -72,7 +73,7 @@ def calculate_age_from_dob(dob_str):
         return 25 
 
 def calculate_bmr(weight, height_cm, age, gender):
-    # Formule Mifflin-St Jeor
+    """Calcule le BMR (Base) puis retourne le BMR brut."""
     bmr = (10 * weight) + (6.25 * height_cm) - (5 * age)
     if gender == "Homme":
         bmr += 5
@@ -80,8 +81,22 @@ def calculate_bmr(weight, height_cm, age, gender):
         bmr -= 161
     return bmr
 
-def calculate_calories_burned(bmr, met, duration_minutes):
-    bmr_hourly = bmr / 24
+def get_activity_multiplier(activity_level):
+    """Retourne le multiplicateur selon le niveau d'activité."""
+    levels = {
+        "Sédentaire (Bureau, peu de marche)": 1.2,
+        "Légèrement actif (Marche un peu, tâches ménagères)": 1.375,
+        "Actif (Travail debout, beaucoup de marche)": 1.55,
+        "Très actif (Travail physique dur)": 1.725
+    }
+    return levels.get(activity_level, 1.2)
+
+def calculate_calories_burned(bmr_total_day, met, duration_minutes):
+    """
+    Note: Pour le sport, on utilise le BMR horaire de base 
+    multiplié par le MET pour avoir la dépense de l'activité.
+    """
+    bmr_hourly = bmr_total_day / 24
     duration_hours = duration_minutes / 60
     return bmr_hourly * met * duration_hours
 
@@ -153,6 +168,14 @@ st.markdown("""
 # --- 7. SIDEBAR ---
 st.sidebar.title("🔐 Accès Fitness")
 
+# Options d'activité
+ACTIVITY_OPTIONS = [
+    "Sédentaire (Bureau, peu de marche)",
+    "Légèrement actif (Marche un peu, tâches ménagères)",
+    "Actif (Travail debout, beaucoup de marche)",
+    "Très actif (Travail physique dur)"
+]
+
 if not st.session_state.user:
     menu = st.sidebar.selectbox("Menu", ["Connexion", "Créer un compte"])
     username = st.sidebar.text_input("Pseudo").strip().lower()
@@ -170,7 +193,6 @@ if not st.session_state.user:
     elif menu == "Créer un compte":
         st.sidebar.markdown("### 📝 Votre Profil")
         
-        # --- CORRECTION DATE DE NAISSANCE (1900 à Aujourd'hui) ---
         dob = st.sidebar.date_input(
             "Date de naissance", 
             value=date(1990, 1, 1), 
@@ -181,6 +203,9 @@ if not st.session_state.user:
         col_s1, col_s2 = st.sidebar.columns(2)
         sexe = col_s1.selectbox("Sexe", ["Homme", "Femme"])
         taille = col_s2.number_input("Taille (cm)", 100, 250, 175)
+        
+        # --- NOUVEAU : ACTIVITÉ ---
+        activite = st.sidebar.selectbox("Niveau d'activité quotidien", ACTIVITY_OPTIONS)
         
         poids_init = st.sidebar.number_input("Poids Initial (kg)", 20.0, 300.0, 75.0)
         obj_weight = st.sidebar.number_input("Objectif Poids (kg)", 20.0, 300.0, 70.0)
@@ -195,6 +220,7 @@ if not st.session_state.user:
                     "birth_date": str(dob),
                     "sexe": sexe,
                     "taille": taille,
+                    "activity_level": activite, # On sauvegarde le niveau
                     "initial_weight": poids_init,
                     "objectif": obj_weight
                 }
@@ -228,12 +254,15 @@ if st.session_state.user:
         else:
             current_age = profile.get("age", 25)
         initial_w = profile.get("initial_weight", 75.0)
+        # Valeur par défaut si ancien profil
+        user_activity = profile.get("activity_level", "Sédentaire (Bureau, peu de marche)")
     else:
         old_obj = get_file_content(f"user_data/{user}.obj")
         profile = {
             "sexe": "Homme", "taille": 175, 
             "objectif": float(old_obj) if old_obj else 70.0
         }
+        user_activity = "Sédentaire (Bureau, peu de marche)"
 
     if csv_content:
         df = pd.read_csv(StringIO(csv_content))
@@ -254,7 +283,7 @@ if st.session_state.user:
 
     with tab1:
         st.title(f"Hello {user.capitalize()} !")
-        st.caption(f"Profil : {profile['sexe']} | {current_age} ans | {profile['taille']} cm | Départ : {initial_w} kg")
+        st.caption(f"Profil : {profile['sexe']} | {current_age} ans | {profile['taille']} cm | {user_activity}")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{current_streak} Jours")
@@ -272,7 +301,7 @@ if st.session_state.user:
                 fig.add_hline(y=initial_w, line_dash="dot", line_color="red", annotation_text="Départ")
                 st.plotly_chart(fig, use_container_width=True)
             with c2:
-                fig2 = px.bar(df, x='date', y='calories', title="🔥 Calories / Jour")
+                fig2 = px.bar(df, x='date', y='calories', title="🔥 Calories sportives / Jour")
                 st.plotly_chart(fig2, use_container_width=True)
             
             st.divider()
@@ -285,8 +314,21 @@ if st.session_state.user:
 
     with tab3:
         st.header("Nouvelle séance")
-        current_bmr = calculate_bmr(last_weight, profile['taille'], current_age, profile['sexe'])
-        st.info(f"💡 Métabolisme de base (âge {current_age} ans) : **{int(current_bmr)} kcal/jour**.")
+        
+        # --- CALCUL AVANCÉ DU MÉTABOLISME ---
+        raw_bmr = calculate_bmr(last_weight, profile['taille'], current_age, profile['sexe'])
+        activity_factor = get_activity_multiplier(user_activity)
+        maintenance_cal = raw_bmr * activity_factor
+        
+        st.info(
+            f"""
+            💡 **Analyse Métabolique :**
+            - Métabolisme de base (Coma) : **{int(raw_bmr)} kcal**
+            - Dépense journalière réelle (TDEE sans sport) : **{int(maintenance_cal)} kcal**
+            
+            *Les calories du sport ci-dessous s'ajoutent à ce total !*
+            """
+        )
 
         with st.form("add_sport"):
             col_a, col_b = st.columns(2)
@@ -298,6 +340,7 @@ if st.session_state.user:
             met_values = {"Natation": 8, "Marche": 3.5, "Course": 10, "Vélo": 6, "Fitness": 5, "Musculation": 4, "Crossfit": 8}
             
             if st.form_submit_button("Valider"):
+                # Pour le sport, on utilise le BMR brut (la base) pour calculer l'effort supplémentaire
                 bmr_day = calculate_bmr(p_input, profile['taille'], current_age, profile['sexe'])
                 kcal = calculate_calories_burned(bmr_day, met_values.get(s_input, 5), m_input)
                 
@@ -311,11 +354,9 @@ if st.session_state.user:
     with tab4:
         st.subheader("⚙️ Mettre à jour mon profil")
         
-        # Sécurisation de la date par défaut pour éviter le bug 2016-2036
         try:
             raw_dob = profile.get("birth_date", "1990-01-01")
             default_dob = datetime.strptime(raw_dob, "%Y-%m-%d").date()
-            # On s'assure que la valeur par défaut est bien dans les bornes
             if default_dob < date(1900, 1, 1): default_dob = date(1990, 1, 1)
         except:
             default_dob = date(1990, 1, 1)
@@ -323,7 +364,6 @@ if st.session_state.user:
         with st.form("update_profile"):
             c_up1, c_up2 = st.columns(2)
             
-            # --- CORRECTION DATE DE NAISSANCE (UPDATE) ---
             new_dob = c_up1.date_input(
                 "Date de naissance", 
                 value=default_dob, 
@@ -336,6 +376,11 @@ if st.session_state.user:
             idx_sex = sex_options.index(current_sex) if current_sex in sex_options else 0
             new_sexe = c_up2.selectbox("Sexe", sex_options, index=idx_sex)
             
+            # --- NOUVEAU SELECTEUR D'ACTIVITÉ (UPDATE) ---
+            curr_act = profile.get("activity_level", ACTIVITY_OPTIONS[0])
+            idx_act = ACTIVITY_OPTIONS.index(curr_act) if curr_act in ACTIVITY_OPTIONS else 0
+            new_activite = st.selectbox("Niveau d'activité quotidien", ACTIVITY_OPTIONS, index=idx_act)
+
             c_up3, c_up4 = st.columns(2)
             new_taille = c_up3.number_input("Taille (cm)", 100, 250, int(profile['taille']))
             new_init_w = c_up4.number_input("Poids Initial (kg)", 20.0, 300.0, float(initial_w))
@@ -345,6 +390,7 @@ if st.session_state.user:
             if st.form_submit_button("💾 Sauvegarder les modifications"):
                 profile['birth_date'] = str(new_dob)
                 profile['sexe'] = new_sexe
+                profile['activity_level'] = new_activite # Mise à jour
                 profile['initial_weight'] = new_init_w
                 profile['taille'] = new_taille
                 profile['objectif'] = new_obj

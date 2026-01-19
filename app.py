@@ -6,6 +6,46 @@ from datetime import date, datetime, timedelta
 from io import StringIO
 import random
 
+# --- CONFIGURATION DU FOND D'ÉCRAN ---
+def add_bg_from_github():
+    # Construction de l'URL brute (Raw) avec tes informations
+    img_url = "https://raw.githubusercontent.com/mateohier/my-fitness-app/main/f8b4c013-cf22-46c7-998d-08deb7cfea69.jpg"
+    
+    st.markdown(
+         f"""
+         <style>
+         .stApp {{
+             background-image: url("{img_url}");
+             background-attachment: fixed;
+             background-size: cover;
+             background-position: center;
+         }}
+         /* Amélioration de la lisibilité des menus sur la photo */
+         [data-testid="stSidebar"], .stTabs {{
+             background-color: rgba(0, 0, 0, 0.65) !important;
+             padding: 20px;
+             border-radius: 15px;
+             backdrop-filter: blur(8px);
+         }}
+         /* Force les textes en blanc pour qu'ils ressortent */
+         h1, h2, h3, p, label, .stMarkdown {{
+             color: white !important;
+         }}
+         /* Style des boutons pour qu'ils soient bien visibles */
+         .stButton>button {{
+             background-color: #1E88E5;
+             color: white;
+             border-radius: 10px;
+             border: none;
+         }}
+         </style>
+         """,
+         unsafe_allow_html=True
+     )
+
+# On appelle la fonction pour appliquer le fond
+add_bg_from_github()
+
 # ===============================
 # 1. CONFIGURATION GITHUB
 # ===============================
@@ -183,3 +223,4 @@ if user:
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
                 st.success("Supprimé !")
                 st.rerun()
+

@@ -44,7 +44,7 @@ repo = get_github_repo()
 @st.cache_data(ttl=60)
 def get_file_content(path):
     try:
-        # On ajoute un paramètre aléatoire pour éviter le cache navigateur si besoin
+        # Astuce : on invalide le cache navigateur en rechargeant l'objet
         file = repo.get_contents(path)
         return file.decoded_content.decode()
     except:
@@ -58,7 +58,7 @@ def save_file_to_github(path, content, message):
         except GithubException:
             repo.create_file(path, message, content)
         
-        # SUPER IMPORTANT : On vide le cache immédiatement
+        # VIDAGE OBLIGATOIRE DU CACHE
         get_file_content.clear()
         get_all_users_data.clear()
         return True
@@ -235,6 +235,7 @@ if st.session_state.user:
 
     if csv_content:
         df = pd.read_csv(StringIO(csv_content))
+        # Nettoyage robuste des dates
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         df = df.dropna(subset=['date'])
         df = df.sort_values('date')
@@ -298,27 +299,15 @@ if st.session_state.user:
                 bmr_day = calculate_bmr(p_input, profile['taille'], current_age, profile['sexe'])
                 kcal = calculate_calories_burned(bmr_day, met_values.get(s_input, 5), m_input)
                 
-                # IMPORTANT : On force la date en string pour le CSV pour éviter les bugs
                 date_str = d_input.strftime('%Y-%m-%d')
-                
                 new_row = pd.DataFrame([{
-                    "date": date_str, 
-                    "poids": p_input, 
-                    "sport": s_input, 
-                    "minutes": m_input, 
-                    "calories": round(kcal, 2)
+                    "date": date_str, "poids": p_input, "sport": s_input, "minutes": m_input, "calories": round(kcal, 2)
                 }])
-                
-                # On concatène
                 df_to_save = pd.concat([df, new_row], ignore_index=True)
                 
-                # Feedback utilisateur avec Spinner
-                with st.spinner("🚀 Sauvegarde sur GitHub en cours... (Ne fermez pas)"):
-                    success = save_file_to_github(f"user_data/{user}.csv", df_to_save.to_csv(index=False), "Add sport")
-                    
-                    if success:
-                        st.success(f"✅ Séance enregistrée : {int(kcal)} kcal ajoutées !")
-                        # TEMPS D'ATTENTE AUGMENTÉ POUR GITHUB
+                with st.spinner("🚀 Sauvegarde..."):
+                    if save_file_to_github(f"user_data/{user}.csv", df_to_save.to_csv(index=False), "Add sport"):
+                        st.success("✅ Séance ajoutée !")
                         time.sleep(2.5)
                         st.rerun()
 
@@ -345,10 +334,7 @@ if st.session_state.user:
             new_obj = st.number_input("Objectif (kg)", 20.0, 300.0, float(profile['objectif']))
             
             if st.form_submit_button("💾 Sauvegarder les modifications"):
-                profile.update({
-                    'birth_date': str(new_dob), 'sexe': new_sexe, 'activity_level': new_activite,
-                    'initial_weight': new_init_w, 'taille': new_taille, 'objectif': new_obj
-                })
+                profile.update({'birth_date': str(new_dob), 'sexe': new_sexe, 'activity_level': new_activite, 'initial_weight': new_init_w, 'taille': new_taille, 'objectif': new_obj})
                 if 'age' in profile: del profile['age']
                 save_file_to_github(f"user_data/{user}.json", json.dumps(profile), "Update Profile")
                 st.success("Profil mis à jour !")
@@ -357,11 +343,40 @@ if st.session_state.user:
                 
         st.divider()
         st.subheader("📝 Editer l'historique")
+        
         if not df.empty:
-            edited = st.data_editor(df, num_rows="dynamic")
-            if st.button("Sauvegarder l'historique"):
-                save_file_to_github(f"user_data/{user}.csv", edited.to_csv(index=False), "Edit CSV")
-                st.rerun()
+            # --- CORRECTION MAJEURE ICI ---
+            # On configure les colonnes pour forcer le format de date
+            # Cela empêche Streamlit de casser le format lors de l'édition
+            column_cfg = {
+                "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
+                "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),
+                "calories": st.column_config.NumberColumn("Calories", format="%.1f")
+            }
+            
+            edited_df = st.data_editor(
+                df, 
+                num_rows="dynamic", 
+                column_config=column_cfg, 
+                use_container_width=True,
+                key="history_editor" # Clé unique pour éviter les conflits
+            )
+            
+            if st.button("💾 Sauvegarder l'historique"):
+                with st.spinner("Mise à jour de l'historique sur GitHub..."):
+                    # On s'assure que la date est bien au format String YYYY-MM-DD avant l'envoi
+                    # Sinon Pandas peut l'envoyer au format Timestamp bizarre
+                    try:
+                        edited_df['date'] = pd.to_datetime(edited_df['date']).dt.strftime('%Y-%m-%d')
+                    except Exception as e:
+                        st.warning(f"Attention correction date: {e}")
+
+                    success = save_file_to_github(f"user_data/{user}.csv", edited_df.to_csv(index=False), "Edit History CSV")
+                    
+                    if success:
+                        st.success("Historique mis à jour avec succès !")
+                        time.sleep(2.5) # On laisse le temps à GitHub
+                        st.rerun()
 
     with tab5:
         st.header("🏆 Hall of Fame (7 jours)")

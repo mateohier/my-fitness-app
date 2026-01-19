@@ -9,7 +9,7 @@ import random
 # --- CONFIGURATION DU FOND D'ÉCRAN ---
 def add_bg_from_github():
     # Construction de l'URL brute (Raw) avec tes informations
-    img_url = "https://raw.githubusercontent.com/mateohier/my-fitness-app/main/f8b4c013-cf22-46c7-998d-08deb7cfea69.jpg"
+    img_url = "https://raw.githubusercontent.com/mateohier/my-fitness-app/main/146dd038-8bb6-4c08-866d-af5533afb445.jpg"
     
     st.markdown(
          f"""
@@ -223,4 +223,5 @@ if user:
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
                 st.success("Supprimé !")
                 st.rerun()
+
 

@@ -104,7 +104,7 @@ if not user:
     st.markdown(
         """
         <div style="text-align: center; padding: 50px; background-color: rgba(0,0,0,0.5); border-radius: 20px;">
-            <h1 style="color: white; font-size: 40px;">Bienvenue ! 👋</h1>
+            <h1 style="color: white; font-size: 40px;">Bienvenue  👋</h1>
             <p style="color: #FFD700; font-size: 24px; font-weight: bold;">
                 👉 Pour commencer, cliquez en haut à gauche sur les deux flèches ( >> )
             </p>
@@ -213,5 +213,6 @@ else:
                 df = df.drop(del_idx)
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
                 st.rerun()
+
 
 

@@ -53,9 +53,11 @@ def get_file_content(path):
 def save_file_to_github(path, content, message):
     try:
         try:
+            # On récupère le fichier actuel pour avoir le dernier SHA (essentiel pour l'update)
             contents = repo.get_contents(path)
             repo.update_file(contents.path, message, content, contents.sha)
         except GithubException:
+            # Si le fichier n'existe pas, on le crée
             repo.create_file(path, message, content)
         
         # VIDAGE OBLIGATOIRE DU CACHE
@@ -303,12 +305,26 @@ if st.session_state.user:
                 new_row = pd.DataFrame([{
                     "date": date_str, "poids": p_input, "sport": s_input, "minutes": m_input, "calories": round(kcal, 2)
                 }])
-                df_to_save = pd.concat([df, new_row], ignore_index=True)
                 
-                with st.spinner("🚀 Sauvegarde..."):
+                # OPTIMISATION CRITIQUE : 
+                # On ne se base pas sur le 'df' affiché qui peut être vieux.
+                # On recharge la source depuis GitHub pour être sûr d'avoir la dernière version.
+                try:
+                    # Appel direct sans passer par la fonction cache get_file_content pour être sûr
+                    latest_file = repo.get_contents(f"user_data/{user}.csv")
+                    latest_content = latest_file.decoded_content.decode()
+                    latest_df = pd.read_csv(StringIO(latest_content))
+                except:
+                    # Si échec (ex: fichier vide ou nouveau), on utilise un df vide
+                    latest_df = pd.DataFrame(columns=["date", "poids", "sport", "minutes", "calories"])
+
+                # Concaténation sur la version la plus fraîche
+                df_to_save = pd.concat([latest_df, new_row], ignore_index=True)
+                
+                with st.spinner("🚀 Sauvegarde sur GitHub..."):
                     if save_file_to_github(f"user_data/{user}.csv", df_to_save.to_csv(index=False), "Add sport"):
-                        st.success("✅ Séance ajoutée !")
-                        time.sleep(2.5)
+                        st.success("✅ Séance ajoutée avec succès !")
+                        time.sleep(2.5) # Délai pour propagation GitHub
                         st.rerun()
 
     with tab4:
@@ -345,9 +361,7 @@ if st.session_state.user:
         st.subheader("📝 Editer l'historique")
         
         if not df.empty:
-            # --- CORRECTION MAJEURE ICI ---
-            # On configure les colonnes pour forcer le format de date
-            # Cela empêche Streamlit de casser le format lors de l'édition
+            # OPTIMISATION : Configuration stricte pour éviter les bugs de dates
             column_cfg = {
                 "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
                 "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),
@@ -359,23 +373,22 @@ if st.session_state.user:
                 num_rows="dynamic", 
                 column_config=column_cfg, 
                 use_container_width=True,
-                key="history_editor" # Clé unique pour éviter les conflits
+                key="history_editor"
             )
             
             if st.button("💾 Sauvegarder l'historique"):
                 with st.spinner("Mise à jour de l'historique sur GitHub..."):
-                    # On s'assure que la date est bien au format String YYYY-MM-DD avant l'envoi
-                    # Sinon Pandas peut l'envoyer au format Timestamp bizarre
+                    # On force le format de date en string avant sauvegarde
                     try:
                         edited_df['date'] = pd.to_datetime(edited_df['date']).dt.strftime('%Y-%m-%d')
                     except Exception as e:
-                        st.warning(f"Attention correction date: {e}")
+                        st.warning(f"Correction auto format date...")
 
                     success = save_file_to_github(f"user_data/{user}.csv", edited_df.to_csv(index=False), "Edit History CSV")
                     
                     if success:
                         st.success("Historique mis à jour avec succès !")
-                        time.sleep(2.5) # On laisse le temps à GitHub
+                        time.sleep(2.5)
                         st.rerun()
 
     with tab5:

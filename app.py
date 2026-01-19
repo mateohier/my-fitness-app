@@ -166,7 +166,9 @@ if not st.session_state.user:
                 
     elif menu == "Créer un compte":
         st.sidebar.markdown("### 📝 Votre Profil")
-        dob = st.sidebar.date_input("Date de naissance", date(1995, 1, 1), min_value=date(1900, 1, 1), max_value=date.today())
+        
+        # --- MODIFICATION : Min=1950, Max=Aujourd'hui ---
+        dob = st.sidebar.date_input("Date de naissance", date(1995, 1, 1), min_value=date(1950, 1, 1), max_value=date.today())
         
         col_s1, col_s2 = st.sidebar.columns(2)
         sexe = col_s1.selectbox("Sexe", ["Homme", "Femme"])
@@ -307,9 +309,10 @@ if st.session_state.user:
 
         with st.form("update_profile"):
             c_up1, c_up2 = st.columns(2)
-            new_dob = c_up1.date_input("Date de naissance", default_dob, min_value=date(1900, 1, 1))
             
-            # --- AJOUT DU SÉLECTEUR DE SEXE ICI ---
+            # --- MODIFICATION : Min=1950, Max=Aujourd'hui ---
+            new_dob = c_up1.date_input("Date de naissance", default_dob, min_value=date(1950, 1, 1), max_value=date.today())
+            
             sex_options = ["Homme", "Femme"]
             current_sex = profile.get("sexe", "Homme")
             idx_sex = sex_options.index(current_sex) if current_sex in sex_options else 0
@@ -323,7 +326,7 @@ if st.session_state.user:
             
             if st.form_submit_button("💾 Sauvegarder les modifications"):
                 profile['birth_date'] = str(new_dob)
-                profile['sexe'] = new_sexe  # Mise à jour du sexe
+                profile['sexe'] = new_sexe
                 profile['initial_weight'] = new_init_w
                 profile['taille'] = new_taille
                 profile['objectif'] = new_obj

@@ -138,7 +138,7 @@ else:
     tab1, tab2, tab3, tab4 = st.tabs(["🏆 Rang & Stats", "📊 Graphiques", "➕ Ajouter", "⚙️ Gestion"])
 
     with tab1:
-        # --- TABLEAU D'HONNEUR GLOBAL ---
+        # --- NOUVEAU : TABLEAU D'HONNEUR GLOBAL ---
         st.subheader("🌟 Tableau d'Honneur (Global)")
         if full_df is not None and not full_df.empty:
             c_g1, c_g2, c_g3 = st.columns(3)
@@ -161,7 +161,7 @@ else:
             st.write("🏃💨 *Félicitations aux champions, et pour les autres : **bougez-vous les fesses !***")
             st.divider()
 
-        # --- STATS PERSONNELLES ---
+        # --- RETOUR DE TOUTES TES STATS PERSONNELLES ---
         st.header(f"Bienvenue, {user.capitalize()} !")
         total_cal = df["calories"].sum() if not df.empty else 0
         rank_name, next_level, medal, coach_msg = get_rank(total_cal)
@@ -195,10 +195,8 @@ else:
         if not df.empty:
             col_a, col_b = st.columns(2)
             with col_a:
-                st.subheader("Évolution du Poids")
                 fig, ax = plt.subplots(); ax.plot(df["date"], df["poids"], marker='o', color='#1E88E5'); ax.axhline(y=obj_val, color='r', linestyle='--'); st.pyplot(fig)
             with col_b:
-                st.subheader("Répartition par Sport")
                 sport_data = df.groupby("sport")["minutes"].sum()
                 fig2, ax2 = plt.subplots(); ax2.pie(sport_data, labels=sport_data.index, autopct='%1.1f%%'); st.pyplot(fig2)
         else: st.warning("Ajoute des données !")
@@ -219,23 +217,13 @@ else:
                 st.success("Données synchronisées !"); st.rerun()
 
     with tab4:
-        # --- SECTION GESTION COMPLÈTE RÉTABLIE ---
-        st.header("Paramètres du profil")
+        st.header("Gestion")
         new_o = st.number_input("Changer mon objectif (kg)", 40.0, 150.0, obj_val)
         if st.button("Mettre à jour l'objectif"):
-            save_file(f"user_data/{user}.obj", str(new_o))
-            st.rerun()
-            
+            save_file(f"user_data/{user}.obj", str(new_o)); st.rerun()
         st.divider()
-        st.subheader("Historique et Suppression")
         if not df.empty:
             st.dataframe(df.sort_values('date', ascending=False))
             del_idx = st.selectbox("Sélectionner l'index à supprimer", df.index)
-            if st.button("❌ Supprimer définitivement cette ligne"):
-                df = df.drop(del_idx)
-                save_file(f"user_data/{user}.csv", df.to_csv(index=False))
-                st.success("Supprimé !")
-                st.rerun()
-        else:
-            st.info("Aucune donnée à gérer pour le moment.")
-            
+            if st.button("❌ Supprimer"):
+                df = df.drop(del_idx); save_file(f"user_data/{user}.csv", df.to_csv(index=False)); st.rerun()

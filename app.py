@@ -6,11 +6,12 @@ from datetime import date, datetime, timedelta
 from io import StringIO
 import random
 
-# --- CONFIGURATION DU FOND D'ÉCRAN ---
+# --- 1. CONFIGURATION DE LA PAGE (Doit être en haut) ---
+st.set_page_config(page_title="Fitness Gamified Pro", layout="wide")
+
+# --- 2. CONFIGURATION DU FOND D'ÉCRAN ---
 def add_bg_from_github():
-    # Construction de l'URL brute (Raw) avec tes informations
     img_url = "https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.png"
-    
     st.markdown(
          f"""
          <style>
@@ -20,18 +21,15 @@ def add_bg_from_github():
              background-size: cover;
              background-position: center;
          }}
-         /* Amélioration de la lisibilité des menus sur la photo */
          [data-testid="stSidebar"], .stTabs {{
              background-color: rgba(0, 0, 0, 0.65) !important;
              padding: 20px;
              border-radius: 15px;
              backdrop-filter: blur(8px);
          }}
-         /* Force les textes en blanc pour qu'ils ressortent */
          h1, h2, h3, p, label, .stMarkdown {{
              color: white !important;
          }}
-         /* Style des boutons pour qu'ils soient bien visibles */
          .stButton>button {{
              background-color: #1E88E5;
              color: white;
@@ -43,32 +41,9 @@ def add_bg_from_github():
          unsafe_allow_html=True
      )
 
-# On appelle la fonction pour appliquer le fond
 add_bg_from_github()
 
-# --- PAGE D'ACCUEIL AVANT CONNEXION ---
-if not user:
-    st.markdown(
-        """
-        <div style="text-align: center; padding: 50px; background-color: rgba(0,0,0,0.5); border-radius: 20px;">
-            <h1 style="color: white; font-size: 40px;">Bienvenue ! 👋</h1>
-            <p style="color: #FFD700; font-size: 24px; font-weight: bold;">
-                👉 Pour commencer, cliquez en haut à gauche sur les deux flèches ( > )
-            </p>
-            <p style="color: white; font-size: 18px;">
-                Connectez-vous ou créez un compte pour suivre vos performances.
-            </p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
-    
-    # On affiche une image ou un logo si vous voulez, sinon le fond d'écran suffit
-    st.image("https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.jpg", use_container_width=True)
-
-# ===============================
-# 1. CONFIGURATION GITHUB
-# ===============================
+# --- 3. CONFIGURATION GITHUB ---
 try:
     TOKEN = st.secrets["GITHUB_TOKEN"]
     REPO_NAME = st.secrets["REPO_NAME"]
@@ -78,9 +53,7 @@ except Exception:
     st.error("⚠️ Erreur de configuration : Vérifiez GITHUB_TOKEN et REPO_NAME dans les Secrets Streamlit.")
     st.stop()
 
-# ===============================
-# 2. FONCTIONS DE GESTION CLOUD
-# ===============================
+# --- 4. FONCTIONS DE GESTION CLOUD ---
 def save_file(path, content):
     try:
         f = repo.get_contents(path)
@@ -101,12 +74,8 @@ def get_rank(total_cal):
     if total_cal < 60000: return "Athlète 🏆", 60000, "Platine", "Niveau Elite. Tu inspires le respect !"
     return "Légende 🔥", 1000000, "Diamant", "Inarrêtable. Tu es au sommet !"
 
-# ===============================
-# 3. GESTION DU PROFIL ET PIN
-# ===============================
-st.set_page_config(page_title="Fitness Gamified Pro", layout="wide")
+# --- 5. GESTION DU PROFIL (SIDEBAR) ---
 st.sidebar.title("🔐 Accès Profil")
-
 menu = st.sidebar.radio("Menu", ["Connexion", "Créer un compte"])
 user = None
 
@@ -130,11 +99,26 @@ else:
         elif stored_pin:
             st.sidebar.error("PIN incorrect.")
 
-# ===============================
-# 4. INTERFACE PRINCIPALE
-# ===============================
-if user:
-    # Chargement des données
+# --- 6. LOGIQUE D'AFFICHAGE (ACCUEIL OU INTERFACE) ---
+if not user:
+    st.markdown(
+        """
+        <div style="text-align: center; padding: 50px; background-color: rgba(0,0,0,0.5); border-radius: 20px;">
+            <h1 style="color: white; font-size: 40px;">Bienvenue ! 👋</h1>
+            <p style="color: #FFD700; font-size: 24px; font-weight: bold;">
+                👉 Pour commencer, cliquez en haut à gauche sur les deux flèches ( > )
+            </p>
+            <p style="color: white; font-size: 18px;">
+                Connectez-vous ou créez un compte pour suivre vos performances.
+            </p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    st.image("https://raw.githubusercontent.com/mateohier/my-fitness-app/main/AAAAAAAAAAAAAAAA.jpg", use_container_width=True)
+
+else:
+    # --- INTERFACE PRINCIPALE UNE FOIS CONNECTÉ ---
     csv_str = load_file(f"user_data/{user}.csv")
     obj_val = float(load_file(f"user_data/{user}.obj") or 70.0)
     
@@ -144,23 +128,18 @@ if user:
     else:
         df = pd.DataFrame(columns=["date", "poids", "sport", "minutes", "calories"])
 
-    # Calculs statistiques
     total_cal = df["calories"].sum() if not df.empty else 0
     kg_perdus_theo = total_cal / 7700
     rank_name, next_level, medal, coach_msg = get_rank(total_cal)
     
-    # Stats de la semaine
     last_7 = datetime.now() - timedelta(days=7)
-    df_week = df[df['date'] >= last_7]
+    df_week = df[df['date'] >= last_7] if not df.empty else pd.DataFrame()
     
-    # --- ONGLETS ---
     tab1, tab2, tab3, tab4 = st.tabs(["🏆 Rang & Stats", "📊 Graphiques", "➕ Ajouter", "⚙️ Gestion"])
 
     with tab1:
         st.header(f"Bienvenue, {user.capitalize()} !")
         st.info(f"💡 **Le mot du coach :** {coach_msg}")
-        
-        # Ligne de progression
         c1, c2 = st.columns([1, 2])
         with c1:
             st.metric("Rang Actuel", rank_name)
@@ -171,8 +150,6 @@ if user:
             st.progress(prog)
 
         st.divider()
-        
-        # Métriques clés
         m1, m2, m3 = st.columns(3)
         m1.metric("🔥 Total Brûlé", f"{int(total_cal)} kcal")
         m2.metric("⚖️ Perte Théorique", f"{kg_perdus_theo:.2f} kg")
@@ -181,7 +158,7 @@ if user:
             day_perf = df_week.groupby('date')['calories'].sum()
             m3.metric("🏆 Record Semaine", f"{int(day_perf.max())} kcal")
             best_sport = df_week.groupby('sport')['calories'].sum().idxmax()
-            st.write(f"🌟 **Performance de la semaine :** Ton sport n°1 est le **{best_sport}** et ton meilleur jour était le **{day_perf.idxmax().strftime('%d/%m')}**.")
+            st.write(f"🌟 **Performance :** Ton sport n°1 est le **{best_sport}** et ton meilleur jour était le **{day_perf.idxmax().strftime('%d/%m')}**.")
         else:
             m3.metric("🏆 Record Semaine", "0 kcal")
 
@@ -196,7 +173,6 @@ if user:
                 plt.xticks(rotation=45)
                 ax.legend()
                 st.pyplot(fig)
-            
             with col_b:
                 st.subheader("Répartition par Sport")
                 sport_data = df.groupby("sport")["minutes"].sum()
@@ -213,8 +189,6 @@ if user:
             p_input = st.number_input("Poids actuel (kg)", 40.0, 160.0, df.iloc[-1]["poids"] if not df.empty else 75.0)
             s_input = st.selectbox("Sport", ["Natation", "Marche", "Course", "Vélo", "Fitness", "Musculation"])
             m_input = st.number_input("Durée (minutes)", 5, 300, 30)
-            
-            # Coefficients MET
             met_values = {"Natation": 8, "Marche": 3.5, "Course": 10, "Vélo": 6, "Fitness": 5, "Musculation": 4}
             
             if st.form_submit_button("🚀 Sauvegarder sur GitHub"):
@@ -227,23 +201,15 @@ if user:
 
     with tab4:
         st.header("Paramètres du profil")
-        # Update Objectif
         new_obj = st.number_input("Changer mon objectif (kg)", 40.0, 150.0, obj_val)
         if st.button("Mettre à jour l'objectif"):
             save_file(f"user_data/{user}.obj", str(new_obj))
             st.rerun()
-        
         st.divider()
-        st.subheader("Historique et Suppression")
         if not df.empty:
             st.dataframe(df.sort_values('date', ascending=False))
             del_idx = st.selectbox("Sélectionner l'index à supprimer", df.index)
             if st.button("❌ Supprimer définitivement cette ligne"):
                 df = df.drop(del_idx)
                 save_file(f"user_data/{user}.csv", df.to_csv(index=False))
-                st.success("Supprimé !")
                 st.rerun()
-
-
-
-

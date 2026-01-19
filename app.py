@@ -30,6 +30,9 @@ init_session_state()
 @st.cache_resource
 def get_github_repo():
     try:
+        if "GITHUB_TOKEN" not in st.secrets or "REPO_NAME" not in st.secrets:
+            st.error("⚠️ Secrets manquants (GITHUB_TOKEN ou REPO_NAME).")
+            st.stop()
         g = Github(st.secrets["GITHUB_TOKEN"])
         return g.get_repo(st.secrets["REPO_NAME"])
     except Exception as e:
@@ -167,8 +170,13 @@ if not st.session_state.user:
     elif menu == "Créer un compte":
         st.sidebar.markdown("### 📝 Votre Profil")
         
-        # --- MODIFICATION : Min=1950, Max=Aujourd'hui ---
-        dob = st.sidebar.date_input("Date de naissance", date(1995, 1, 1), min_value=date(1950, 1, 1), max_value=date.today())
+        # --- CORRECTION DATE DE NAISSANCE (1900 à Aujourd'hui) ---
+        dob = st.sidebar.date_input(
+            "Date de naissance", 
+            value=date(1990, 1, 1), 
+            min_value=date(1900, 1, 1), 
+            max_value=date.today()
+        )
         
         col_s1, col_s2 = st.sidebar.columns(2)
         sexe = col_s1.selectbox("Sexe", ["Homme", "Femme"])
@@ -302,16 +310,26 @@ if st.session_state.user:
 
     with tab4:
         st.subheader("⚙️ Mettre à jour mon profil")
+        
+        # Sécurisation de la date par défaut pour éviter le bug 2016-2036
         try:
-            default_dob = datetime.strptime(profile.get("birth_date", "1990-01-01"), "%Y-%m-%d").date()
+            raw_dob = profile.get("birth_date", "1990-01-01")
+            default_dob = datetime.strptime(raw_dob, "%Y-%m-%d").date()
+            # On s'assure que la valeur par défaut est bien dans les bornes
+            if default_dob < date(1900, 1, 1): default_dob = date(1990, 1, 1)
         except:
             default_dob = date(1990, 1, 1)
 
         with st.form("update_profile"):
             c_up1, c_up2 = st.columns(2)
             
-            # --- MODIFICATION : Min=1950, Max=Aujourd'hui ---
-            new_dob = c_up1.date_input("Date de naissance", default_dob, min_value=date(1950, 1, 1), max_value=date.today())
+            # --- CORRECTION DATE DE NAISSANCE (UPDATE) ---
+            new_dob = c_up1.date_input(
+                "Date de naissance", 
+                value=default_dob, 
+                min_value=date(1900, 1, 1), 
+                max_value=date.today()
+            )
             
             sex_options = ["Homme", "Femme"]
             current_sex = profile.get("sexe", "Homme")

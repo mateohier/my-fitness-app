@@ -18,10 +18,11 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
-BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
+BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
+# Image du Boss (Changeant ou fixe)
+BOSS_IMG = "https://cdnb.artstation.com/p/assets/images/images/011/735/209/large/george-vostrikov-render1.jpg"
 
 # --- MAPPINGS ---
-# ADN (Pour le Radar Chart)
 DNA_MAP = {
     "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
     "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
@@ -40,14 +41,12 @@ DNA_MAP = {
     "Ski":         {"Force": 5, "Endurance": 7, "Agilité": 6, "Mental": 5},
     "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5}
 }
-
 SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
-# ESTIMATION VITESSE MOYENNE (KM/H) POUR CALCUL DISTANCE
 SPEED_MAP = {
     "Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, 
     "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
-    "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0, # Pas de distance
+    "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
     "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0
 }
 
@@ -96,7 +95,6 @@ def check_achievements(df):
     df = df.copy()
     df['hour'] = df['date'].dt.hour
     df['day'] = df['date'].dt.day_name()
-    
     if len(df[df['hour'] < 8]) >= 3: badges.append(("🌅 Lève-tôt", "3 séances avant 8h"))
     if len(df[df['day'] == 'Sunday']) >= 4: badges.append(("⛪ Messe Sportive", "4 Dimanches actifs"))
     if df['minutes'].max() >= 120: badges.append(("🥵 Titan", "Séance > 2h"))
@@ -181,6 +179,8 @@ st.markdown(f"""
     .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
     .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }}
     .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
+    .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
+    .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -189,7 +189,6 @@ df_u, df_a, df_d = get_data()
 
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
 
-# SIDEBAR LOGIN
 if not st.session_state.user:
     st.sidebar.title("🔥 Connexion")
     menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"])
@@ -220,7 +219,6 @@ if not st.session_state.user:
                 if save_user(u_input, hash_pin(p_input), prof):
                     st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
 else:
-    # --- USER LOGGED IN ---
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
@@ -238,11 +236,11 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    # TABS (SANS ANATOMIE)
-    tabs = st.tabs(["🏠 Dashboard", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
+    # ONGLETS (AVEC BOSS & DEFIS)
+    tabs = st.tabs(["🏠 Dashboard", "👹 Boss", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
-        st.markdown(f"<div class='quote-box'>{random.choice(['Pain is fuel.', 'Go hard or go home.', 'Tu es une machine.'])}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}")
@@ -277,19 +275,62 @@ else:
             
             st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur {dest} ({int(rest)} km)</div>", unsafe_allow_html=True)
             st.progress(min(km/1000, 1.0))
-            st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
+            st.info(f"Équivalent : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # DEFIS CLARIFIES
+    with tabs[1]: # BOSS DE MONDE
+        st.header("👹 BOSS MONDIAL")
+        
+        # Logique Boss : Calculer les calories de TOUT LE MONDE ce mois-ci
+        current_month_str = datetime.now().strftime("%Y-%m")
+        df_a['month'] = df_a['date'].dt.strftime("%Y-%m")
+        df_this_month = df_a[df_a['month'] == current_month_str]
+        
+        total_dmg = df_this_month['calories'].sum()
+        BOSS_HP = 200000 # Objectif de groupe (200k kcal)
+        hp_percent = max(0, (BOSS_HP - total_dmg) / BOSS_HP)
+        hp_percent_display = min(1.0, max(0.0, hp_percent))
+        
+        col_boss_img, col_boss_stat = st.columns([1, 2])
+        
+        with col_boss_img:
+            st.image(BOSS_IMG, use_container_width=True)
+            
+        with col_boss_stat:
+            month_name = datetime.now().strftime("%B").capitalize()
+            st.subheader(f"Le Titan du mois ({current_month_str})")
+            
+            # Barre de vie custom HTML/CSS
+            color = "#4CAF50" if hp_percent > 0.5 else ("#FF9800" if hp_percent > 0.2 else "#F44336")
+            st.markdown(f"""
+            <div style="margin-bottom:5px; color:white;">PV Restants : {int(BOSS_HP - total_dmg)} / {BOSS_HP}</div>
+            <div class="boss-bar">
+                <div class="boss-fill" style="width: {hp_percent_display*100}%; background-color: {color};"></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if hp_percent <= 0:
+                st.balloons()
+                st.success("🏆 LE BOSS EST VAINCU ! Bravo à tous !")
+            else:
+                st.info("Faites du sport pour réduire ses PV ! 1 kcal = 1 Dégât.")
+            
+            # Leaderboard DPS (Dégâts par seconde/joueur)
+            st.markdown("### ⚔️ Meilleurs Attaquants (Top DPS)")
+            if not df_this_month.empty:
+                dps = df_this_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
+                for i, (u, dmg) in enumerate(dps.items()):
+                    st.write(f"**{i+1}. {u}** : {int(dmg)} dégâts")
+            else:
+                st.write("Le combat n'a pas encore commencé...")
+
+    with tabs[2]: # DEFIS
         st.header("⚔️ Salle des Défis")
         
         with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
                 dt = st.text_input("Nom du défi", placeholder="Ex: Objectif Bikini")
-                # Sélection Cible
                 type_def = st.selectbox("Type de Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"])
-                # Sélection Sport
                 sport_target = st.selectbox("Sport concerné", ["Tous les sports"] + SPORTS_LIST)
-                
                 obj = st.number_input("Objectif à atteindre", 10.0, 50000.0, 500.0)
                 fin = st.date_input("Date limite")
                 
@@ -302,30 +343,19 @@ else:
             active = df_d[df_d['statut'] == 'Actif']
             for _, r in active.iterrows():
                 parts = r['participants'].split(',')
-                # Description propre
                 s_txt = "tous sports confondus" if r['sport_cible'] == "Tous les sports" else f"en {r['sport_cible']}"
                 unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                 
-                # Calcul Stats
-                # Filtre date + participants
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
-                
-                # Filtre sport si besoin
-                if r['sport_cible'] != "Tous les sports":
-                    c_df = c_df[c_df['sport'] == r['sport_cible']]
+                if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
 
-                # Calcul selon type
                 prog = pd.Series()
-                if "Calories" in r['type']: 
-                    prog = c_df.groupby('user')['calories'].sum()
-                elif "Durée" in r['type']: 
-                    prog = c_df.groupby('user')['minutes'].sum()
+                if "Calories" in r['type']: prog = c_df.groupby('user')['calories'].sum()
+                elif "Durée" in r['type']: prog = c_df.groupby('user')['minutes'].sum()
                 elif "Distance" in r['type']:
-                    # Estimation Distance via SPEED_MAP
                     c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
                     prog = c_df.groupby('user')['km_est'].sum()
                 
-                # Card Design
                 st.markdown(f"""
                 <div class='challenge-card'>
                     <h3>🏆 {r['titre']}</h3>
@@ -338,23 +368,32 @@ else:
                 with col_act:
                     if user not in parts:
                         if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
-                    else:
-                        st.write("✅ Tu participes")
-                        
+                    else: st.write("✅ Tu participes")
                 with col_list:
                     if not prog.empty:
-                        sorted_prog = prog.sort_values(ascending=False)
-                        for u, val in sorted_prog.items():
+                        for u, val in prog.sort_values(ascending=False).items():
                             pct = min(val/float(r['objectif']), 1.0)
                             st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
                             st.progress(pct)
-                    else:
-                        st.write("Pas encore de progression.")
+                    else: st.write("Pas encore de progression.")
                 st.divider()
-        else: st.info("Aucun défi pour le moment. Crées-en un !")
+        else: st.info("Aucun défi.")
 
-    with tabs[2]: # STATS
+    with tabs[3]: # STATS & RECORDS
         if not my_df.empty:
+            # RECORDS PERSONNELS
+            st.subheader("🏆 Tes Records Personnels")
+            max_cal_sess = my_df['calories'].max()
+            max_min_sess = my_df['minutes'].max()
+            fav_sport = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
+            
+            k1, k2, k3 = st.columns(3)
+            k1.metric("Max Kcal (1 séance)", f"{int(max_cal_sess)}")
+            k2.metric("Séance la plus longue", f"{int(max_min_sess)} min")
+            k3.metric("Sport Favori", f"{fav_sport}")
+            
+            st.divider()
+            
             c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True)
             c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True)
@@ -368,7 +407,7 @@ else:
             st.plotly_chart(fig_hm, use_container_width=True)
         else: st.write("Pas de données.")
 
-    with tabs[3]: # SEANCE
+    with tabs[4]: # SEANCE
         st.subheader("Ajouter une séance")
         with st.form("add"):
             c1, c2 = st.columns(2)
@@ -385,7 +424,7 @@ else:
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(kcal), "poids": w}])):
                     st.success(f"+{int(kcal)} kcal !"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(1); st.rerun()
 
-    with tabs[4]: # PROFIL
+    with tabs[5]: # PROFIL
         with st.form("prof"):
             nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
             nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
@@ -408,10 +447,9 @@ else:
                 conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
                 st.cache_data.clear(); st.success("OK"); st.rerun()
 
-    with tabs[5]: # TOP
+    with tabs[6]: # TOP
         if not df_a.empty:
             w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
             for i, (u, c) in enumerate(top.items()):
                 st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
-

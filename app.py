@@ -204,7 +204,15 @@ def get_data():
         except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
         
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
-        if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
+        
+        # --- MISE A JOUR STRUCTURE ACTIVITES ---
+        if df_a.empty: 
+            df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "steps"])
+        else:
+            # Assure que les colonnes existent
+            if 'distance' not in df_a.columns: df_a['distance'] = 0.0
+            if 'steps' not in df_a.columns: df_a['steps'] = 0
+            
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
@@ -218,6 +226,11 @@ def get_data():
 def save_activity(new_row):
     try:
         df = conn.read(worksheet="Activites", ttl=0)
+        
+        # Compatibilité si colonnes manquantes dans le sheet distant
+        if 'distance' not in df.columns: df['distance'] = 0.0
+        if 'steps' not in df.columns: df['steps'] = 0
+        
         upd = pd.concat([df, new_row], ignore_index=True)
         upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
         conn.update(worksheet="Activites", data=upd)
@@ -519,24 +532,82 @@ else:
             d = c1.date_input("Date", date.today())
             t = c2.time_input("Heure", datetime.now().time())
             s = c1.selectbox("Sport", SPORTS_LIST)
-            m = c2.number_input("Durée (min)", 1, 300, 45)
+            
+            # --- LOGIQUE DYNAMIQUE DES CHAMPS ---
+            m = 0.0
+            dist = 0.0
+            steps = 0
+            
+            # Définition du type de saisie selon le sport
+            input_type = "Durée" # Par défaut
+            
+            if s in ["Course", "Natation"]:
+                input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
+            elif s == "Marche":
+                input_type = c2.radio("Type d'objectif", ["Durée", "Pas"], horizontal=True)
+            
+            # Affichage du champ adéquat
+            if input_type == "Durée":
+                m = c1.number_input("Durée (min)", 1, 300, 45)
+            elif input_type == "Distance":
+                default_dist = 5.0 if s == "Course" else 1.0
+                dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
+                # Conversion auto
+                speed = SPEED_MAP.get(s, 1.0)
+                if speed > 0: m = (dist / speed) * 60
+            elif input_type == "Pas":
+                steps = c1.number_input("Nombre de pas", 100, 100000, 5000)
+                # Estimation : ~10 min pour 1000 pas
+                m = steps / 100.0
+
+            if input_type != "Durée":
+                c2.info(f"⏱️ Durée estimée : {int(m)} min")
+
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
+            
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
                 base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
-                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
-                    st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+                
+                # Sauvegarde avec nouvelles colonnes
+                new_row = pd.DataFrame([{
+                    "date": dt, "user": user, "sport": s, 
+                    "minutes": m, "calories": int(total_kcal), "poids": w,
+                    "distance": dist, "steps": steps
+                }])
+                
+                if save_activity(new_row):
+                    st.success(f"✅ +{int(total_kcal)} kcal")
+                    if dist > 0: st.caption(f"Distance : {dist} km")
+                    if steps > 0: st.caption(f"Pas : {steps}")
+                    st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}")
+                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
+                    time.sleep(2); st.rerun()
+        
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
-            edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config={"Supprimer": st.column_config.CheckboxColumn("🗑️ Cocher pour supprimer", default=False)})
+            
+            # Config colonnes pour afficher distance/pas si pertinent
+            col_conf = {
+                "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
+                "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),
+                "steps": st.column_config.NumberColumn("Pas", format="%d"),
+                "minutes": st.column_config.NumberColumn("Min", format="%d")
+            }
+            
+            edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config=col_conf)
             if st.button("💾 Sauvegarder changements"):
                 to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
                 to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
                 to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
+                
+                if 'distance' in to_keep.columns: to_keep['distance'] = pd.to_numeric(to_keep['distance'])
+                if 'steps' in to_keep.columns: to_keep['steps'] = pd.to_numeric(to_keep['steps'])
+
                 conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                 st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
@@ -590,7 +661,6 @@ else:
             max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
             tot_sess = len(my_df)
             
-            # CSS GRID pour le CARRÉ 2x2
             st.markdown(f"""
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                 <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>

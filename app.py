@@ -447,6 +447,17 @@ else:
                 
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
                     st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal"); st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+        
+        st.divider()
+        st.subheader("📜 Historique de vos séances")
+        if not my_df.empty:
+            edi = st.data_editor(my_df, use_container_width=True, num_rows="dynamic")
+            if st.button("Sauvegarder Modifs"):
+                df_others = df_a[df_a['user'] != user]
+                edi['date'] = pd.to_datetime(edi['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                edi['poids'] = pd.to_numeric(edi['poids']); edi['calories'] = pd.to_numeric(edi['calories'])
+                conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
+                st.cache_data.clear(); st.success("OK"); st.rerun()
 
     with tabs[2]: # BOSS
         curr_month_num = datetime.now().month
@@ -608,7 +619,7 @@ else:
                     for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
             else: st.info("Le classement est vide cette semaine. À vous de jouer !")
 
-    with tabs[6]: # PROFIL & HISTORIQUE
+    with tabs[6]: # PROFIL FULL EDIT
         st.subheader("📝 Modifier mes informations")
         with st.form("prof_full"):
             c1, c2 = st.columns(2)
@@ -626,16 +637,6 @@ else:
                 if new_pin and len(new_pin) == 4: pin_to_save = hash_pin(new_pin); st.success("PIN modifié !")
                 save_user(user, pin_to_save, prof)
                 st.success("Profil mis à jour !"); time.sleep(1); st.rerun()
-        
-        st.subheader("Historique")
-        if not my_df.empty:
-            edi = st.data_editor(my_df, use_container_width=True, num_rows="dynamic")
-            if st.button("Sauvegarder Modifs"):
-                df_others = df_a[df_a['user'] != user]
-                edi['date'] = pd.to_datetime(edi['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                edi['poids'] = pd.to_numeric(edi['poids']); edi['calories'] = pd.to_numeric(edi['calories'])
-                conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
-                st.cache_data.clear(); st.success("OK"); st.rerun()
         
         st.divider()
         st.error("⚠️ Zone de Danger")

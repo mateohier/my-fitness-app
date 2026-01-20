@@ -530,7 +530,7 @@ else:
             # Logique d'affichage dynamique pour tous les sports
             if s == "Marche":
                 opts = ["Durée (min)", "Nombre de pas", "Distance (km)"]
-            elif s == "Course":
+            elif s == "Course" or s == "Natation":
                 opts = ["Durée (min)", "Distance (km)"]
             else:
                 opts = ["Durée (min)"]
@@ -551,10 +551,10 @@ else:
                 if s == "Marche" and val_steps > 0:
                     base_kcal = val_steps * 0.045
                     if m == 45: m = int(val_steps / 100)
-                elif (s == "Marche" or s == "Course") and val_km > 0:
-                    mult = 0.5 if s == "Marche" else 1.0
+                elif (s == "Marche" or s == "Course" or s == "Natation") and val_km > 0:
+                    mult = 0.5 if s == "Marche" else (3.0 if s == "Natation" else 1.0)
                     base_kcal = w * val_km * mult
-                    if m == 45: m = int(val_km * (12 if s == "Marche" else 6))
+                    if m == 45: m = int(val_km * (12 if s == "Marche" else (25 if s == "Natation" else 6)))
                 else:
                     dna = DNA_MAP.get(s, {})
                     intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
@@ -673,4 +673,3 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
-

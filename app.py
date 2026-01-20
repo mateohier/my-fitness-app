@@ -118,10 +118,8 @@ def check_achievements(df):
     return badges
 
 def calculate_advanced_streaks(df_all, current_user):
-    # 1. SÉRIE PERSO (Jours consécutifs)
     user_streak = 0
     df_user = df_all[df_all['user'] == current_user].copy()
-    
     if not df_user.empty:
         user_dates = df_user['date'].dt.date.unique()
         user_dates.sort()
@@ -135,39 +133,22 @@ def calculate_advanced_streaks(df_all, current_user):
                     else: break
             else: user_streak = 0
 
-    # 2. SÉRIE ÉQUIPE (Jours consécutifs avec >= 3 personnes actives)
-    # Logique : Pour garder la série, il faut qu'hier (ou aujourd'hui) il y ait eu 3 personnes actives.
-    # Une personne est "active" à une date J si elle a fait du sport à J ou J-1 (série active).
     team_streak = 0
     if not df_all.empty:
         today = date.today()
-        # On remonte le temps jour par jour
         check_date = today
         while True:
-            # Qui a fait du sport ce jour-là (check_date) ou la veille (check_date - 1) ?
-            # Cela définit qui avait une "série individuelle non nulle" à ce moment là
             day_minus_1 = check_date - timedelta(days=1)
-            
-            # On filtre les activités sur cette fenêtre de 2 jours
             mask = (df_all['date'].dt.date == check_date) | (df_all['date'].dt.date == day_minus_1)
             unique_active_users = df_all[mask]['user'].nunique()
-            
             if unique_active_users >= 3:
                 team_streak += 1
-                check_date -= timedelta(days=1) # On vérifie le jour d'avant
+                check_date -= timedelta(days=1)
             else:
-                # Si on est aujourd'hui et qu'on a pas encore 3 personnes, on ne casse pas tout de suite
-                # si hier la série était bonne. Mais pour le calcul strict "série en cours", 
-                # si la condition n'est pas remplie, c'est 0.
-                # Petit ajustement UX : Si c'est aujourd'hui et qu'on a pas encore le compte,
-                # on regarde si hier c'était bon. Si oui, la série est "en attente" mais pas 0.
                 if check_date == today and team_streak == 0:
-                    # On check hier pour voir si la série continue
                     check_date -= timedelta(days=1)
                     continue
-                else:
-                    break
-                    
+                else: break
     return user_streak, team_streak
 
 # --- 3. GESTION DONNÉES ---
@@ -312,7 +293,8 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
-        dob = st.sidebar.date_input("Naissance", value=date(1990,1,1))
+        # FIX : Ajout de min_value et max_value pour permettre les dates > 2000
+        dob = st.sidebar.date_input("Naissance", value=date(2000,1,1), min_value=date(1900,1,1), max_value=date.today())
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
         act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
@@ -347,11 +329,13 @@ else:
     tabs = st.tabs(["🏠 Dashboard", "👹 Boss", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
+        st.title(f"👋 Bienvenue, {user.capitalize()} !")
         st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}")
         st.progress(pct)
+        st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
         
         c1, c2, c3, c4 = st.columns(4)
         today_val = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
@@ -363,12 +347,20 @@ else:
 
         c_l, c_r = st.columns(2)
         with c_l:
-            st.subheader("🧬 ADN")
+            st.subheader("🧬 ADN Sportif")
             if sum(dna.values())>0:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
-                fig.update_traces(fill='toself', line_color='#FF4B4B')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False)), paper_bgcolor="rgba(0,0,0,0)", font_color="white")
+                fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(visible=False, range=[0, 100]),
+                        bgcolor='rgba(0,0,0,0)'
+                    ),
+                    font=dict(size=14, color="white"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=40, r=40, t=20, b=20)
+                )
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
             
@@ -486,9 +478,21 @@ else:
                 df_chart['week'] = df_chart['date'].dt.to_period('W').apply(lambda r: r.start_time)
                 df_chart = df_chart.groupby('week').agg({'poids': 'mean', 'calories': 'sum'}).reset_index().rename(columns={'week': 'date'})
 
+            # Custom Dark Theme
+            def style_fig(fig):
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                fig.update_xaxes(showgrid=False, linecolor='gray')
+                fig.update_yaxes(gridcolor='rgba(255,255,255,0.1)')
+                return fig
+
             c1, c2 = st.columns(2)
-            c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Évolution Poids", markers=True), use_container_width=True, config={'staticPlot': True})
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Calories Brûlées"), use_container_width=True, config={'staticPlot': True})
+            fig1 = px.line(df_chart, x='date', y='poids', title="Évolution Poids", markers=True)
+            fig1.update_traces(line_color='#FF4B4B', marker_color='white')
+            c1.plotly_chart(style_fig(fig1), use_container_width=True, config={'staticPlot': True})
+            
+            fig2 = px.bar(df_chart, x='date', y='calories', title="Calories Brûlées")
+            fig2.update_traces(marker_color='#FF4B4B')
+            c2.plotly_chart(style_fig(fig2), use_container_width=True, config={'staticPlot': True})
         else: st.write("Pas de données.")
 
     with tabs[4]: # SEANCE
@@ -512,7 +516,11 @@ else:
         st.subheader("📝 Modifier mes informations")
         with st.form("prof_full"):
             c1, c2 = st.columns(2)
-            new_dob = c1.date_input("Date de naissance", datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"))
+            # FIX : Ajout de min_value et max_value pour modification
+            new_dob = c1.date_input("Date de naissance", 
+                                    value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"), 
+                                    min_value=date(1900,1,1), 
+                                    max_value=date.today())
             new_sex = c2.selectbox("Sexe", ["Homme", "Femme"], index=0 if prof.get('sex') == "Homme" else 1)
             new_h = c1.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
             new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
@@ -545,9 +553,30 @@ else:
             if st.button("OUI, Supprimer"):
                 if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()
 
-    with tabs[6]: # TOP
+    with tabs[6]: # TOP & HALL OF FAME
+        st.header("🏛️ Hall of Fame (Records de tous les temps)")
         if not df_a.empty:
+            max_cal_all = df_a.loc[df_a['calories'].idxmax()]
+            max_min_all = df_a.loc[df_a['minutes'].idxmax()]
+            
+            c1, c2 = st.columns(2)
+            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
+            
+            st.divider()
+            
+            st.subheader("🏆 Classement Hebdomadaire")
             w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
-            top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
-            for i, (u, c) in enumerate(top.items()): st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
-
+            if not w_df.empty:
+                top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
+                cols = st.columns(3)
+                medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
+                
+                for i, (u, c) in enumerate(top.head(3).items()):
+                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                
+                if len(top) > 3:
+                    st.write("")
+                    st.write("**La suite du peloton :**")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
+            else: st.info("Le classement est vide cette semaine. À vous de jouer !")

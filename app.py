@@ -39,18 +39,15 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
     """Charge les deux tables : Profils et Activités"""
-    # On force le rechargement pour avoir les données fraiches (ttl=0)
     try:
         df_users = conn.read(worksheet="Profils", ttl=0)
         df_acts = conn.read(worksheet="Activites", ttl=0)
         
-        # Initialisation si vide
         if df_users.empty: 
             df_users = pd.DataFrame(columns=["user", "pin", "json_data"])
         if df_acts.empty: 
             df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
-        # Conversion types
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
         df_acts = df_acts.dropna(subset=['date'])
         
@@ -64,10 +61,9 @@ def save_activity(new_row):
     try:
         _, df_acts = get_data()
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
-        # Convert date to string for storage
         updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
         conn.update(worksheet="Activites", data=updated_df)
-        st.cache_data.clear() # Vide le cache Streamlit
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Erreur sauvegarde: {e}")
@@ -77,14 +73,10 @@ def save_user(username, pin_hash, profile_data):
     """Crée ou met à jour un utilisateur dans l'onglet Profils"""
     try:
         df_users, _ = get_data()
-        
-        # Préparation de la donnée JSON
         json_str = json.dumps(profile_data)
         
-        # Si l'user existe, on met à jour, sinon on crée
         if username in df_users['user'].values:
             df_users.loc[df_users['user'] == username, 'json_data'] = json_str
-            # On ne touche pas au PIN sauf si demandé (ici on update tout le profil)
         else:
             new_user = pd.DataFrame([{"user": username, "pin": pin_hash, "json_data": json_str}])
             df_users = pd.concat([df_users, new_user], ignore_index=True)
@@ -97,19 +89,13 @@ def save_user(username, pin_hash, profile_data):
         return False
 
 def update_history(df_edited):
-    """Met à jour tout l'historique (pour l'onglet Gestion)"""
+    """Met à jour tout l'historique"""
     try:
-        # On doit d'abord récupérer toutes les activités des AUTRES utilisateurs pour ne pas les effacer
         _, df_all_acts = get_data()
         current_user = st.session_state.user
-        
-        # On garde les lignes qui NE sont PAS à l'utilisateur actuel
         df_others = df_all_acts[df_all_acts['user'] != current_user]
+        df_edited['user'] = current_user
         
-        # On prépare les données éditées de l'utilisateur actuel
-        df_edited['user'] = current_user # Sécurité
-        
-        # On fusionne
         df_final = pd.concat([df_others, df_edited], ignore_index=True)
         df_final['date'] = pd.to_datetime(df_final['date']).dt.strftime('%Y-%m-%d')
         
@@ -156,7 +142,13 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
-        dob = st.sidebar.date_input("Naissance", value=date(1990,1,1), min_value=date(1900,1,1))
+        # CORRECTION 1 : Bornes explicites pour l'inscription
+        dob = st.sidebar.date_input(
+            "Naissance", 
+            value=date(1990,1,1), 
+            min_value=date(1900,1,1), 
+            max_value=date.today()
+        )
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
         act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
@@ -184,7 +176,7 @@ else:
     user_row = df_users[df_users['user'] == user].iloc[0]
     prof = json.loads(user_row['json_data'])
     
-    # Filtrage des activités de l'utilisateur
+    # Filtrage des activités
     my_df = df_acts[df_acts['user'] == user].copy()
     if not my_df.empty:
         my_df = my_df.sort_values('date')
@@ -252,7 +244,6 @@ else:
             m = c2.number_input("Durée (min)", 1, 300, 45)
             
             if st.form_submit_button("Sauvegarder"):
-                # Calcul calories sport
                 met = {"Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 4, "Crossfit": 8, "Marche": 3.5, "Fitness": 6}
                 cal_sport = (calculate_bmr(w, prof['h'], age, prof['sex']) / 24) * met.get(s, 5) * (m/60)
                 
@@ -271,7 +262,13 @@ else:
         st.subheader("Profil")
         with st.form("edit_prof"):
             col1, col2 = st.columns(2)
-            new_dob = col1.date_input("Naissance", datetime.strptime(prof['dob'], "%Y-%m-%d"))
+            # CORRECTION 2 : Bornes explicites pour la modification aussi !
+            new_dob = col1.date_input(
+                "Naissance", 
+                value=datetime.strptime(prof['dob'], "%Y-%m-%d"),
+                min_value=date(1900,1,1),
+                max_value=date.today()
+            )
             new_act = col2.selectbox("Activité", ACTIVITY_OPTS, index=ACTIVITY_OPTS.index(prof['act']))
             new_obj = st.number_input("Objectif", value=float(prof['w_obj']))
             
@@ -295,13 +292,11 @@ else:
 
     with t5:
         st.header("🏆 Classement (7 jours)")
-        # Plus besoin de lire 50 fichiers, tout est dans df_acts !
         if not df_acts.empty:
             now = pd.Timestamp.now()
             week_df = df_acts[df_acts['date'] >= (now - pd.Timedelta(days=7))]
             
             if not week_df.empty:
-                # Top Calories
                 top = week_df.groupby("user")['calories'].sum().sort_values(ascending=False).head(3)
                 cols = st.columns(3)
                 medals = ["🥇", "🥈", "🥉"]
@@ -309,7 +304,6 @@ else:
                     cols[i].markdown(f"<div class='podium-box'><h1>{medals[i]}</h1><h3>{u}</h3><p>{int(c)} kcal</p></div>", unsafe_allow_html=True)
                 
                 st.divider()
-                # Top par Sport
                 st.subheader("Rois du sport")
                 best = week_df.groupby(['sport', 'user'])['minutes'].sum().reset_index()
                 best = best.loc[best.groupby('sport')['minutes'].idxmax()]

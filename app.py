@@ -203,22 +203,17 @@ def get_data():
         try: df_p = conn.read(worksheet="Posts", ttl=600)
         except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
         
-        try: df_s = conn.read(worksheet="Podometre", ttl=600)
-        except: df_s = pd.DataFrame(columns=["date", "user", "steps"])
-        
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
         if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
-        if df_s.empty: df_s = pd.DataFrame(columns=["date", "user", "steps"])
             
         df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce')
         df_a = df_a.dropna(subset=['date'])
         df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
-        df_s['date'] = pd.to_datetime(df_s['date'], errors='coerce')
         
-        return df_u, df_a, df_d, df_p, df_s
-    except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return df_u, df_a, df_d, df_p
+    except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 def save_activity(new_row):
     try:
@@ -238,18 +233,6 @@ def save_post(image_b64, comment):
             "image": image_b64, "comment": comment, "seen_by": st.session_state.user
         }])
         conn.update(worksheet="Posts", data=pd.concat([df, new], ignore_index=True))
-        st.cache_data.clear(); return True
-    except: return False
-
-def save_steps(user, steps):
-    """Sauvegarde les pas manuels dans Podometre"""
-    try:
-        df = conn.read(worksheet="Podometre", ttl=0)
-        new = pd.DataFrame([{
-            "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "user": user, "steps": steps
-        }])
-        conn.update(worksheet="Podometre", data=pd.concat([df, new], ignore_index=True))
         st.cache_data.clear(); return True
     except: return False
 
@@ -300,15 +283,20 @@ def change_username(old_u, new_u):
         df_a = conn.read(worksheet="Activites", ttl=0)
         df_d = conn.read(worksheet="Defis", ttl=0)
         df_p = conn.read(worksheet="Posts", ttl=0)
-        df_s = conn.read(worksheet="Podometre", ttl=0)
         
+        # 1. Profils
         df_u.loc[df_u['user'] == old_u, 'user'] = new_u
+        
+        # 2. Activités
         if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
-        if not df_s.empty: df_s.loc[df_s['user'] == old_u, 'user'] = new_u
+        
+        # 3. Posts
         if not df_p.empty:
             df_p.loc[df_p['user'] == old_u, 'user'] = new_u
             def upd_csv(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
             df_p['seen_by'] = df_p['seen_by'].apply(upd_csv)
+            
+        # 4. Défis
         if not df_d.empty:
             df_d.loc[df_d['createur'] == old_u, 'createur'] = new_u
             def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
@@ -318,7 +306,6 @@ def change_username(old_u, new_u):
         conn.update(worksheet="Activites", data=df_a)
         conn.update(worksheet="Defis", data=df_d)
         conn.update(worksheet="Posts", data=df_p)
-        conn.update(worksheet="Podometre", data=df_s)
         st.cache_data.clear()
         return "OK"
     except Exception as e: return str(e)
@@ -395,7 +382,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 5. LOGIQUE ---
-df_u, df_a, df_d, df_p, df_s = get_data()
+df_u, df_a, df_d, df_p = get_data()
 clean_old_posts(df_p) # Nettoyage auto
 
 if not st.session_state.user:
@@ -457,23 +444,9 @@ else:
         st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
-        
-        # Récupération des pas automatiques (IFTTT) + Ajout manuel possible
-        auto_steps = 0
-        if not df_s.empty:
-            today_s = df_s[(df_s['user'] == user) & (df_s['date'].dt.date == date.today())]
-            if not today_s.empty: auto_steps = int(today_s['steps'].sum())
-        
-        with c2:
-            st.metric("Pas (Auto)", f"{auto_steps}")
-            with st.popover("➕ Ajouter pas manuels"):
-                add_s = st.number_input("Nombre de pas", 0, 50000, 0)
-                if st.button("Valider"): 
-                    save_steps(user, add_s); st.success("Ajouté"); st.rerun()
-
-        c3.metric("🔥 Série Perso", f"{streak_user} Jours")
-        c4.metric("🏆 Trophées", f"{len(check_achievements(my_df))}")
-        
+        c2.metric("🔥 Série Perso", f"{streak_user} Jours")
+        c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
+        c4.metric("Trophées", f"{len(check_achievements(my_df))}")
         if not df_a.empty:
             all_totals = df_a.groupby('user')['calories'].sum()
             celebrations = []
@@ -541,59 +514,20 @@ else:
 
     with tabs[2]: # SEANCE
         st.subheader("Ajouter une séance")
-        # Sélection du sport en dehors du form pour permettre le refresh
-        s = st.selectbox("Sport", SPORTS_LIST, key="sport_selection")
-        
         with st.form("add"):
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
             t = c2.time_input("Heure", datetime.now().time())
-            
-            # Champs conditionnels selon le sport choisi
-            val_steps = 0
-            val_km = 0.0
-            
-            if s == "Marche":
-                input_type = st.radio("Je renseigne :", ["Durée (min)", "Nombre de pas", "Distance (km)"], horizontal=True)
-                if input_type == "Nombre de pas":
-                    val_steps = st.number_input("Nombre de pas", 0, 100000, 5000)
-                elif input_type == "Distance (km)":
-                    val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
-            elif s == "Course":
-                input_type = st.radio("Je renseigne :", ["Durée (min)", "Distance (km)"], horizontal=True)
-                if input_type == "Distance (km)":
-                    val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
-                
+            s = c1.selectbox("Sport", SPORTS_LIST)
             m = c2.number_input("Durée (min)", 1, 300, 45)
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
-            
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
-                
-                # Calcul spécifique selon le sport
-                base_kcal = 0
-                # Si l'utilisateur n'a pas renseigné la durée mais a mis des pas ou des km, on estime la durée pour la BDD
-                if s == "Marche" and val_steps > 0:
-                    base_kcal = val_steps * 0.045 # Moyenne 0.045 kcal/pas
-                    if m <= 1: m = int(val_steps / 100) # Est. 100 pas/min
-                elif (s == "Marche" or s == "Course") and val_km > 0:
-                    base_kcal = w * val_km # Moyenne 1 kcal/kg/km
-                    if m <= 1: 
-                        if s == "Marche": m = int(val_km * 12) # Est. 5km/h
-                        else: m = int(val_km * 6) # Est. 10km/h
-                else:
-                    # Formule standard pour les autres sports (et durée)
-                    dna = DNA_MAP.get(s, {})
-                    intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
-                    base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
-                
-                epoc_rate = EPOC_MAP.get(s, 0.05)
-                epoc_bonus = base_kcal * epoc_rate
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
+                epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
-                
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
                     st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
-        
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
@@ -659,8 +593,8 @@ else:
             # CSS GRID pour le CARRÉ 2x2
             st.markdown(f"""
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Max Kcal</div></div>
-                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Max Min</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
                 <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
                 <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
             </div>

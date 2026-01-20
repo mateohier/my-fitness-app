@@ -310,7 +310,7 @@ else:
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='#FF4B4B')
                 fig.update_layout(polar=dict(radialaxis=dict(visible=False)), paper_bgcolor="rgba(0,0,0,0)", font_color="white")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
             
         with c_r:
@@ -446,8 +446,8 @@ else:
             st.divider()
             
             c1, c2 = st.columns(2)
-            c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True)
-            c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True)
+            c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True, config={'staticPlot': True})
+            c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True, config={'staticPlot': True})
             
             hm_data = my_df.groupby(my_df['date'].dt.date)['minutes'].sum().reset_index()
             hm_data['date'] = pd.to_datetime(hm_data['date'])
@@ -455,7 +455,7 @@ else:
             hm_data['day'] = hm_data['date'].dt.dayofweek
             fig_hm = go.Figure(go.Heatmap(x=hm_data['week'], y=hm_data['day'], z=hm_data['minutes'], colorscale='Greens', showscale=False))
             fig_hm.update_layout(height=150, margin=dict(t=20,b=20), yaxis=dict(ticktext=['Lun','','','','','','Dim'], tickvals=[0,1,2,3,4,5,6]), title="Régularité (Heatmap)")
-            st.plotly_chart(fig_hm, use_container_width=True)
+            st.plotly_chart(fig_hm, use_container_width=True, config={'staticPlot': True})
         else: st.write("Pas de données.")
 
     with tabs[4]: # SEANCE
@@ -517,6 +517,3 @@ else:
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
             for i, (u, c) in enumerate(top.items()):
                 st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
-
-
-

@@ -588,8 +588,18 @@ else:
         if not my_df.empty:
             st.subheader("🏆 Records")
             max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
-            tot_sess = len(my_df) # La 4ème boite est ici
-            st.markdown(f"""<div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;"><div class="stat-card"><div style="font-size:2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Max Kcal</div></div><div class="stat-card"><div style="font-size:2em;">⏱️</div><div class="stat-val">{int(max_m)}</div><div class="stat-label">Max Min</div></div><div class="stat-card"><div style="font-size:2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Favori</div></div><div class="stat-card"><div style="font-size:2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
+            tot_sess = len(my_df)
+            
+            # CSS GRID pour le CARRÉ 2x2
+            st.markdown(f"""
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})

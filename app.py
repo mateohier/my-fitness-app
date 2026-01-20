@@ -22,18 +22,18 @@ BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/ref
 
 # --- CALENDRIER DES BOSS ---
 BOSS_CALENDAR = {
-    1: ("Yéti des Glaces", 50000, "https://images.unsplash.com/photo-1546519638-68e109498ee3?q=80&w=1000"),
-    2: ("Golem de Pierre", 60000, "https://images.unsplash.com/photo-1617374028688-66236b280388?q=80&w=1000"),
-    3: ("Hydre des Marais", 70000, "https://images.unsplash.com/photo-1616091216791-a5360b5fc78a?q=80&w=1000"),
-    4: ("Titan Colossal", 80000, "https://images.unsplash.com/photo-1590845947698-8924d7409b56?q=80&w=1000"),
-    5: ("Reine des Enfers", 90000, "https://images.unsplash.com/photo-1627449557342-6323136209b9?q=80&w=1000"),
-    6: ("Dragon Solaire", 100000, "https://images.unsplash.com/photo-1594956108155-2272e5052994?q=80&w=1000"),
-    7: ("Kraken des Abysses", 110000, "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1000"),
-    8: ("Seigneur Volcanique", 120000, "https://images.unsplash.com/photo-1469598614039-ccfeb0a21111?q=80&w=1000"),
-    9: ("Chevalier Noir", 130000, "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=1000"),
-    10: ("Spectre d'Halloween", 140000, "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?q=80&w=1000"),
-    11: ("Cyborg du Futur", 150000, "https://images.unsplash.com/photo-1535378437323-955a6d73a36c?q=80&w=1000"),
-    12: ("Père Fouettard Géant", 160000, "https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=1000")
+    1: ("Yéti des Glaces", 50000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/1.jpg"),
+    2: ("Golem de Pierre", 60000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/2.jpg"),
+    3: ("Hydre des Marais", 70000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/3.jpg"),
+    4: ("Titan Colossal", 80000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/4.jpg"),
+    5: ("Reine des Enfers", 90000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/5.jpg"),
+    6: ("Dragon Solaire", 100000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/6.jpg"),
+    7: ("Kraken des Abysses", 110000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/7.jpg"),
+    8: ("Seigneur Volcanique", 120000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/8.jpg"),
+    9: ("Chevalier Noir", 130000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/9.jpg"),
+    10: ("Spectre d'Halloween", 140000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/10.jpg"),
+    11: ("Cyborg du Futur", 150000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/11.jpg"),
+    12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
 # --- MAPPINGS ---
@@ -517,5 +517,6 @@ else:
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
             for i, (u, c) in enumerate(top.items()):
                 st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
+
 
 

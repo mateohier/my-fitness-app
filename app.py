@@ -12,6 +12,9 @@ import numpy as np
 import requests
 import uuid
 from streamlit_lottie import st_lottie
+from PIL import Image # Pour traiter les images
+import io
+import base64
 
 # --- 1. CONFIGURATION & CONSTANTES ---
 st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
@@ -168,6 +171,19 @@ def calculate_advanced_streaks(df_all, current_user):
                 else: break
     return user_streak, team_streak
 
+def process_avatar(image_file):
+    """Redimensionne et convertit l'image en base64 pour stockage léger"""
+    if image_file is None: return None
+    try:
+        img = Image.open(image_file)
+        img = img.convert('RGB') # Assurer format compatible
+        img.thumbnail((150, 150)) # Redimensionner petit pour la base de données
+        buffered = io.BytesIO()
+        img.save(buffered, format="JPEG", quality=70)
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        return f"data:image/jpeg;base64,{img_str}"
+    except: return None
+
 # --- 3. GESTION DONNÉES ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -278,14 +294,14 @@ def get_user_badge(username, df_u):
         row = df_u[df_u['user'] == username].iloc[0]
         p_data = json.loads(row['json_data'])
         # Si pas d'avatar perso, on génère un avatar unique avec DiceBear
-        avatar = p_data.get('avatar', f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}")
+        avatar = p_data.get('avatar', "")
         if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     except:
         avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     
     return f"""
     <span style='display:inline-flex; align-items:center; border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:2px 10px; background:rgba(0,0,0,0.3); margin-right:5px;'>
-        <img src='{avatar}' style='width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover;'>
+        <img src='{avatar}' style='width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover; background: white;'>
         <span style='font-weight:bold; color:white;'>{username.capitalize()}</span>
     </span>
     """
@@ -656,13 +672,23 @@ else:
             new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
             curr_act_idx = ACTIVITY_OPTS.index(prof.get('act', ACTIVITY_OPTS[1])) if prof.get('act') in ACTIVITY_OPTS else 1
             new_act = st.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=curr_act_idx)
-            new_avatar = st.text_input("URL de votre Avatar (Image)", value=prof.get('avatar', ''))
+            
+            # FILE UPLOADER FOR AVATAR
+            new_avatar_file = st.file_uploader("Photo de profil (Image)", type=['png', 'jpg', 'jpeg'])
             new_pin = st.text_input("Nouveau PIN (Laisser vide pour ne pas changer)", type="password", max_chars=4)
 
             if st.form_submit_button("💾 Enregistrer les modifications"):
-                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act, 'avatar': new_avatar})
+                # Handle avatar
+                final_avatar = prof.get('avatar', "")
+                if new_avatar_file:
+                    processed_avatar = process_avatar(new_avatar_file)
+                    if processed_avatar: final_avatar = processed_avatar
+
+                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act, 'avatar': final_avatar})
+                
                 pin_to_save = row['pin']
                 if new_pin and len(new_pin) == 4: pin_to_save = hash_pin(new_pin); st.success("PIN modifié !")
+                
                 save_user(user, pin_to_save, prof)
                 st.success("Profil mis à jour !"); time.sleep(1); st.rerun()
         

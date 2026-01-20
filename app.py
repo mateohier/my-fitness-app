@@ -48,13 +48,10 @@ def get_data():
             df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
         # --- NETTOYAGE DES DONNÉES ---
-        # 1. Dates
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
-        # 2. Poids & Calories (Force en nombre, remplace les erreurs par 0)
         df_acts['poids'] = pd.to_numeric(df_acts['poids'], errors='coerce')
         df_acts['calories'] = pd.to_numeric(df_acts['calories'], errors='coerce')
         
-        # On supprime les lignes vides/invalides
         df_acts = df_acts.dropna(subset=['date'])
         
         return df_users, df_acts
@@ -66,10 +63,9 @@ def save_activity(new_row):
         df_acts = conn.read(worksheet="Activites", ttl=0)
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
         
-        # Formatage propre pour Google Sheets
         updated_df['date'] = pd.to_datetime(updated_df['date'], errors='coerce')
         updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
-        updated_df['poids'] = updated_df['poids'].astype(float) # Force le float
+        updated_df['poids'] = updated_df['poids'].astype(float)
         
         conn.update(worksheet="Activites", data=updated_df)
         st.cache_data.clear()
@@ -180,15 +176,14 @@ else:
     user_row = df_users[df_users['user'] == user].iloc[0]
     prof = json.loads(user_row['json_data'])
     
-    # Récupération & Tri des activités
+    # Récupération Données
     my_df = df_acts[df_acts['user'] == user].copy()
     
-    # CALCUL DU POIDS ACTUEL (Logique corrigée)
+    # Récupération dernier poids pour le formulaire
     start_weight = float(prof.get('w_init', 70.0))
-    
     if not my_df.empty:
-        my_df = my_df.sort_values('date') # On trie par date
-        last_weight = float(my_df.iloc[-1]['poids']) # On prend le tout dernier poids
+        my_df = my_df.sort_values('date')
+        last_weight = float(my_df.iloc[-1]['poids'])
     else:
         last_weight = start_weight
 
@@ -196,6 +191,7 @@ else:
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
     rank, next_lvl, _ = get_rank(total_cal)
     
+    # Calcul Streak
     streak = 0
     if not my_df.empty:
         dates = pd.to_datetime(my_df['date']).dt.date.unique()
@@ -218,11 +214,12 @@ else:
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{streak} Jours")
         
-        # CALCUL PERTE DE GRAS
-        loss = start_weight - last_weight
-        c2.metric("⚖️ Perte Totale", f"{loss:.1f} kg", f"Départ: {start_weight}kg → Actuel: {last_weight}kg", delta_color="normal" if loss > 0 else "off")
+        # --- NOUVEAU CALCUL : Basé sur les calories ---
+        # 1 kg de gras = 7700 kcal
+        gras_brule = total_cal / 7700
+        c2.metric("🔥 Gras Brûlé", f"{gras_brule:.2f} kg", f"Basé sur {int(total_cal)} kcal")
         
-        c3.metric("⚡ Total", f"{int(total_cal):,} kcal")
+        c3.metric("⚡ Total Burn", f"{int(total_cal):,} kcal")
         c4.metric("🏅 Rang", rank)
         st.progress(min(total_cal / next_lvl, 1.0))
 
@@ -291,7 +288,6 @@ else:
             new_act = col4.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=idx_act)
             
             col5, col6 = st.columns(2)
-            # Attention : Si on change ceci, cela change le point de départ du calcul de perte
             new_w_init = col5.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
             new_obj = col6.number_input("Objectif Poids (kg)", 30.0, 200.0, float(prof.get('w_obj', 65.0)))
             
@@ -307,7 +303,6 @@ else:
 
         st.subheader("📝 Modifier l'historique")
         if not my_df.empty:
-            # On configure les colonnes pour forcer le bon typage dans l'éditeur
             col_config = {
                 "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
                 "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),

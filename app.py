@@ -39,7 +39,7 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS (AJOUT SPORT DE CHAMBRE) ---
+# --- MAPPINGS ---
 DNA_MAP = {
     "Musculation": {"Force": 10, "Endurance": 4, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
     "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
@@ -88,6 +88,18 @@ EPOC_MAP = {
 }
 
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
+
+# --- PALIERS DE VOYAGE (KM) ---
+MILESTONES = [
+    (42, "Marathon 🏃"),
+    (344, "Paris ➡ Londres 🇬🇧"),
+    (1000, "Traversée de la France (Nord-Sud) 🇫🇷"),
+    (1332, "Tour de l'Islande 🇮🇸"),
+    (2480, "Paris ➡ Moscou 🇷🇺"),
+    (3940, "Route 66 (USA) 🇺🇸"),
+    (4500, "New York ➡ Los Angeles 🗽"),
+    (5836, "Paris ➡ New York ✈️")
+]
 
 # --- 2. UTILITAIRES ---
 def hash_pin(pin): return hashlib.sha256(str(pin).encode()).hexdigest()
@@ -209,17 +221,12 @@ def get_data():
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
         
         # --- MISE A JOUR STRUCTURE ACTIVITES ---
-        # Utilisation de 'pas' au lieu de 'steps'
         if df_a.empty: 
             df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
         else:
-            # Assure que les colonnes existent
             if 'distance' not in df_a.columns: df_a['distance'] = 0.0
             if 'pas' not in df_a.columns: df_a['pas'] = 0
-            
-            # NETTOYAGE FORCE : Si 'steps' existe encore, on la supprime du DataFrame
-            if 'steps' in df_a.columns:
-                df_a = df_a.drop(columns=['steps'])
+            if 'steps' in df_a.columns: df_a = df_a.drop(columns=['steps'])
             
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
@@ -234,8 +241,6 @@ def get_data():
 def save_activity(new_row):
     try:
         df = conn.read(worksheet="Activites", ttl=0)
-        
-        # Compatibilité si colonnes manquantes dans le sheet distant
         if 'distance' not in df.columns: df['distance'] = 0.0
         if 'pas' not in df.columns: df['pas'] = 0
         
@@ -263,7 +268,6 @@ def clean_old_posts(df_p):
         if df_p.empty: return
         now = datetime.now()
         df_p['date'] = pd.to_datetime(df_p['date'])
-        # Garder uniquement les posts < 7 jours
         new_df = df_p[df_p['date'] >= (now - timedelta(days=7))]
         if len(new_df) < len(df_p):
             new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -305,19 +309,19 @@ def change_username(old_u, new_u):
         df_d = conn.read(worksheet="Defis", ttl=0)
         df_p = conn.read(worksheet="Posts", ttl=0)
         
-        # 1. Profils
+        # Profils
         df_u.loc[df_u['user'] == old_u, 'user'] = new_u
         
-        # 2. Activités
+        # Activités
         if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
         
-        # 3. Posts
+        # Posts
         if not df_p.empty:
             df_p.loc[df_p['user'] == old_u, 'user'] = new_u
             def upd_csv(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
             df_p['seen_by'] = df_p['seen_by'].apply(upd_csv)
             
-        # 4. Défis
+        # Défis
         if not df_d.empty:
             df_d.loc[df_d['createur'] == old_u, 'createur'] = new_u
             def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
@@ -464,10 +468,8 @@ else:
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
         
-        # --- NOUVELLE SECTION : TOTAL & PERTE DE GRAS ---
-        # 7700 kcal ~= 1 kg de graisse
+        # --- TOTAL & PERTE DE GRAS ---
         kg_fat = total_cal / 7700
-        
         st.markdown("### 📊 Cumul Global")
         k1, k2 = st.columns(2)
         k1.metric("Total Calories Brûlées", f"{int(total_cal)} kcal")
@@ -502,12 +504,18 @@ else:
         with c_r:
             st.subheader("🌍 Voyage")
             km = total_cal / 60
-            villes = [("Lille", 0), ("Paris", 225), ("Lyon", 690), ("Marseille", 1000)]
-            dest, rest = "Marseille", 0
-            for v, d in villes:
-                if km < d: dest = v; rest = d - km; break
-            st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur {dest} ({int(rest)} km)</div>", unsafe_allow_html=True)
-            st.progress(min(km/1000, 1.0))
+            
+            # --- LOGIQUE DES PALIERS ---
+            target_label = "Vers l'infini"
+            target_km = 99999
+            for dist, label in MILESTONES:
+                if km < dist:
+                    target_label = label
+                    target_km = dist
+                    break
+            
+            st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
+            st.progress(min(km/target_km, 1.0))
 
     with tabs[1]: # PARTAGE (FEED)
         st.header("📸 Mur de Partage (7 jours)")
@@ -547,55 +555,46 @@ else:
 
     with tabs[2]: # SEANCE
         st.subheader("Ajouter une séance")
-        # IMPORTANT : Pas de st.form ici pour garder l'interactivité "en cascade"
         
         c1, c2 = st.columns(2)
         d = c1.date_input("Date", date.today())
         t = c2.time_input("Heure", datetime.now().time())
         s = c1.selectbox("Sport", SPORTS_LIST)
         
-        # --- LOGIQUE DYNAMIQUE EN CASCADE ---
         m = 0.0
         dist = 0.0
         steps = 0
-        input_type = "Durée" # Par défaut
+        input_type = "Durée" 
         
-        # 1. Le choix du TYPE apparaît seulement si le sport le permet
         if s in ["Course", "Natation"]:
             input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
         elif s == "Marche":
             input_type = c2.radio("Type d'objectif", ["Durée", "Pas"], horizontal=True)
         else:
-            # Pour les autres sports, on force Durée sans afficher de radio
             c2.info("⏱️ Objectif : Durée")
 
-        # 2. Le champ de saisie apparaît selon le TYPE choisi
         if input_type == "Durée":
             m = c1.number_input("Durée (min)", 1, 300, 45)
         elif input_type == "Distance":
             default_dist = 5.0 if s == "Course" else 1.0
             dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
-            # Conversion auto pour les stats
             speed = SPEED_MAP.get(s, 1.0)
             if speed > 0: m = (dist / speed) * 60
         elif input_type == "Pas":
             steps = c1.number_input("Nombre de pas", 100, 100000, 5000)
-            m = steps / 100.0 # Estimation
+            m = steps / 100.0 
 
-        # Feedback immédiat
         if input_type != "Durée":
             c2.success(f"⏱️ Équivalent : {int(m)} min")
 
         w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
         
-        # Bouton de validation (hors formulaire, agit directement)
         if st.button("Sauvegarder la séance", type="primary"):
             dt = datetime.combine(d, t)
             base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
             epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
             total_kcal = base_kcal + epoc_bonus
             
-            # --- CORRECTION ICI : "pas": steps ---
             new_row = pd.DataFrame([{
                 "date": dt, "user": user, "sport": s, 
                 "minutes": m, "calories": int(total_kcal), "poids": w,
@@ -615,7 +614,6 @@ else:
         if not my_df.empty:
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
             
-            # Config colonnes 'pas'. Si 'steps' existe encore dans le DF, on ne l'affiche pas ici grâce à get_data nettoyé.
             col_conf = {
                 "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
                 "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),
@@ -630,7 +628,6 @@ else:
                 to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
                 
                 if 'distance' in to_keep.columns: to_keep['distance'] = pd.to_numeric(to_keep['distance'])
-                # Sauvegarde colonne 'pas'
                 if 'pas' in to_keep.columns: to_keep['pas'] = pd.to_numeric(to_keep['pas'])
 
                 conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
@@ -699,10 +696,8 @@ else:
             
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
             
-            # --- MODIF ICI: Graphique Poids avec Objectif ---
             target_w = float(prof.get('w_obj', 65.0))
             fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
-            # Ajout de la ligne d'objectif
             fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
             fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
             

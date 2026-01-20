@@ -14,7 +14,7 @@ import uuid
 from streamlit_lottie import st_lottie
 
 # --- 1. CONFIGURATION & CONSTANTES ---
-st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
 
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
@@ -268,6 +268,9 @@ st.markdown(f"""
     .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
     .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
     .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }}
+    .stat-card {{ background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; }}
+    .stat-val {{ font-size: 1.8em; font-weight: bold; color: #FF4B4B; }}
+    .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -275,10 +278,21 @@ st.markdown(f"""
 df_u, df_a, df_d = get_data()
 
 if not st.session_state.user:
-    st.title("🏃‍♂️ Fitness Gamified Pro")
-    st.markdown("### 👋 Bienvenue !")
-    st.info("👈 **Cliquez sur la flèche en haut à gauche** pour ouvrir le menu et vous connecter.")
+    st.title("✨ FollowFit")
+    st.markdown("### L'aventure sportive commence ici.")
+    st.info("👈 **C'est parti ! Ouvre le menu en haut à gauche pour te connecter ou t'inscrire.**")
     
+    st.divider()
+    with st.expander("💌 Le mot du Développeur", expanded=True):
+        st.markdown("""
+        Salut la famille et les amis ! 👋
+        
+        J'ai créé **FollowFit** pour qu'on puisse se motiver ensemble, peu importe où l'on est.
+        Ici, pas de jugement, juste du fun, des défis et un gros monstre à battre tous les mois !
+        
+        Amusez-vous bien, bougez bien, et surtout... **battez mes records !** 😉
+        """)
+
     st.sidebar.title("🔥 Connexion")
     menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"])
     u_input = st.sidebar.text_input("Pseudo").strip().lower()
@@ -326,7 +340,7 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    tabs = st.tabs(["🏠 Dashboard", "👹 Boss", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
+    tabs = st.tabs(["🏠 Tableau de Bord", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "➕ Séance", "⚙️ Profil", "🏆 Classement"])
 
     with tabs[0]: # DASHBOARD
         st.title(f"👋 Bienvenue, {user.capitalize()} !")
@@ -345,13 +359,11 @@ else:
         badges = check_achievements(my_df)
         c4.metric("Trophées", f"{len(badges)}")
 
-        # --- NOUVEAU : FLASH INFOS CÉLÉBRATIONS ---
+        # FLASH INFOS CÉLÉBRATIONS
         if not df_a.empty:
             st.markdown("### 🌟 Célébrations de la Communauté")
-            # Analyse simple des performances globales
             all_totals = df_a.groupby('user')['calories'].sum()
             celebrations = []
-            
             for u, cal in all_totals.items():
                 u_lvl, _, _ = get_level_progress(cal)
                 if u_lvl >= 5: celebrations.append(f"🎖️ **{u.capitalize()}** est un vétéran de Niveau {u_lvl} !")
@@ -372,12 +384,8 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                # FIX ADN : Marges plus grandes + Police plus petite
                 fig.update_layout(
-                    polar=dict(
-                        radialaxis=dict(visible=False, range=[0, 100]),
-                        bgcolor='rgba(0,0,0,0)'
-                    ),
+                    polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'),
                     font=dict(size=10, color="white"),
                     paper_bgcolor="rgba(0,0,0,0)",
                     margin=dict(l=80, r=80, t=20, b=20),
@@ -481,11 +489,35 @@ else:
             st.subheader("🏆 Tes Records Personnels")
             max_c = my_df['calories'].max()
             max_m = my_df['minutes'].max()
-            fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "-"
-            k1, k2, k3 = st.columns(3)
-            k1.metric("Record Kcal", f"{int(max_c)}")
-            k2.metric("Séance Longue", f"{int(max_m)} min")
-            k3.metric("Sport Favori", fav)
+            fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
+            tot_sess = len(my_df)
+            
+            # NOUVEAU DESIGN RECORDS
+            st.markdown(f"""
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div style="font-size: 2em;">🔥</div>
+                    <div class="stat-val">{int(max_c)}</div>
+                    <div class="stat-label">Record Calories</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 2em;">⏱️</div>
+                    <div class="stat-val">{int(max_m)} min</div>
+                    <div class="stat-label">Record Durée</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 2em;">❤️</div>
+                    <div class="stat-val">{fav}</div>
+                    <div class="stat-label">Sport Favori</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 2em;">🏋️‍♂️</div>
+                    <div class="stat-val">{tot_sess}</div>
+                    <div class="stat-label">Total Sessions</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.divider()
             
             c_filter, _ = st.columns([1, 3])
@@ -500,7 +532,6 @@ else:
                 df_chart['week'] = df_chart['date'].dt.to_period('W').apply(lambda r: r.start_time)
                 df_chart = df_chart.groupby('week').agg({'poids': 'mean', 'calories': 'sum'}).reset_index().rename(columns={'week': 'date'})
 
-            # Custom Dark Theme for Stats
             def style_fig(fig):
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
                 fig.update_xaxes(showgrid=False, linecolor='gray')
@@ -574,26 +605,12 @@ else:
     with tabs[6]: # TOP & HALL OF FAME
         st.header("🏛️ Hall of Fame (Records de tous les temps)")
         if not df_a.empty:
-            # Records Globaux
             max_cal_all = df_a.loc[df_a['calories'].idxmax()]
             max_min_all = df_a.loc[df_a['minutes'].idxmax()]
             
             c1, c2 = st.columns(2)
-            c1.markdown(f"""
-            <div class='glass'>
-                <h3>🔥 Machine de Guerre</h3>
-                <p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>
-                en une séance de {max_cal_all['sport']} ! 🤯</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            c2.markdown(f"""
-            <div class='glass'>
-                <h3>⏳ Endurance Infinie</h3>
-                <p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>
-                sur une séance de {max_min_all['sport']} ! 👏</p>
-            </div>
-            """, unsafe_allow_html=True)
+            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
             
             st.divider()
             
@@ -605,18 +622,10 @@ else:
                 medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
                 
                 for i, (u, c) in enumerate(top.head(3).items()):
-                    cols[i].markdown(f"""
-                    <div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'>
-                        <h1>{medals[i].split()[0]}</h1>
-                        <h3>{u.capitalize()}</h3>
-                        <p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
                 
                 if len(top) > 3:
                     st.write("")
                     st.write("**La suite du peloton :**")
-                    for i, (u, c) in enumerate(top.iloc[3:].items()):
-                        st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
-            else:
-                st.info("Le classement est vide cette semaine. À vous de jouer !")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
+            else: st.info("Le classement est vide cette semaine. À vous de jouer !")

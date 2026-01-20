@@ -206,12 +206,13 @@ def get_data():
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
         
         # --- MISE A JOUR STRUCTURE ACTIVITES ---
+        # Utilisation de 'pas' au lieu de 'steps'
         if df_a.empty: 
-            df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "steps"])
+            df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
         else:
             # Assure que les colonnes existent
             if 'distance' not in df_a.columns: df_a['distance'] = 0.0
-            if 'steps' not in df_a.columns: df_a['steps'] = 0
+            if 'pas' not in df_a.columns: df_a['pas'] = 0
             
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
@@ -229,7 +230,7 @@ def save_activity(new_row):
         
         # Compatibilité si colonnes manquantes dans le sheet distant
         if 'distance' not in df.columns: df['distance'] = 0.0
-        if 'steps' not in df.columns: df['steps'] = 0
+        if 'pas' not in df.columns: df['pas'] = 0
         
         upd = pd.concat([df, new_row], ignore_index=True)
         upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -575,15 +576,17 @@ else:
             epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
             total_kcal = base_kcal + epoc_bonus
             
+            # --- CORRECTION ICI : "pas": steps ---
             new_row = pd.DataFrame([{
                 "date": dt, "user": user, "sport": s, 
                 "minutes": m, "calories": int(total_kcal), "poids": w,
-                "distance": dist, "steps": steps
+                "distance": dist, "pas": steps 
             }])
             
             if save_activity(new_row):
                 st.success(f"✅ +{int(total_kcal)} kcal")
                 if dist > 0: st.caption(f"Distance : {dist} km")
+                if steps > 0: st.caption(f"Pas : {steps}")
                 st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}")
                 st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
                 time.sleep(2); st.rerun()
@@ -593,10 +596,11 @@ else:
         if not my_df.empty:
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
             
+            # Config colonnes 'pas'
             col_conf = {
                 "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
                 "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),
-                "steps": st.column_config.NumberColumn("Pas", format="%d"),
+                "pas": st.column_config.NumberColumn("Pas", format="%d"),
                 "minutes": st.column_config.NumberColumn("Min", format="%d")
             }
             
@@ -607,7 +611,8 @@ else:
                 to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
                 
                 if 'distance' in to_keep.columns: to_keep['distance'] = pd.to_numeric(to_keep['distance'])
-                if 'steps' in to_keep.columns: to_keep['steps'] = pd.to_numeric(to_keep['steps'])
+                # Sauvegarde colonne 'pas'
+                if 'pas' in to_keep.columns: to_keep['pas'] = pd.to_numeric(to_keep['pas'])
 
                 conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                 st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()

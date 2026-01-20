@@ -542,7 +542,7 @@ else:
     with tabs[2]: # SEANCE
         st.subheader("Ajouter une séance")
         # Sélection du sport en dehors du form pour permettre le refresh
-        s = st.selectbox("Sport", SPORTS_LIST)
+        s = st.selectbox("Sport", SPORTS_LIST, key="sport_selection")
         
         with st.form("add"):
             c1, c2 = st.columns(2)
@@ -554,9 +554,15 @@ else:
             val_km = 0.0
             
             if s == "Marche":
-                val_steps = c1.number_input("Nombre de pas", 0, 100000, 5000)
+                input_type = st.radio("Je renseigne :", ["Durée (min)", "Nombre de pas", "Distance (km)"], horizontal=True)
+                if input_type == "Nombre de pas":
+                    val_steps = st.number_input("Nombre de pas", 0, 100000, 5000)
+                elif input_type == "Distance (km)":
+                    val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
             elif s == "Course":
-                val_km = c1.number_input("Distance (km)", 0.0, 100.0, 5.0)
+                input_type = st.radio("Je renseigne :", ["Durée (min)", "Distance (km)"], horizontal=True)
+                if input_type == "Distance (km)":
+                    val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
                 
             m = c2.number_input("Durée (min)", 1, 300, 45)
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
@@ -566,12 +572,17 @@ else:
                 
                 # Calcul spécifique selon le sport
                 base_kcal = 0
+                # Si l'utilisateur n'a pas renseigné la durée mais a mis des pas ou des km, on estime la durée pour la BDD
                 if s == "Marche" and val_steps > 0:
                     base_kcal = val_steps * 0.045 # Moyenne 0.045 kcal/pas
-                elif s == "Course" and val_km > 0:
+                    if m <= 1: m = int(val_steps / 100) # Est. 100 pas/min
+                elif (s == "Marche" or s == "Course") and val_km > 0:
                     base_kcal = w * val_km # Moyenne 1 kcal/kg/km
+                    if m <= 1: 
+                        if s == "Marche": m = int(val_km * 12) # Est. 5km/h
+                        else: m = int(val_km * 6) # Est. 10km/h
                 else:
-                    # Formule standard pour les autres sports
+                    # Formule standard pour les autres sports (et durée)
                     dna = DNA_MAP.get(s, {})
                     intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
                     base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
@@ -700,3 +711,4 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+            

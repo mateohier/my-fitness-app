@@ -36,7 +36,7 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS (AJOUT DES NOUVEAUX SPORTS ICI) ---
+# --- MAPPINGS ---
 DNA_MAP = {
     "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
     "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
@@ -50,11 +50,10 @@ DNA_MAP = {
     "Football":    {"Force": 4, "Endurance": 8, "Agilité": 7, "Mental": 6},
     "Basket":      {"Force": 4, "Endurance": 8, "Agilité": 8, "Mental": 6},
     "Marche":      {"Force": 1, "Endurance": 4, "Agilité": 1, "Mental": 3},
-    "Danse":       {"Force": 3, "Endurance": 6, "Agilité": 10, "Mental": 5},
+    "Danse":       {"Force": 3, "Endurance": 7, "Agilité": 10, "Mental": 7},
     "Pilates":     {"Force": 4, "Endurance": 3, "Agilité": 8, "Mental": 6},
     "Ski":         {"Force": 5, "Endurance": 7, "Agilité": 6, "Mental": 5},
     "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5},
-    # Nouveaux Sports
     "Judo":        {"Force": 8, "Endurance": 6, "Agilité": 7, "Mental": 9},
     "Karaté":      {"Force": 7, "Endurance": 6, "Agilité": 8, "Mental": 9},
     "Badminton":   {"Force": 4, "Endurance": 8, "Agilité": 9, "Mental": 7},
@@ -70,9 +69,18 @@ SPEED_MAP = {
     "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
     "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
     "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
-    # Vitesse estimée pour les nouveaux sports
     "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
     "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0
+}
+
+# --- NOUVEAU : FACTEUR EPOC (Afterburn Effect) ---
+# Pourcentage de calories supplémentaires brûlées au repos après l'effort
+EPOC_MAP = {
+    "Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12,
+    "Course": 0.07, "Vélo": 0.05, "Natation": 0.06, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
+    "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
+    "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
+    "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03
 }
 
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
@@ -512,6 +520,13 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
+            with st.expander("🔥 Qu'est-ce que l'Afterburn ?", expanded=False):
+                st.info("""
+                **L'Afterburn Effect (EPOC)** est le fait de brûler des calories *après* le sport, pendant que le corps récupère.
+                Les sports intenses comme le CrossFit ou la Musculation ont un effet plus fort que la marche. 
+                Dans **FollowFit**, nous ajoutons un "Bonus Afterburn" à chaque séance selon le sport !
+                """)
+
             st.divider()
             
             c_filter, _ = st.columns([1, 3])
@@ -555,9 +570,18 @@ else:
                 dt = datetime.combine(d, t)
                 dna = DNA_MAP.get(s, {})
                 intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
-                kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
-                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(kcal), "poids": w}])):
-                    st.success(f"+{int(kcal)} kcal !"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(1); st.rerun()
+                # Calcul Base Kcal
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
+                # Calcul Bonus EPOC (Afterburn)
+                epoc_rate = EPOC_MAP.get(s, 0.05) # 5% par défaut
+                epoc_bonus = base_kcal * epoc_rate
+                total_kcal = base_kcal + epoc_bonus
+                
+                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
+                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal")
+                    st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal")
+                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
+                    time.sleep(2); st.rerun()
 
     with tabs[5]: # PROFIL FULL EDIT
         st.subheader("📝 Modifier mes informations")

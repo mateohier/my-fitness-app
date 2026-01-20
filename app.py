@@ -18,7 +18,7 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
-BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
+BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
 
 # --- CALENDRIER DES BOSS ---
 BOSS_CALENDAR = {
@@ -118,8 +118,10 @@ def check_achievements(df):
     return badges
 
 def calculate_advanced_streaks(df_all, current_user):
+    # 1. SÉRIE PERSO (Jours consécutifs)
     user_streak = 0
     df_user = df_all[df_all['user'] == current_user].copy()
+    
     if not df_user.empty:
         user_dates = df_user['date'].dt.date.unique()
         user_dates.sort()
@@ -127,22 +129,45 @@ def calculate_advanced_streaks(df_all, current_user):
             last_date = user_dates[-1]
             if (date.today() - last_date).days <= 1:
                 user_streak = 1
-                sorted_dates_desc = sorted(user_dates, reverse=True)
-                for i in range(len(sorted_dates_desc) - 1):
-                    if (sorted_dates_desc[i] - sorted_dates_desc[i+1]).days == 1: user_streak += 1
+                dates_desc = sorted(user_dates, reverse=True)
+                for i in range(len(dates_desc) - 1):
+                    if (dates_desc[i] - dates_desc[i+1]).days == 1: user_streak += 1
                     else: break
             else: user_streak = 0
 
+    # 2. SÉRIE ÉQUIPE (Jours consécutifs avec >= 3 personnes actives)
+    # Logique : Pour garder la série, il faut qu'hier (ou aujourd'hui) il y ait eu 3 personnes actives.
+    # Une personne est "active" à une date J si elle a fait du sport à J ou J-1 (série active).
     team_streak = 0
     if not df_all.empty:
-        df_all['year_week'] = df_all['date'].dt.strftime('%Y-%U')
-        weekly_counts = df_all.groupby('year_week').size()
-        weeks = sorted(weekly_counts.index)
-        current_streak = 0
-        for w in weeks:
-            if weekly_counts[w] >= 3: current_streak += 1
-            else: current_streak = 0
-        team_streak = current_streak
+        today = date.today()
+        # On remonte le temps jour par jour
+        check_date = today
+        while True:
+            # Qui a fait du sport ce jour-là (check_date) ou la veille (check_date - 1) ?
+            # Cela définit qui avait une "série individuelle non nulle" à ce moment là
+            day_minus_1 = check_date - timedelta(days=1)
+            
+            # On filtre les activités sur cette fenêtre de 2 jours
+            mask = (df_all['date'].dt.date == check_date) | (df_all['date'].dt.date == day_minus_1)
+            unique_active_users = df_all[mask]['user'].nunique()
+            
+            if unique_active_users >= 3:
+                team_streak += 1
+                check_date -= timedelta(days=1) # On vérifie le jour d'avant
+            else:
+                # Si on est aujourd'hui et qu'on a pas encore 3 personnes, on ne casse pas tout de suite
+                # si hier la série était bonne. Mais pour le calcul strict "série en cours", 
+                # si la condition n'est pas remplie, c'est 0.
+                # Petit ajustement UX : Si c'est aujourd'hui et qu'on a pas encore le compte,
+                # on regarde si hier c'était bon. Si oui, la série est "en attente" mais pas 0.
+                if check_date == today and team_streak == 0:
+                    # On check hier pour voir si la série continue
+                    check_date -= timedelta(days=1)
+                    continue
+                else:
+                    break
+                    
     return user_streak, team_streak
 
 # --- 3. GESTION DONNÉES ---
@@ -180,7 +205,7 @@ def save_user(u, p, data):
         j = json.dumps(data)
         if not df.empty and u in df['user'].values: 
             df.loc[df['user'] == u, 'json_data'] = j
-            df.loc[df['user'] == u, 'pin'] = p # Update PIN as well
+            df.loc[df['user'] == u, 'pin'] = p
         else: 
             df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
         conn.update(worksheet="Profils", data=df)
@@ -268,6 +293,10 @@ st.markdown(f"""
 df_u, df_a, df_d = get_data()
 
 if not st.session_state.user:
+    st.title("🏃‍♂️ Fitness Gamified Pro")
+    st.markdown("### 👋 Bienvenue !")
+    st.info("👈 **Cliquez sur la flèche en haut à gauche** pour ouvrir le menu et vous connecter.")
+    
     st.sidebar.title("🔥 Connexion")
     menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"])
     u_input = st.sidebar.text_input("Pseudo").strip().lower()
@@ -309,7 +338,6 @@ else:
     
     streak_user, streak_team = calculate_advanced_streaks(df_a, user)
     
-    # DNA
     dna = {"Force": 0, "Endurance": 0, "Agilité": 0, "Mental": 0}
     for _, r in my_df.iterrows():
         s_dna = DNA_MAP.get(r['sport'], {"Force":1, "Endurance":1})
@@ -329,7 +357,7 @@ else:
         today_val = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
         c1.metric("Aujourd'hui", f"{int(today_val)} kcal")
         c2.metric("🔥 Série Perso", f"{streak_user} Jours")
-        c3.metric("🛡️ Série Équipe", f"{streak_team} Sem.", "Obj: >3 act./sem")
+        c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
         badges = check_achievements(my_df)
         c4.metric("Trophées", f"{len(badges)}")
 

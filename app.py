@@ -19,6 +19,11 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 LOTTIE_GYM = "https://lottie.host/5a88c7f9-2819-4592-9654-20b18fa2409f/18qFh7lXyR.json"
 
+# --- 🖼️ CONFIGURATION IMAGE DE FOND ---
+# Remplace ceci par le lien "Raw" de ton image GitHub
+# Exemple : "https://raw.githubusercontent.com/ton-pseudo/ton-repo/main/background.jpg"
+BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
+
 # Mapping des muscles par sport (Score sur 10)
 MUSCLE_MAP = {
     "Musculation": {"Bras": 8, "Pecs": 8, "Dos": 8, "Jambes": 6, "Cardio": 2},
@@ -42,7 +47,6 @@ MUSCLE_MAP = {
     "Rugby": {"Jambes": 9, "Cardio": 9, "Bras": 8, "Pecs": 7, "Dos": 7},
     "Volley": {"Jambes": 8, "Bras": 7, "Cardio": 6, "Dos": 4, "Pecs": 3}
 }
-
 SPORTS_LIST = sorted(list(MUSCLE_MAP.keys()))
 
 # --- 2. UTILITAIRES ---
@@ -64,7 +68,6 @@ def calculate_age(dob_str):
     except: return 25
 
 def calculate_bmr(weight, height, age, sex):
-    # Mifflin-St Jeor
     val = (10 * weight) + (6.25 * height) - (5 * age)
     return val + 5 if sex == "Homme" else val - 161
 
@@ -86,24 +89,21 @@ def get_food_equivalent(calories):
 
 def get_motivational_quote():
     quotes = [
-        "Chaque goutte de sueur est une victoire ! 💦",
-        "Tu es plus fort(e) que tu ne le penses ! 💪",
-        "N'abandonne jamais, les miracles prennent du temps. ✨",
-        "Ton seul ennemi, c'est toi-même d'hier. 🚀",
-        "La douleur d'aujourd'hui est la force de demain. 🔥",
-        "Petit progrès deviendra grand ! 🌱",
+        "Chaque goutte de sueur est une victoire ! 💦", "Tu es plus fort(e) que tu ne le penses ! 💪",
+        "N'abandonne jamais, les miracles prennent du temps. ✨", "Ton seul ennemi, c'est toi-même d'hier. 🚀",
+        "La douleur d'aujourd'hui est la force de demain. 🔥", "Petit progrès deviendra grand ! 🌱",
         "Tu es une machine de guerre ! 🤖"
     ]
     return random.choice(quotes)
 
-# --- NOUVEAU : ALGORITHMES ---
 def check_achievements(df):
-    """Analyse l'historique pour débloquer des badges"""
+    """Analyse l'historique pour débloquer des badges (Correction Timezone)"""
     badges = []
     if df.empty: return badges
 
-    # Copie pour manipulation
     df = df.copy()
+    # On s'assure que c'est bien du datetime
+    df['date'] = pd.to_datetime(df['date'])
     df['hour'] = df['date'].dt.hour
     df['day_name'] = df['date'].dt.day_name()
     
@@ -118,69 +118,53 @@ def check_achievements(df):
         badges.append(("🔥 Fournaise", "10k kcal brûlées"))
     if df['sport'].nunique() >= 5:
         badges.append(("🤹 Polyvalent", "5 sports différents"))
-    if len(df) >= 50:
-        badges.append(("🛡️ Vétéran", "50 séances enregistrées"))
         
     return badges
 
 def predict_success(df, current_weight, target_weight):
-    """Régression linéaire (NumPy) pour prédire la date d'objectif"""
     if len(df) < 5: return None, "Pas assez de données (min 5 séances)"
-    
     df = df.sort_values('date').dropna(subset=['poids'])
-    # Conversion date -> ordinal pour calcul mathématique
     df['date_ord'] = df['date'].map(pd.Timestamp.toordinal)
     
     x = df['date_ord'].values
     y = df['poids'].values
-    
-    # Calcul pente (slope) et ordonnée à l'origine (intercept)
     slope, intercept = np.polyfit(x, y, 1)
     
-    if slope >= 0:
-        return None, "📈 Tendance : Stagnation ou prise de poids."
+    if slope >= 0: return None, "📈 Tendance : Stagnation ou prise de poids."
     
-    # x = (y - b) / a
     target_ordinal = (target_weight - intercept) / slope
-    
     try:
         pred_date = date.fromordinal(int(target_ordinal))
         days_left = (pred_date - date.today()).days
         if days_left < 0: return None, "Objectif théoriquement atteint !"
-        if days_left > 1000: return None, "Objectif très lointain (> 3 ans)"
         return pred_date, f"📅 Atteinte prévue dans **{days_left} jours**"
-    except:
-        return None, "Calcul impossible"
+    except: return None, "Calcul impossible"
 
-# --- 3. GESTION DONNÉES (GOOGLE SHEETS) ---
+# --- 3. GESTION DONNÉES ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
     try:
-        # Augmentation du TTL pour performance
         df_users = conn.read(worksheet="Profils", ttl=600)
         df_acts = conn.read(worksheet="Activites", ttl=600)
         
-        if df_users.empty: 
-            df_users = pd.DataFrame(columns=["user", "pin", "json_data"])
-        if df_acts.empty: 
-            df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
+        if df_users.empty: df_users = pd.DataFrame(columns=["user", "pin", "json_data"])
+        if df_acts.empty: df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
         df_acts['poids'] = pd.to_numeric(df_acts['poids'], errors='coerce')
         df_acts['calories'] = pd.to_numeric(df_acts['calories'], errors='coerce')
         df_acts = df_acts.dropna(subset=['date'])
-        
         return df_users, df_acts
-    except Exception as e:
-        return pd.DataFrame(), pd.DataFrame()
+    except Exception as e: return pd.DataFrame(), pd.DataFrame()
 
 def save_activity(new_row):
     try:
-        df_acts = conn.read(worksheet="Activites", ttl=0) # Lecture fraîche pour écriture
+        df_acts = conn.read(worksheet="Activites", ttl=0)
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
+        # CORRECTION : Sauvegarde avec l'heure
         updated_df['date'] = pd.to_datetime(updated_df['date'], errors='coerce')
-        updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
+        updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
         updated_df['poids'] = updated_df['poids'].astype(float)
         conn.update(worksheet="Activites", data=updated_df)
         st.cache_data.clear()
@@ -208,32 +192,41 @@ def update_history(df_edited):
         df_others = df_all_acts[df_all_acts['user'] != current_user]
         df_edited['user'] = current_user
         df_final = pd.concat([df_others, df_edited], ignore_index=True)
+        # Correction format update
         df_final['date'] = pd.to_datetime(df_final['date'], errors='coerce')
-        df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
+        df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df_final['poids'] = pd.to_numeric(df_final['poids'], errors='coerce')
         conn.update(worksheet="Activites", data=df_final)
         st.cache_data.clear()
         return True
     except: return False
 
-# --- 4. CSS & STATE ---
+# --- 4. CSS (IMAGE DE FOND) ---
 if 'user' not in st.session_state: st.session_state.user = None
 
-st.markdown("""
+st.markdown(f"""
     <style>
-    .stMetricValue { font-size: 1.8rem !important; }
-    div[data-testid="stSidebar"] { background-color: rgba(20, 20, 20, 0.95); }
-    .quote-box {
+    /* Image de fond */
+    .stApp {{
+        background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("{BACKGROUND_URL}");
+        background-attachment: fixed;
+        background-size: cover;
+    }}
+    .stMetricValue {{ font-size: 1.8rem !important; color: white !important; }}
+    div[data-testid="stSidebar"] {{ background-color: rgba(20, 20, 20, 0.95); }}
+    
+    /* Boites */
+    .quote-box {{
         padding: 15px; background: linear-gradient(45deg, #FF4B4B, #FF9068);
         border-radius: 10px; color: white; text-align: center;
         font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;
         box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
-    }
-    .journey-box, .podium-box { 
-        background-color:rgba(255,255,255,0.05); 
-        padding:15px; border-radius:10px; border:1px solid #444; 
-        text-align:center;
-    }
+    }}
+    .journey-box, .podium-box {{ 
+        background-color:rgba(255,255,255,0.1); 
+        padding:15px; border-radius:10px; border:1px solid #555; 
+        text-align:center; backdrop-filter: blur(5px);
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -281,8 +274,6 @@ if not st.session_state.user:
 else:
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
-    
-    # Bouton Logout
     if st.sidebar.button("Déconnexion"):
         st.session_state.user = None
         st.rerun()
@@ -304,7 +295,6 @@ else:
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
     rank, next_lvl, _ = get_rank(total_cal)
     
-    # Calcul Streak (Série)
     streak = 0
     if not my_df.empty:
         dates = pd.to_datetime(my_df['date']).dt.date.unique()
@@ -317,16 +307,13 @@ else:
                     if (dates[i] - dates[i-1]).days == 1: streak += 1
                     else: break
 
-    # --- INTERFACE TABS ---
     t1, t2, t3, t4, t5 = st.tabs(["🏠 Dashboard", "📈 Graphiques", "➕ Séance", "⚙️ Gestion", "🏆 Leaderboard"])
     
     with t1:
-        # 1. CITATION
         quote = get_motivational_quote()
         st.markdown(f"<div class='quote-box'>✨ {quote}</div>", unsafe_allow_html=True)
         st.title(f"Bonjour {user.capitalize()}")
 
-        # 2. KPI
         height_m = prof['h'] / 100
         imc = last_weight / (height_m ** 2)
         if imc < 18.5: imc_status = "Maigreur"
@@ -334,30 +321,23 @@ else:
         elif 25 <= imc < 30: imc_status = "Surpoids ⚠️"
         else: imc_status = "Obésité 🚨"
         
-        gras_brule_kg = total_cal / 7700
-
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{streak} Jours")
-        c2.metric("⚖️ Gras Brûlé", f"{gras_brule_kg:.2f} kg", f"Basé sur {int(total_cal)} kcal")
-        c3.metric("⚡ Total Burn", f"{int(total_cal):,} kcal")
+        c2.metric("⚖️ Gras Brûlé", f"{total_cal/7700:.2f} kg", f"Total: {int(total_cal)} kcal")
+        c3.metric("🎯 Poids", f"{last_weight} kg", f"Obj: {target_weight}")
         c4.metric("🩺 IMC", f"{imc:.1f}", imc_status)
 
-        # 3. MUR DES TROPHÉES (NOUVEAU)
         st.divider()
         st.subheader("🏆 Mur des Trophées")
         badges = check_achievements(my_df)
         if badges:
             cols = st.columns(4)
             for i, (titre, desc) in enumerate(badges):
-                with cols[i % 4]:
-                    st.success(f"**{titre}**\n\n*{desc}*")
-        else:
-            st.info("Continue tes efforts pour débloquer tes premiers badges (Matin, Dimanche, 10k kcal...) !")
+                with cols[i % 4]: st.success(f"**{titre}**\n\n*{desc}*")
+        else: st.info("Continue tes efforts pour débloquer tes premiers badges !")
 
-        # 4. RADAR & VOYAGE
         st.divider()
         col_gauche, col_droite = st.columns([1, 1])
-
         with col_gauche:
             st.subheader("💪 Focus Musculaire")
             muscle_scores = {}
@@ -367,19 +347,18 @@ else:
                     durée = row['minutes'] / 60
                     for muscle, score in impacts.items():
                         muscle_scores[muscle] = muscle_scores.get(muscle, 0) + (score * durée)
-                
                 if muscle_scores:
                     df_radar = pd.DataFrame(list(muscle_scores.items()), columns=['Muscle', 'Score'])
                     fig_radar = px.line_polar(df_radar, r='Score', theta='Muscle', line_close=True)
                     fig_radar.update_traces(fill='toself', line_color='#FF4B4B')
                     fig_radar.update_layout(polar=dict(radialaxis=dict(visible=False)), 
                                           margin=dict(t=20, b=20, l=20, r=20),
-                                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                          font=dict(color="white"))
                     st.plotly_chart(fig_radar, use_container_width=True)
             else:
                 lottie_gym = load_lottieurl(LOTTIE_GYM)
                 if lottie_gym: st_lottie(lottie_gym, height=200)
-                else: st.info("Fais du sport pour activer le radar !")
 
         with col_droite:
             st.subheader("🌍 Voyage Virtuel")
@@ -392,174 +371,101 @@ else:
                     km_restant = dist - km_virtuels
                     break
             
-            st.markdown(f"""
-            <div class='journey-box'>
-                <h3>🏃‍♂️ {int(km_virtuels)} km parcourus</h3>
-                <p>Direction <b>{prochaine_ville}</b> (encore {int(km_restant)} km)</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class='journey-box'><h3>🏃‍♂️ {int(km_virtuels)} km parcourus</h3><p>Direction <b>{prochaine_ville}</b> (encore {int(km_restant)} km)</p></div>""", unsafe_allow_html=True)
             st.progress(min(km_virtuels / 1000, 1.0))
-            
-            st.subheader("🍔 Équivalence")
             st.info(f"Tu as brûlé : **{get_food_equivalent(total_cal)}**")
 
-        # 5. CALENDRIER
         st.divider()
-        st.subheader("📅 Calendrier de régularité")
-        
+        st.subheader("📅 Régularité")
         today_date = date.today()
         start_year = date(today_date.year, 1, 1)
-        all_dates = pd.date_range(start_year, today_date)
-        df_cal = pd.DataFrame({"date": all_dates})
-        df_cal['date'] = df_cal['date'].dt.date
-        
+        df_cal = pd.DataFrame({"date": pd.date_range(start_year, today_date).date})
         if not my_df.empty:
             my_df['date_only'] = my_df['date'].dt.date
             daily_activity = my_df.groupby('date_only')['minutes'].sum().reset_index()
             df_cal = pd.merge(df_cal, daily_activity, left_on='date', right_on='date_only', how='left').fillna(0)
-        else:
-            df_cal['minutes'] = 0
+        else: df_cal['minutes'] = 0
             
         df_cal['week'] = pd.to_datetime(df_cal['date']).dt.isocalendar().week
         df_cal['day_of_week'] = pd.to_datetime(df_cal['date']).dt.dayofweek
-        days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
         
         fig_cal = go.Figure(data=go.Heatmap(
             x=df_cal['week'], y=df_cal['day_of_week'], z=df_cal['minutes'],
-            colorscale=[[0, '#2d2d2d'], [0.1, '#0e4429'], [1, '#39d353']],
-            showscale=False, xgap=3, ygap=3, hoverongaps=False,
-            hovertemplate='Semaine %{x}, %{y}: %{z} min<extra></extra>'
+            colorscale=[[0, '#2d2d2d'], [0.1, '#0e4429'], [1, '#39d353']], showscale=False, xgap=3, ygap=3
         ))
-        fig_cal.update_layout(
-            height=200, yaxis=dict(tickmode='array', tickvals=[0,1,2,3,4,5,6], ticktext=days, showgrid=False, zeroline=False),
-            xaxis=dict(showgrid=False, zeroline=False, title="Semaines"),
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=20, b=20, l=20, r=20)
-        )
+        fig_cal.update_layout(height=200, yaxis=dict(showgrid=False, zeroline=False, tickmode='array', tickvals=[0,2,4,6], ticktext=['Lun', 'Mer', 'Ven', 'Dim']),
+                              xaxis=dict(showgrid=False, zeroline=False, title="Semaines"),
+                              paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=20, b=20, l=20, r=20), font=dict(color="white"))
         st.plotly_chart(fig_cal, use_container_width=True)
 
     with t2:
         if not my_df.empty:
-            st.subheader("📉 Évolution & Prédictions")
             c1, c2 = st.columns(2)
-            
-            # Graphique Poids + Prédiction
             fig1 = px.line(my_df, x='date', y='poids', title="Suivi Poids")
-            fig1.add_hline(y=prof['w_obj'], line_dash="dash", line_color="green", annotation_text="Objectif")
-            
-            # Calcul Prédiction
+            fig1.add_hline(y=prof['w_obj'], line_dash="dash", line_color="green")
             pred_date, pred_msg = predict_success(my_df, last_weight, prof['w_obj'])
             if pred_date:
-                fig1.add_scatter(x=[pd.to_datetime(pred_date)], y=[prof['w_obj']], 
-                                 mode='markers+text', name='Prédiction', 
-                                 text=['🎯 Arrivée'], textposition='top center',
-                                 marker=dict(size=12, color='gold', symbol='star'))
+                fig1.add_scatter(x=[pd.to_datetime(pred_date)], y=[prof['w_obj']], mode='markers+text', text=['🎯 Arrivée'], marker=dict(size=12, color='gold', symbol='star'))
                 st.success(pred_msg)
-            else:
-                st.warning(pred_msg)
-                
+            else: st.warning(pred_msg)
             c1.plotly_chart(fig1, use_container_width=True)
-            
-            fig2 = px.bar(my_df, x='date', y='calories', title="Calories Brûlées")
-            c2.plotly_chart(fig2, use_container_width=True)
-            
-            fig3 = px.pie(my_df, values='minutes', names='sport', hole=0.4, title="Répartition Temps")
-            st.plotly_chart(fig3, use_container_width=True)
-        else: st.info("Pas encore de données. Ajoute une séance !")
+            c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True)
+            st.plotly_chart(px.pie(my_df, values='minutes', names='sport', hole=0.4, title="Répartition"), use_container_width=True)
+        else: st.info("Pas de données.")
 
     with t3:
-        bmr = calculate_bmr(last_weight, prof['h'], age, prof['sex'])
-        tdee = bmr * ACT_MAP.get(prof['act'], 1.2)
-        st.info(f"💡 Maintenance estimée : **{int(tdee)} kcal** / jour")
-        
+        tdee = calculate_bmr(last_weight, prof['h'], age, prof['sex']) * ACT_MAP.get(prof['act'], 1.2)
+        st.info(f"💡 Maintenance : **{int(tdee)} kcal** / jour")
         with st.form("add"):
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
-            s = c2.selectbox("Sport", SPORTS_LIST)
-            w = c1.number_input("Poids (kg)", 0.0, 200.0, float(last_weight))
-            m = c2.number_input("Durée (min)", 1, 300, 45)
+            t = c2.time_input("Heure", datetime.now().time())
+            s = c1.selectbox("Sport", SPORTS_LIST)
+            w = c2.number_input("Poids (kg)", 0.0, 200.0, float(last_weight))
+            m = st.number_input("Durée (min)", 1, 300, 45)
             
             if st.form_submit_button("Sauvegarder"):
-                # Utilisation du muscle map pour un MET approximatif si besoin
-                # Ici on garde un calcul simple basé sur MET moyen
-                met_map = {"Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 5, "Crossfit": 9, "Marche": 3.5}
-                base_met = met_map.get(s, 6) # Valeur par défaut
+                full_datetime = datetime.combine(d, t)
+                met_map = {"Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 5, "Crossfit": 9}
+                cal_sport = (calculate_bmr(w, prof['h'], age, prof['sex']) / 24) * met_map.get(s, 6) * (m/60)
                 
-                cal_sport = (calculate_bmr(w, prof['h'], age, prof['sex']) / 24) * base_met * (m/60)
-                
-                new_act = pd.DataFrame([{
-                    "date": pd.to_datetime(d), "user": user, "sport": s, 
-                    "minutes": m, "calories": round(cal_sport), "poids": float(w)
-                }])
-                
+                new_act = pd.DataFrame([{"date": full_datetime, "user": user, "sport": s, "minutes": m, "calories": round(cal_sport), "poids": float(w)}])
                 with st.spinner("Sauvegarde..."):
                     if save_activity(new_act):
                         st.success(f"+{int(cal_sport)} kcal !")
-                        # Animation de victoire
                         lottie_success = load_lottieurl(LOTTIE_SUCCESS)
-                        if lottie_success:
-                            st_lottie(lottie_success, height=150, key="success_anim")
+                        if lottie_success: st_lottie(lottie_success, height=150, key="success_anim")
                         time.sleep(2)
                         st.rerun()
 
     with t4:
-        st.subheader("👤 Modifier mon profil")
+        st.subheader("👤 Profil")
         with st.form("edit_prof"):
-            col1, col2 = st.columns(2)
-            new_dob = col1.date_input("Date de naissance", value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"))
-            
-            sex_opts = ["Homme", "Femme"]
-            curr_sex = prof.get('sex', 'Homme')
-            idx_sex = sex_opts.index(curr_sex) if curr_sex in sex_opts else 0
-            new_sex = col2.selectbox("Sexe", sex_opts, index=idx_sex)
-            
-            col3, col4 = st.columns(2)
-            new_h = col3.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
-            
-            curr_act = prof.get('act', ACTIVITY_OPTS[0])
-            idx_act = ACTIVITY_OPTS.index(curr_act) if curr_act in ACTIVITY_OPTS else 0
-            new_act = col4.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=idx_act)
-            
-            col5, col6 = st.columns(2)
-            new_w_init = col5.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
-            new_obj = col6.number_input("Objectif Poids (kg)", 30.0, 200.0, float(prof.get('w_obj', 65.0)))
-            
-            if st.form_submit_button("💾 Enregistrer"):
+            c1, c2 = st.columns(2)
+            new_dob = c1.date_input("Naissance", value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"))
+            new_sex = c2.selectbox("Sexe", ["Homme", "Femme"], index=0 if prof.get('sex') == "Homme" else 1)
+            new_h = c1.number_input("Taille", 100, 250, int(prof.get('h', 175)))
+            new_act = c2.selectbox("Activité", ACTIVITY_OPTS)
+            new_w_init = c1.number_input("Poids Départ", 30.0, 200.0, float(prof.get('w_init', 70.0)))
+            new_obj = c2.number_input("Obj Poids", 30.0, 200.0, float(prof.get('w_obj', 65.0)))
+            if st.form_submit_button("Enregistrer"):
                 prof.update({"dob": str(new_dob), "sex": new_sex, "h": new_h, "act": new_act, "w_init": new_w_init, "w_obj": new_obj})
                 if save_user(user, user_row['pin'], prof):
-                    st.success("✅ Profil mis à jour !")
-                    time.sleep(1)
-                    st.rerun()
+                    st.success("Profil mis à jour !"); time.sleep(1); st.rerun()
 
-        st.subheader("📝 Modifier l'historique")
+        st.subheader("📝 Historique")
         if not my_df.empty:
-            col_config = {
-                "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
-                "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),
-                "calories": st.column_config.NumberColumn("Calories", format="%.1f")
-            }
-            edited = st.data_editor(my_df[['date', 'sport', 'minutes', 'calories', 'poids']], num_rows="dynamic", use_container_width=True, column_config=col_config)
+            edited = st.data_editor(my_df[['date', 'sport', 'minutes', 'calories', 'poids']], num_rows="dynamic", use_container_width=True)
             if st.button("Sauvegarder historique"):
-                if update_history(edited):
-                    st.success("Historique corrigé")
-                    time.sleep(1)
-                    st.rerun()
+                if update_history(edited): st.success("Historique corrigé"); time.sleep(1); st.rerun()
 
     with t5:
         st.header("🏆 Classement (7 jours)")
         if not df_acts.empty:
-            now = pd.Timestamp.now()
-            week_df = df_acts[df_acts['date'] >= (now - pd.Timedelta(days=7))]
+            week_df = df_acts[df_acts['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
             if not week_df.empty:
                 top = week_df.groupby("user")['calories'].sum().sort_values(ascending=False).head(3)
                 cols = st.columns(3)
-                medals = ["🥇", "🥈", "🥉"]
                 for i, (u, c) in enumerate(top.items()):
-                    cols[i].markdown(f"<div class='podium-box'><h1>{medals[i]}</h1><h3>{u}</h3><p>{int(c)} kcal</p></div>", unsafe_allow_html=True)
-                st.divider()
-                st.subheader("Rois du sport")
-                best = week_df.groupby(['sport', 'user'])['minutes'].sum().reset_index()
-                best = best.loc[best.groupby('sport')['minutes'].idxmax()]
-                grid = st.columns(3)
-                for i, row in best.reset_index().iterrows():
-                    grid[i%3].info(f"**{row['sport']}**: {row['user']} ({row['minutes']} min)")
+                    cols[i].markdown(f"<div class='podium-box'><h1>{['🥇','🥈','🥉'][i]}</h1><h3>{u}</h3><p>{int(c)} kcal</p></div>", unsafe_allow_html=True)
             else: st.warning("Pas de sport cette semaine.")

@@ -36,7 +36,7 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS ---
+# --- MAPPINGS (AJOUT DES NOUVEAUX SPORTS ICI) ---
 DNA_MAP = {
     "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
     "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
@@ -53,7 +53,15 @@ DNA_MAP = {
     "Danse":       {"Force": 3, "Endurance": 6, "Agilité": 10, "Mental": 5},
     "Pilates":     {"Force": 4, "Endurance": 3, "Agilité": 8, "Mental": 6},
     "Ski":         {"Force": 5, "Endurance": 7, "Agilité": 6, "Mental": 5},
-    "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5}
+    "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5},
+    # Nouveaux Sports
+    "Judo":        {"Force": 8, "Endurance": 6, "Agilité": 7, "Mental": 9},
+    "Karaté":      {"Force": 7, "Endurance": 6, "Agilité": 8, "Mental": 9},
+    "Badminton":   {"Force": 4, "Endurance": 8, "Agilité": 9, "Mental": 7},
+    "Rameur":      {"Force": 7, "Endurance": 9, "Agilité": 3, "Mental": 7},
+    "Elliptique":  {"Force": 4, "Endurance": 8, "Agilité": 2, "Mental": 5},
+    "Gymnastique": {"Force": 8, "Endurance": 5, "Agilité": 10, "Mental": 9},
+    "Volley":      {"Force": 6, "Endurance": 5, "Agilité": 8, "Mental": 7}
 }
 SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -61,7 +69,10 @@ SPEED_MAP = {
     "Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, 
     "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
     "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
-    "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0
+    "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
+    # Vitesse estimée pour les nouveaux sports
+    "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
+    "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0
 }
 
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
@@ -492,29 +503,12 @@ else:
             fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
             tot_sess = len(my_df)
             
-            # NOUVEAU DESIGN RECORDS
             st.markdown(f"""
             <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;">
-                <div class="stat-card">
-                    <div style="font-size: 2em;">🔥</div>
-                    <div class="stat-val">{int(max_c)}</div>
-                    <div class="stat-label">Record Calories</div>
-                </div>
-                <div class="stat-card">
-                    <div style="font-size: 2em;">⏱️</div>
-                    <div class="stat-val">{int(max_m)} min</div>
-                    <div class="stat-label">Record Durée</div>
-                </div>
-                <div class="stat-card">
-                    <div style="font-size: 2em;">❤️</div>
-                    <div class="stat-val">{fav}</div>
-                    <div class="stat-label">Sport Favori</div>
-                </div>
-                <div class="stat-card">
-                    <div style="font-size: 2em;">🏋️‍♂️</div>
-                    <div class="stat-val">{tot_sess}</div>
-                    <div class="stat-label">Total Sessions</div>
-                </div>
+                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
             </div>
             """, unsafe_allow_html=True)
             

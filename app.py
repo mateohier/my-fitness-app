@@ -383,12 +383,30 @@ def get_user_badge(username, df_u):
         avatar = p_data.get('avatar', "")
         if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
-    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:white;'>{username.capitalize()}</span></span>"""
+    
+    # Adaptation couleur badge selon thème (on garde un fond semi-transparent générique)
+    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(128,128,128,0.3);border-radius:20px;padding:2px 10px;background:rgba(128,128,128,0.2);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;'>{username.capitalize()}</span></span>"""
 
-# --- 4. CSS ---
+# --- 4. LOGIQUE & THEME ---
 if 'user' not in st.session_state: st.session_state.user = None
 
-st.markdown(f"""
+# Chargement données
+df_u, df_a, df_d, df_p = get_data()
+clean_old_posts(df_p)
+
+# Détermination du thème
+current_theme = "Sombre" # Default
+if st.session_state.user:
+    try:
+        u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
+        u_prof = json.loads(u_row['json_data'])
+        current_theme = u_prof.get('theme', 'Sombre')
+    except: pass
+
+# --- CSS DYNAMIQUE ---
+if current_theme == "Sombre":
+    # CSS ORIGINAL (Monde Sombre)
+    st.markdown(f"""
     <style>
     .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }}
     .stMetricValue {{ font-size: 1.5rem !important; color: #FF4B4B !important; }}
@@ -404,11 +422,33 @@ st.markdown(f"""
     .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }}
     .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }}
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    plotly_font_color = "white"
+    
+else:
+    # CSS MODE CLAIR (Haute visibilité / Clean)
+    st.markdown(f"""
+    <style>
+    .stApp {{ background-color: #f8f9fa; }}
+    .stMetricValue {{ font-size: 1.5rem !important; color: #d32f2f !important; }}
+    div[data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #ddd; }}
+    .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+    .glass {{ background: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); color: #333; }}
+    .challenge-card {{ background: #ffffff; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #333; }}
+    .boss-bar {{ width: 100%; background-color: #e0e0e0; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #ccc; }}
+    .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
+    .celeb-box {{ background-color: #fff9c4; border: 1px solid #fbc02d; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: #333; }}
+    .stat-card {{ background: #ffffff; border: 1px solid #ddd; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+    .stat-val {{ font-size: 1.8em; font-weight: bold; color: #d32f2f; }}
+    .stat-label {{ font-size: 0.9em; color: #555; margin-top: 5px; font-weight: 500; }}
+    .post-card {{ background: #ffffff; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: #333; }}
+    h1, h2, h3, p, div, span {{ color: #212529; }}
+    .stMarkdown {{ color: #212529; }}
+    </style>
+    """, unsafe_allow_html=True)
+    plotly_font_color = "black"
 
-# --- 5. LOGIQUE ---
-df_u, df_a, df_d, df_p = get_data()
-clean_old_posts(df_p) # Nettoyage auto
+# --- 5. LOGIQUE INTERFACE ---
 
 if not st.session_state.user:
     st.title("✨ FollowFit")
@@ -439,7 +479,7 @@ if not st.session_state.user:
         if st.sidebar.button("S'inscrire"):
             if not df_u.empty and u_input in df_u['user'].values: st.sidebar.error("Pseudo pris")
             elif len(p_input) == 4:
-                prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
+                prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj, "theme": "Sombre"}
                 if save_user(u_input, hash_pin(p_input), prof): st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
 else:
     user = st.session_state.user
@@ -498,7 +538,7 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color="white"), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=plotly_font_color), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
         with c_r:
@@ -540,13 +580,13 @@ else:
                 <div class='post-card'>
                     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
                         {get_user_badge(r['user'], df_u)}
-                        <span style='color:#aaa; font-size:0.8em;'>{r['date']}</span>
+                        <span style='opacity:0.6; font-size:0.8em;'>{r['date']}</span>
                     </div>
                     <img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'>
                     <p style='font-size:1.1em;'>{r['comment']}</p>
                     <hr style='border-color:#555;'>
                     <div style='display:flex; flex-wrap:wrap; align-items:center;'>
-                        <span style='margin-right:10px; color:#aaa; font-size:0.9em;'>Vu par :</span>
+                        <span style='margin-right:10px; opacity:0.6; font-size:0.9em;'>Vu par :</span>
                         {''.join([get_user_badge(v, df_u) for v in viewers if v])}
                     </div>
                 </div>
@@ -643,7 +683,7 @@ else:
         with c_img: st.image(boss_img, use_container_width=True)
         with c_stat:
             col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
-            st.markdown(f"""<div style="margin-bottom:5px;color:white;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom:5px;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
             if pct_hp <= 0: st.balloons(); st.success("🏆 LE BOSS EST VAINCU !")
             else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
             st.markdown("### ⚔️ Meilleurs Attaquants")
@@ -664,7 +704,7 @@ else:
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
                 prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
                 prog = prog.reindex(parts, fill_value=0)
-                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; opacity:0.7'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
                 c_act, c_list = st.columns([1, 2])
                 with c_act:
                     if user not in parts: 
@@ -717,11 +757,11 @@ else:
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
             fig_w.update_yaxes(range=[0, max_val * 1.1])
-            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
+            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color)
             
             c1.plotly_chart(fig_w, use_container_width=True)
             
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
+            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color), use_container_width=True, config={'staticPlot': True})
 
     with tabs[6]: # CLASSEMENT
         st.header("🏛️ Hall of Fame")
@@ -743,7 +783,13 @@ else:
             new_pseudo = c1.text_input("Pseudo (Nom d'utilisateur)", value=user)
             nd = c2.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c1.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
             nh = c2.number_input("Taille",100,250,int(prof.get('h',175))); nw = c1.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
-            na = c2.selectbox("Activité",ACTIVITY_OPTS); n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
+            na = c2.selectbox("Activité",ACTIVITY_OPTS)
+            
+            # THEME SELECTOR
+            current_theme_idx = 0 if prof.get('theme', 'Sombre') == "Sombre" else 1
+            nt = c1.selectbox("Thème (Apparence)", ["Sombre", "Clair"], index=current_theme_idx)
+            
+            n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
             if st.form_submit_button("Sauvegarder"):
                 if new_pseudo != user:
                     res = change_username(user, new_pseudo)
@@ -756,15 +802,10 @@ else:
                 
                 fav = prof.get('avatar', ""); 
                 if n_av: fav = process_avatar(n_av)
-                prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'act':na,'avatar':fav})
+                prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'act':na,'avatar':fav, 'theme': nt})
                 ps = row['pin']; 
                 if np and len(np)==4: ps = hash_pin(np)
                 save_user(user, ps, prof); st.success("Mis à jour !"); st.rerun()
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
-
-
-
-
-

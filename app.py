@@ -383,7 +383,7 @@ def get_user_badge(username, df_u):
         avatar = p_data.get('avatar', "")
         if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
-    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:white;'>{username.capitalize()}</span></span>"""
+    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:inherit;'>{username.capitalize()}</span></span>"""
 
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d, df_p = get_data()
@@ -446,16 +446,17 @@ else:
     theme_choice = st.sidebar.radio("🎨 Thème", ["Immersif (Sombre)", "Clair (Bureau)"], index=0)
     
     if "Clair" in theme_choice:
-        main_bg = "url('')" # Pas d'image
-        bg_color = "#F0F2F6" # Gris très clair moderne
-        text_color = "#31333F" # Gris foncé pour texte
-        sidebar_bg = "#FFFFFF"
-        glass_bg = "#FFFFFF" # Carte blanche
-        card_border = "#E6E9EF" # Bordure très subtile
-        chart_font = "#31333F"
-        metric_color = "#FF4B4B"
-        card_shadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)" # Ombre légère
-        boss_bar_bg = "#e0e0e0" # Fond barre boss plus clair
+        main_bg = "none" # Pas d'image
+        bg_color = "#f8f9fa" # Gris perle très doux (Apple style)
+        text_color = "#1f2937" # Gris très foncé (presque noir) pour lisibilité max
+        sidebar_bg = "#ffffff"
+        glass_bg = "#ffffff" # Carte blanche pure
+        card_border = "#e5e7eb" # Bordure gris très pâle
+        chart_font = "#1f2937"
+        metric_color = "#d90429" # Rouge un peu plus profond
+        # Ombre portée douce style "Material Design" ou "Tailwind"
+        card_shadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+        boss_bar_bg = "#e5e7eb"
     
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
@@ -488,39 +489,41 @@ else:
         /* SIDEBAR */
         div[data-testid="stSidebar"] {{ background-color: {sidebar_bg}; }}
         
-        /* METRIQUES */
+        /* METRIQUES & TITRES */
         .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
-        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.8; }}
+        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.7; font-weight: 500; }}
+        h1, h2, h3, h4, h5, h6, p, span, div, label {{ color: {text_color}; }}
         
         /* CITATION */
-        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
+        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 12px; color: white !important; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: {card_shadow}; }}
+        .quote-box div {{ color: white !important; }}
         
-        /* CARTES GENERIQUES (GLASS) */
-        .glass {{ background: {glass_bg}; padding: 15px; border-radius: 10px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        /* CARTES GENERIQUES (GLASS / WHITE) */
+        .glass {{ background: {glass_bg}; padding: 20px; border-radius: 12px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
         
         /* DEFIS CARDS */
-        .challenge-card {{ background: linear-gradient(135deg, {glass_bg}, rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
+        .challenge-card {{ background: {glass_bg}; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 8px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
         
         /* BOSS */
-        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
+        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid {card_border}; }}
         .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
         
         /* CELEBRATION BOX */
-        .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: {text_color}; }}
+        .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 12px; text-align: center; margin-top: 10px; color: {text_color}; }}
         
         /* STATS GRID CARDS */
-        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
+        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 12px; padding: 20px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
         .stat-val {{ font-size: 1.8em; font-weight: bold; color: {metric_color}; }}
         .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; color: {text_color}; }}
         
         /* FEED POSTS */
-        .post-card {{ background: {glass_bg}; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        .post-card {{ background: {glass_bg}; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
         
-        /* HEADERS */
-        h1, h2, h3, h4, h5, h6, p, span, div {{ color: {text_color}; }}
+        /* EXPANDER STYLING */
+        .streamlit-expanderHeader {{ background-color: {glass_bg}; color: {text_color}; border-radius: 8px; border: 1px solid {card_border}; }}
         
-        /* EXPANDER STYLING (Mode clair propre) */
-        .streamlit-expanderHeader {{ background-color: {glass_bg}; color: {text_color}; border-radius: 5px; }}
+        /* DATA EDITOR & TABLES */
+        div[data-testid="stDataEditor"] {{ background-color: {glass_bg}; border-radius: 10px; padding: 5px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -528,7 +531,7 @@ else:
 
     with tabs[0]: # DASHBOARD
         st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
-        st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='quote-box'><div>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div></div>", unsafe_allow_html=True)
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
         
@@ -604,13 +607,13 @@ else:
                 <div class='post-card'>
                     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
                         {get_user_badge(r['user'], df_u)}
-                        <span style='color:#aaa; font-size:0.8em;'>{r['date']}</span>
+                        <span style='color:{text_color}; font-size:0.8em; opacity:0.7;'>{r['date']}</span>
                     </div>
                     <img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'>
                     <p style='font-size:1.1em;'>{r['comment']}</p>
-                    <hr style='border-color:#555;'>
+                    <hr style='border-color:{card_border};'>
                     <div style='display:flex; flex-wrap:wrap; align-items:center;'>
-                        <span style='margin-right:10px; color:#aaa; font-size:0.9em;'>Vu par :</span>
+                        <span style='margin-right:10px; opacity:0.7; font-size:0.9em;'>Vu par :</span>
                         {''.join([get_user_badge(v, df_u) for v in viewers if v])}
                     </div>
                 </div>

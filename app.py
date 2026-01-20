@@ -37,7 +37,6 @@ BOSS_CALENDAR = {
 }
 
 # --- MAPPINGS (9 COMPETENCES) ---
-# Clés : Force, Endurance, Vitesse, Agilité, Souplesse, Explosivité, Mental, Récupération, Concentration
 DNA_MAP = {
     "Musculation": {"Force": 10, "Endurance": 4, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
     "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
@@ -362,7 +361,7 @@ else:
         for k in DNA_KEYS:
             dna[k] += s_dna.get(k, 1) * h
 
-    tabs = st.tabs(["🏠 Tableau de Bord", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "➕ Séance", "⚙️ Profil", "🏆 Classement"])
+    tabs = st.tabs(["🏠 Tableau de Bord", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
     with tabs[0]: # DASHBOARD
         st.title(f"👋 Bienvenue, {user.capitalize()} !")
@@ -428,7 +427,28 @@ else:
             st.progress(min(km/1000, 1.0))
             st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # BOSS
+    with tabs[1]: # SEANCE
+        st.subheader("Ajouter une séance")
+        with st.form("add"):
+            c1, c2 = st.columns(2)
+            d = c1.date_input("Date", date.today())
+            t = c2.time_input("Heure", datetime.now().time())
+            s = c1.selectbox("Sport", SPORTS_LIST)
+            m = c2.number_input("Durée (min)", 1, 300, 45)
+            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
+            if st.form_submit_button("Sauvegarder"):
+                dt = datetime.combine(d, t)
+                dna = DNA_MAP.get(s, {})
+                intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
+                epoc_rate = EPOC_MAP.get(s, 0.05)
+                epoc_bonus = base_kcal * epoc_rate
+                total_kcal = base_kcal + epoc_bonus
+                
+                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
+                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal"); st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+
+    with tabs[2]: # BOSS
         curr_month_num = datetime.now().month
         boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
         st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
@@ -455,7 +475,7 @@ else:
                 dps = df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
                 for i, (u, val) in enumerate(dps.items()): st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
 
-    with tabs[2]: # DEFIS
+    with tabs[3]: # DEFIS
         st.header("⚔️ Salle des Défis")
         with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
@@ -506,7 +526,7 @@ else:
                 st.divider()
         else: st.info("Aucun défi.")
 
-    with tabs[3]: # STATS
+    with tabs[4]: # STATS
         if not my_df.empty:
             st.subheader("🏆 Tes Records Personnels")
             max_c = my_df['calories'].max()
@@ -560,28 +580,35 @@ else:
             c2.plotly_chart(style_fig(fig2), use_container_width=True, config={'staticPlot': True})
         else: st.write("Pas de données.")
 
-    with tabs[4]: # SEANCE
-        st.subheader("Ajouter une séance")
-        with st.form("add"):
+    with tabs[5]: # CLASSEMENT
+        st.header("🏛️ Hall of Fame (Records de tous les temps)")
+        if not df_a.empty:
+            max_cal_all = df_a.loc[df_a['calories'].idxmax()]
+            max_min_all = df_a.loc[df_a['minutes'].idxmax()]
+            
             c1, c2 = st.columns(2)
-            d = c1.date_input("Date", date.today())
-            t = c2.time_input("Heure", datetime.now().time())
-            s = c1.selectbox("Sport", SPORTS_LIST)
-            m = c2.number_input("Durée (min)", 1, 300, 45)
-            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
-            if st.form_submit_button("Sauvegarder"):
-                dt = datetime.combine(d, t)
-                dna = DNA_MAP.get(s, {})
-                intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
-                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
-                epoc_rate = EPOC_MAP.get(s, 0.05)
-                epoc_bonus = base_kcal * epoc_rate
-                total_kcal = base_kcal + epoc_bonus
+            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
+            
+            st.divider()
+            
+            st.subheader("🏆 Classement Hebdomadaire")
+            w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
+            if not w_df.empty:
+                top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
+                cols = st.columns(3)
+                medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
                 
-                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
-                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal"); st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+                for i, (u, c) in enumerate(top.head(3).items()):
+                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                
+                if len(top) > 3:
+                    st.write("")
+                    st.write("**La suite du peloton :**")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
+            else: st.info("Le classement est vide cette semaine. À vous de jouer !")
 
-    with tabs[5]: # PROFIL FULL EDIT
+    with tabs[6]: # PROFIL & HISTORIQUE
         st.subheader("📝 Modifier mes informations")
         with st.form("prof_full"):
             c1, c2 = st.columns(2)
@@ -617,31 +644,3 @@ else:
             st.warning("Irréversible. Confirmer ?")
             if st.button("OUI, Supprimer"):
                 if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()
-
-    with tabs[6]: # TOP & HALL OF FAME
-        st.header("🏛️ Hall of Fame (Records de tous les temps)")
-        if not df_a.empty:
-            max_cal_all = df_a.loc[df_a['calories'].idxmax()]
-            max_min_all = df_a.loc[df_a['minutes'].idxmax()]
-            
-            c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
-            
-            st.divider()
-            
-            st.subheader("🏆 Classement Hebdomadaire")
-            w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
-            if not w_df.empty:
-                top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
-                cols = st.columns(3)
-                medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
-                
-                for i, (u, c) in enumerate(top.head(3).items()):
-                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
-                
-                if len(top) > 3:
-                    st.write("")
-                    st.write("**La suite du peloton :**")
-                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
-            else: st.info("Le classement est vide cette semaine. À vous de jouer !")

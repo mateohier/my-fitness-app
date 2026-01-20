@@ -445,27 +445,39 @@ else:
     h1, h2, h3, p, div, span {{ color: #212529; }}
     .stMarkdown {{ color: #212529; }}
     
-    /* FORCER LE TEXTE SOMBRE DANS LES LISTES DÉROULANTES ET INPUTS */
-    div[data-baseweb="select"] div, div[data-baseweb="base-input"] input, div[data-baseweb="input"] input {{
-        color: #31333F !important;
-        -webkit-text-fill-color: #31333F !important;
-        caret-color: #31333F !important;
+    /* FORCER LE FOND BLANC ET TEXTE NOIR DANS LES LISTES DÉROULANTES ET INPUTS */
+    div[data-baseweb="select"] > div, div[data-baseweb="base-input"], input {{
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-color: #d3d3d3 !important;
     }}
-    /* Fond blanc pour le menu déroulant et texte noir */
-    div[data-baseweb="popover"] {{
+    /* Couleur du texte saisi */
+    .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input {{
+        color: #000000 !important;
+    }}
+    /* Fond blanc pour le menu déroulant et texte noir pour les options */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {{
         background-color: #ffffff !important;
     }}
-    div[data-baseweb="menu"] div {{
-        color: #31333F !important;
+    div[data-baseweb="option"] {{
+        color: #000000 !important;
     }}
-    
+    /* Texte de la sélection actuelle */
+    div[data-baseweb="select"] div {{
+        color: #000000 !important;
+    }}
+
     /* Boutons standards (comme Supprimer) en texte sombre s'ils sont clairs */
     button {{
-        color: #31333F !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #d3d3d3 !important;
     }}
     /* Exception pour les boutons primaires (souvent rouges/blancs) */
     button[kind="primary"] {{
-        color: #ffffff !important;
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border: none !important;
     }}
     </style>
     """, unsafe_allow_html=True)

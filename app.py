@@ -383,33 +383,34 @@ def get_user_badge(username, df_u):
         avatar = p_data.get('avatar', "")
         if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
-    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:inherit;'>{username.capitalize()}</span></span>"""
+    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:white;'>{username.capitalize()}</span></span>"""
+
+# --- 4. CSS ---
+if 'user' not in st.session_state: st.session_state.user = None
+
+st.markdown(f"""
+    <style>
+    .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }}
+    .stMetricValue {{ font-size: 1.5rem !important; color: #FF4B4B !important; }}
+    div[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.95); }}
+    .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
+    .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }}
+    .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
+    .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
+    .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
+    .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }}
+    .stat-card {{ background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; }}
+    .stat-val {{ font-size: 1.8em; font-weight: bold; color: #FF4B4B; }}
+    .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }}
+    .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }}
+    </style>
+""", unsafe_allow_html=True)
 
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d, df_p = get_data()
 clean_old_posts(df_p) # Nettoyage auto
 
-if 'user' not in st.session_state: st.session_state.user = None
-
-# --- 4. CSS DYNAMIQUE ---
-# Valeurs par défaut si non connecté
-main_bg = f"linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('{BACKGROUND_URL}')"
-bg_color = "transparent"
-text_color = "white"
-sidebar_bg = "rgba(10, 10, 10, 0.95)"
-glass_bg = "rgba(255,255,255,0.05)"
-card_border = "#333"
-chart_font = "white"
-chart_grid = "rgba(255,255,255,0.2)"
-metric_color = "#FF4B4B"
-card_shadow = "none"
-boss_bar_bg = "#333"
-dropdown_bg = "#333"
-dropdown_color = "white"
-expander_bg = "rgba(255,255,255,0.05)"
-
 if not st.session_state.user:
-    # --- PAGE LOGIN / SIGNUP (Thème sombre par défaut) ---
     st.title("✨ FollowFit")
     st.markdown("### L'aventure sportive commence ici.")
     st.info("👈 **C'est parti ! Ouvre le menu en haut à gauche pour te connecter ou t'inscrire.**")
@@ -440,31 +441,9 @@ if not st.session_state.user:
             elif len(p_input) == 4:
                 prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
                 if save_user(u_input, hash_pin(p_input), prof): st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
-
 else:
-    # --- UTILISATEUR CONNECTÉ ---
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
-    
-    # --- SELECTEUR DE THEME DANS LA SIDEBAR ---
-    theme_choice = st.sidebar.radio("🎨 Thème", ["Immersif (Sombre)", "Clair (Bureau)"], index=0)
-    
-    if "Clair" in theme_choice:
-        main_bg = "none" 
-        bg_color = "#F0F2F6" 
-        text_color = "#111827" # Noir doux
-        sidebar_bg = "#FFFFFF"
-        glass_bg = "#FFFFFF" 
-        card_border = "#E5E7EB"
-        chart_font = "#111827" # Texte graphique noir
-        chart_grid = "#d1d5db" # Grille graphique grise
-        metric_color = "#d90429"
-        card_shadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-        boss_bar_bg = "#E5E7EB"
-        dropdown_bg = "#FFFFFF"
-        dropdown_color = "#111827"
-        expander_bg = "#FFFFFF"
-    
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
     row = df_u[df_u['user'] == user].iloc[0]
@@ -481,55 +460,11 @@ else:
         h = r['minutes'] / 60
         for k in DNA_KEYS: dna[k] += s_dna.get(k, 1) * h
 
-    # --- INJECTION CSS ---
-    st.markdown(f"""
-        <style>
-        /* GLOBAL FOND & TEXTE */
-        .stApp {{ background-image: {main_bg}; background-color: {bg_color}; background-size: cover; background-attachment: fixed; color: {text_color}; }}
-        div[data-testid="stSidebar"] {{ background-color: {sidebar_bg}; }}
-        
-        /* TEXTES */
-        h1, h2, h3, h4, h5, h6, p, span, div, label {{ color: {text_color}; }}
-        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
-        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.7; }}
-        
-        /* DROPDOWNS & INPUTS (Force readable text) */
-        .stSelectbox div[data-baseweb="select"] > div {{ background-color: {dropdown_bg} !important; color: {dropdown_color} !important; }}
-        .stTextInput input, .stNumberInput input {{ color: {dropdown_color} !important; }}
-        
-        /* EXPANDER HEADER (Bouton Poster/Lancer défi) */
-        .streamlit-expanderHeader {{ background-color: {expander_bg}; color: {text_color} !important; border-radius: 8px; border: 1px solid {card_border}; box-shadow: {card_shadow}; font-weight: 600; }}
-        .streamlit-expanderHeader p {{ color: {text_color} !important; }}
-        
-        /* BUTTONS (Supprimer) */
-        button {{ border-radius: 5px; }}
-        
-        /* CARDS */
-        .glass {{ background: {glass_bg}; padding: 20px; border-radius: 12px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
-        .challenge-card {{ background: {glass_bg}; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 8px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
-        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 12px; padding: 20px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
-        .post-card {{ background: {glass_bg}; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
-        
-        /* SPECIAL ELEMENTS */
-        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 12px; color: white !important; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: {card_shadow}; }}
-        .quote-box div {{ color: white !important; }}
-        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
-        .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
-        
-        /* STATS VALUES */
-        .stat-val {{ font-size: 1.8em; font-weight: bold; color: {metric_color}; }}
-        .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; color: {text_color}; }}
-        
-        /* DATA EDITOR */
-        div[data-testid="stDataEditor"] {{ background-color: {glass_bg}; border-radius: 10px; padding: 5px; }}
-        </style>
-    """, unsafe_allow_html=True)
-
     tabs = st.tabs(["🏠 Tableau de Bord", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
     with tabs[0]: # DASHBOARD
         st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
-        st.markdown(f"<div class='quote-box'><div>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
         
@@ -563,7 +498,7 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=chart_font), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color="white"), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
         with c_r:
@@ -605,13 +540,13 @@ else:
                 <div class='post-card'>
                     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
                         {get_user_badge(r['user'], df_u)}
-                        <span style='color:{text_color}; font-size:0.8em; opacity:0.7;'>{r['date']}</span>
+                        <span style='color:#aaa; font-size:0.8em;'>{r['date']}</span>
                     </div>
                     <img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'>
                     <p style='font-size:1.1em;'>{r['comment']}</p>
-                    <hr style='border-color:{card_border};'>
+                    <hr style='border-color:#555;'>
                     <div style='display:flex; flex-wrap:wrap; align-items:center;'>
-                        <span style='margin-right:10px; opacity:0.7; font-size:0.9em;'>Vu par :</span>
+                        <span style='margin-right:10px; color:#aaa; font-size:0.9em;'>Vu par :</span>
                         {''.join([get_user_badge(v, df_u) for v in viewers if v])}
                     </div>
                 </div>
@@ -631,17 +566,17 @@ else:
         steps = 0
         input_type = "Durée" 
         
-        if s in ["Course", "Natation", "Vélo"]:
+        if s in ["Course", "Natation","Vélo"]:
             input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
         elif s == "Marche":
-            input_type = c2.radio("Type d'objectif", ["Durée", "Pas", "Distance"], horizontal=True)
+            input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
         else:
             c2.info("⏱️ Objectif : Durée")
 
         if input_type == "Durée":
             m = c1.number_input("Durée (min)", 1, 300, 45)
         elif input_type == "Distance":
-            default_dist = 5.0 if s == "Course" else (20.0 if s == "Vélo" else 1.0)
+            default_dist = 5.0 if s == "Course" else 1.0
             dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
             speed = SPEED_MAP.get(s, 1.0)
             if speed > 0: m = (dist / speed) * 60
@@ -708,7 +643,7 @@ else:
         with c_img: st.image(boss_img, use_container_width=True)
         with c_stat:
             col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
-            st.markdown(f"""<div style="margin-bottom:5px;color:{text_color};font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom:5px;color:white;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
             if pct_hp <= 0: st.balloons(); st.success("🏆 LE BOSS EST VAINCU !")
             else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
             st.markdown("### ⚔️ Meilleurs Attaquants")
@@ -729,7 +664,7 @@ else:
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
                 prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
                 prog = prog.reindex(parts, fill_value=0)
-                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; opacity:0.8;'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
                 c_act, c_list = st.columns([1, 2])
                 with c_act:
                     if user not in parts: 
@@ -781,18 +716,12 @@ else:
             
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
-            fig_w.update_yaxes(range=[0, max_val * 1.1], gridcolor=chart_grid, linecolor=chart_font, zerolinecolor=chart_grid)
-            fig_w.update_xaxes(gridcolor=chart_grid, linecolor=chart_font)
-            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font)
+            fig_w.update_yaxes(range=[0, max_val * 1.1])
+            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
             
             c1.plotly_chart(fig_w, use_container_width=True)
             
-            fig_bar = px.bar(df_chart, x='date', y='calories', title="Kcal")
-            fig_bar.update_yaxes(gridcolor=chart_grid, linecolor=chart_font, zerolinecolor=chart_grid)
-            fig_bar.update_xaxes(gridcolor=chart_grid, linecolor=chart_font)
-            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font)
-            
-            c2.plotly_chart(fig_bar, use_container_width=True)
+            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
 
     with tabs[6]: # CLASSEMENT
         st.header("🏛️ Hall of Fame")
@@ -834,3 +763,8 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+
+
+
+
+

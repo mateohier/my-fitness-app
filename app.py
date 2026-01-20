@@ -402,8 +402,7 @@ else:
         st.markdown(f"""
         <div style="display: flex; align-items: center; font-size: 24px; font-weight: bold; margin-bottom: 20px;">
             👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}
-        </div>
-        """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
         
         st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         
@@ -704,3 +703,4 @@ else:
             st.warning("Irréversible. Confirmer ?")
             if st.button("OUI, Supprimer"):
                 if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()
+

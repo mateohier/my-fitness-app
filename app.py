@@ -144,6 +144,13 @@ st.sidebar.title("🔐 Accès Fitness")
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
 ACT_MAP = {k: v for k, v in zip(ACTIVITY_OPTS, [1.2, 1.375, 1.55, 1.725])}
 
+# Liste des sports
+SPORTS_LIST = [
+    "Musculation", "Course", "Vélo", "Natation", "Crossfit", "Fitness", "Marche",
+    "Tennis", "Football", "Basket", "Boxe", "Yoga", "Pilates", "Escalade", 
+    "Randonnée", "Danse", "Badminton", "Ski", "Rugby", "Volley"
+]
+
 if not st.session_state.user:
     menu = st.sidebar.selectbox("Menu", ["Connexion", "Créer un compte"])
     u_input = st.sidebar.text_input("Pseudo").strip().lower()
@@ -202,7 +209,6 @@ else:
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
     rank, next_lvl, _ = get_rank(total_cal)
     
-    # Calcul Streak
     streak = 0
     if not my_df.empty:
         dates = pd.to_datetime(my_df['date']).dt.date.unique()
@@ -224,7 +230,7 @@ else:
         st.markdown(f"<div class='quote-box'>✨ {quote}</div>", unsafe_allow_html=True)
         st.title(f"Bonjour {user.capitalize()}")
 
-        # 2. METRICS & IMC
+        # 2. KPI
         height_m = prof['h'] / 100
         imc = last_weight / (height_m ** 2)
         if imc < 18.5: imc_status = "Maigreur"
@@ -240,93 +246,83 @@ else:
         c3.metric("⚡ Total Burn", f"{int(total_cal):,} kcal")
         c4.metric("🩺 IMC", f"{imc:.1f}", imc_status)
 
-        # 3. FEATURES VISUELLES
+        # 3. VISUELS
         st.divider()
         col_gauche, col_droite = st.columns([1, 1])
 
         with col_gauche:
-            st.subheader("🧬 ADN Sportif (RPG)")
-            # Logique RPG
-            stats = {"Force": 10, "Endurance": 10, "Agilité": 10, "Mental": 10} # Base de 10
+            st.subheader("🧬 ADN Sportif")
+            stats = {"Force": 10, "Endurance": 10, "Agilité": 10, "Mental": 10}
             if not my_df.empty:
-                stats["Force"] += my_df[my_df['sport'].isin(["Musculation", "Crossfit"])]['minutes'].sum()
-                stats["Endurance"] += my_df[my_df['sport'].isin(["Course", "Vélo", "Marche", "Natation"])]['minutes'].sum()
-                stats["Agilité"] += my_df[my_df['sport'].isin(["Fitness"])]['minutes'].sum()
-                stats["Mental"] += len(my_df) * 15 # La régularité
+                # Catégorisation des sports
+                stats["Force"] += my_df[my_df['sport'].isin(["Musculation", "Crossfit", "Escalade", "Boxe", "Rugby"])]['minutes'].sum()
+                stats["Endurance"] += my_df[my_df['sport'].isin(["Course", "Vélo", "Marche", "Natation", "Tennis", "Football", "Basket", "Badminton", "Ski", "Randonnée"])]['minutes'].sum()
+                stats["Agilité"] += my_df[my_df['sport'].isin(["Fitness", "Yoga", "Pilates", "Danse", "Volley"])]['minutes'].sum()
+                stats["Mental"] += len(my_df) * 15
 
-            # Normalisation (Max 200 pour le graph)
-            data_rpg = pd.DataFrame({
-                'Stat': list(stats.keys()),
-                'Valeur': [min(v, 300) for v in stats.values()]
-            })
-            
+            data_rpg = pd.DataFrame({'Stat': list(stats.keys()), 'Valeur': [min(v, 300) for v in stats.values()]})
             fig_rpg = px.line_polar(data_rpg, r='Valeur', theta='Stat', line_close=True)
             fig_rpg.update_traces(fill='toself', line_color='#FF4B4B')
-            fig_rpg.update_layout(
-                polar=dict(radialaxis=dict(visible=False, range=[0, max(data_rpg['Valeur'])+20])), 
-                margin=dict(t=20, b=20, l=20, r=20),
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
-            )
+            fig_rpg.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, max(data_rpg['Valeur'])+20])), 
+                                  margin=dict(t=20, b=20, l=20, r=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_rpg, use_container_width=True)
 
         with col_droite:
             st.subheader("🌍 Voyage Virtuel")
-            # 1km virtuel = 60 kcal (Moyenne marche)
             km_virtuels = total_cal / 60
             villes = [("Lille", 0), ("Paris", 225), ("Lyon", 690), ("Valence", 790), ("Marseille", 1000)]
-            
-            # Trouver la prochaine ville
-            prochaine_ville = "Marseille ☀️"
-            km_restant = 0
+            prochaine_ville, km_restant = "Marseille ☀️", 0
             for v, dist in villes:
                 if km_virtuels < dist:
                     prochaine_ville = v
                     km_restant = dist - km_virtuels
                     break
             
-            progression = min(km_virtuels / 1000, 1.0)
-            
             st.markdown(f"""
             <div class='journey-box'>
-                <h3>🏃‍♂️ Tu as parcouru : {int(km_virtuels)} km</h3>
-                <p>Prochaine étape : <b>{prochaine_ville}</b> (dans {int(km_restant)} km)</p>
+                <h3>🏃‍♂️ {int(km_virtuels)} km parcourus</h3>
+                <p>Direction <b>{prochaine_ville}</b> (encore {int(km_restant)} km)</p>
             </div>
             """, unsafe_allow_html=True)
-            st.progress(progression)
+            st.progress(min(km_virtuels / 1000, 1.0))
             
             st.subheader("🍔 Équivalence")
-            st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
+            st.info(f"Tu as brûlé : **{get_food_equivalent(total_cal)}**")
 
-        # 4. HEATMAP (La Constance)
+        # 4. CALENDRIER
         st.divider()
-        st.subheader("📅 Ta Constance (Heatmap)")
+        st.subheader("📅 Calendrier de régularité")
+        
+        today = date.today()
+        start_year = date(today.year, 1, 1)
+        all_dates = pd.date_range(start_year, today)
+        df_cal = pd.DataFrame({"date": all_dates})
+        df_cal['date'] = df_cal['date'].dt.date
         
         if not my_df.empty:
-            # Préparation des données pour la heatmap
-            hm_data = my_df.copy()
-            hm_data['week'] = hm_data['date'].dt.isocalendar().week
-            hm_data['day_name'] = hm_data['date'].dt.day_name()
-            # Ordre des jours
-            days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            
-            # Aggrégation
-            hm_agg = hm_data.groupby(['week', 'day_name'])['minutes'].sum().reset_index()
-            
-            fig_hm = px.density_heatmap(
-                hm_agg, x="week", y="day_name", z="minutes", 
-                nbinsx=52, nbinsy=7, 
-                color_continuous_scale="Greens",
-                category_orders={"day_name": days_order[::-1]} # Inverse pour Lundi en haut
-            )
-            fig_hm.update_layout(
-                title="Intensité par jour",
-                xaxis_title="Semaine de l'année", yaxis_title="",
-                coloraxis_showscale=False,
-                margin=dict(t=30, b=20, l=0, r=0)
-            )
-            st.plotly_chart(fig_hm, use_container_width=True)
+            my_df['date_only'] = my_df['date'].dt.date
+            daily_activity = my_df.groupby('date_only')['minutes'].sum().reset_index()
+            df_cal = pd.merge(df_cal, daily_activity, left_on='date', right_on='date_only', how='left').fillna(0)
         else:
-            st.write("Fais du sport pour colorier ton calendrier !")
+            df_cal['minutes'] = 0
+            
+        df_cal['week'] = pd.to_datetime(df_cal['date']).dt.isocalendar().week
+        df_cal['day_of_week'] = pd.to_datetime(df_cal['date']).dt.dayofweek
+        days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+        
+        fig_cal = go.Figure(data=go.Heatmap(
+            x=df_cal['week'], y=df_cal['day_of_week'], z=df_cal['minutes'],
+            colorscale=[[0, '#2d2d2d'], [0.1, '#0e4429'], [1, '#39d353']],
+            showscale=False, xgap=3, ygap=3, hoverongaps=False,
+            hovertemplate='Semaine %{x}, %{y}: %{z} min<extra></extra>'
+        ))
+        fig_cal.update_layout(
+            height=200, yaxis=dict(tickmode='array', tickvals=[0,1,2,3,4,5,6], ticktext=days, showgrid=False, zeroline=False),
+            xaxis=dict(showgrid=False, zeroline=False, title="Semaines de l'année"),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=20, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig_cal, use_container_width=True)
+
 
     with t2:
         if not my_df.empty:
@@ -350,12 +346,18 @@ else:
         with st.form("add"):
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
-            s = c2.selectbox("Sport", ["Musculation", "Course", "Vélo", "Natation", "Crossfit", "Marche", "Fitness"])
+            s = c2.selectbox("Sport", SPORTS_LIST) # Liste complète
             w = c1.number_input("Poids (kg)", 0.0, 200.0, float(last_weight))
             m = c2.number_input("Durée (min)", 1, 300, 45)
             
             if st.form_submit_button("Sauvegarder"):
-                met = {"Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 4, "Crossfit": 8, "Marche": 3.5, "Fitness": 6}
+                # Dictionnaire MET complet
+                met = {
+                    "Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 4, "Crossfit": 8,
+                    "Marche": 3.5, "Fitness": 6, "Tennis": 7, "Football": 8, "Basket": 8,
+                    "Boxe": 10, "Yoga": 3, "Pilates": 3, "Escalade": 8, "Randonnée": 6,
+                    "Danse": 5, "Badminton": 6, "Ski": 7, "Rugby": 9, "Volley": 4
+                }
                 cal_sport = (calculate_bmr(w, prof['h'], age, prof['sex']) / 24) * met.get(s, 5) * (m/60)
                 
                 new_act = pd.DataFrame([{

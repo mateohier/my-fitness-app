@@ -694,11 +694,29 @@ else:
             
             with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
             
-            df_chart = my_df.copy(); c1, c2 = st.columns(2)
+            # --- FILTRE TEMPOREL ---
+            filter_option = st.selectbox("Période", ["Semaine", "Mois", "3 Mois", "Année", "Tout"])
+            
+            today = datetime.now()
+            start_date = None
+            if filter_option == "Semaine": start_date = today - timedelta(days=7)
+            elif filter_option == "Mois": start_date = today - timedelta(days=30)
+            elif filter_option == "3 Mois": start_date = today - timedelta(days=90)
+            elif filter_option == "Année": start_date = today - timedelta(days=365)
+            
+            df_chart = my_df.copy()
+            if start_date:
+                df_chart = df_chart[df_chart['date'] >= start_date]
+            
+            c1, c2 = st.columns(2)
             
             target_w = float(prof.get('w_obj', 65.0))
             fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
             fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
+            
+            # AXE Y COMMENCE A 0
+            max_val = df_chart['poids'].max() if not df_chart.empty else 100
+            fig_w.update_yaxes(range=[0, max_val * 1.1])
             fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
             
             c1.plotly_chart(fig_w, use_container_width=True)

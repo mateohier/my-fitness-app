@@ -383,7 +383,7 @@ st.markdown(f"""
 
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d, df_p = get_data()
-clean_old_posts(df_p)
+clean_old_posts(df_p) # Nettoyage auto
 
 if not st.session_state.user:
     st.title("✨ FollowFit")
@@ -446,8 +446,7 @@ else:
         c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
         c2.metric("🔥 Série Perso", f"{streak_user} Jours")
         c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
-        c4.metric("🏆 Trophées", f"{len(check_achievements(my_df))}")
-        
+        c4.metric("Trophées", f"{len(check_achievements(my_df))}")
         if not df_a.empty:
             all_totals = df_a.groupby('user')['calories'].sum()
             celebrations = []
@@ -515,57 +514,20 @@ else:
 
     with tabs[2]: # SEANCE
         st.subheader("Ajouter une séance")
-        # Menu déroulant (avec clé unique pour éviter le refresh intempestif)
-        s = st.selectbox("Sport", SPORTS_LIST, key="sport_select_unique")
-        
-        with st.form("add_seance_form"):
+        with st.form("add"):
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
             t = c2.time_input("Heure", datetime.now().time())
-            
-            # Variables par défaut
-            val_steps = 0
-            val_km = 0.0
-            
-            # Logique d'affichage dynamique pour tous les sports
-            if s == "Marche":
-                opts = ["Durée (min)", "Nombre de pas", "Distance (km)"]
-            elif s == "Course" or s == "Natation":
-                opts = ["Durée (min)", "Distance (km)"]
-            else:
-                opts = ["Durée (min)"]
-                
-            choix = st.radio("Type de donnée :", opts, horizontal=True)
-            
-            if choix == "Nombre de pas":
-                val_steps = st.number_input("Nombre de pas", 0, 100000, 5000)
-            elif choix == "Distance (km)":
-                val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
-            
-            m = st.number_input("Valeur - Estimée auto si vide", 1, 300, 45)
+            s = c1.selectbox("Sport", SPORTS_LIST)
+            m = c2.number_input("Durée (min)", 1, 300, 45)
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
-            
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
-                base_kcal = 0
-                if s == "Marche" and val_steps > 0:
-                    base_kcal = val_steps * 0.045
-                    if m == 45: m = int(val_steps / 100)
-                elif (s == "Marche" or s == "Course" or s == "Natation") and val_km > 0:
-                    mult = 0.5 if s == "Marche" else (3.0 if s == "Natation" else 1.0)
-                    base_kcal = w * val_km * mult
-                    if m == 45: m = int(val_km * (12 if s == "Marche" else (25 if s == "Natation" else 6)))
-                else:
-                    dna = DNA_MAP.get(s, {})
-                    intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
-                    base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
-                
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
-                
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
                     st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
-        
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
@@ -627,7 +589,17 @@ else:
             st.subheader("🏆 Records")
             max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
             tot_sess = len(my_df)
-            st.markdown(f"""<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;"><div class="stat-card"><div style="font-size:2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Max Kcal</div></div><div class="stat-card"><div style="font-size:2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Max Min</div></div><div class="stat-card"><div style="font-size:2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Favori</div></div><div class="stat-card"><div style="font-size:2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
+            
+            # CSS GRID pour le CARRÉ 2x2
+            st.markdown(f"""
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})

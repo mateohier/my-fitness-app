@@ -20,7 +20,7 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
 
-# --- CALENDRIER DES BOSS (1 par mois) ---
+# --- CALENDRIER DES BOSS ---
 BOSS_CALENDAR = {
     1: ("Yéti des Glaces", 150000, "https://images.unsplash.com/photo-1546519638-68e109498ee3?q=80&w=1000"),
     2: ("Golem de Pierre", 160000, "https://images.unsplash.com/photo-1617374028688-66236b280388?q=80&w=1000"),
@@ -155,6 +155,40 @@ def save_user(u, p, data):
         return True
     except: return False
 
+def delete_current_user():
+    """Supprime l'utilisateur, ses activités et le retire des défis"""
+    try:
+        user = st.session_state.user
+        
+        # 1. Lire toutes les données
+        df_u = conn.read(worksheet="Profils", ttl=0)
+        df_a = conn.read(worksheet="Activites", ttl=0)
+        df_d = conn.read(worksheet="Defis", ttl=0)
+        
+        # 2. Supprimer de Profils et Activites
+        df_u = df_u[df_u['user'] != user]
+        df_a = df_a[df_a['user'] != user]
+        
+        # 3. Retirer des participants aux défis
+        def remove_participant(participants_str):
+            parts = str(participants_str).split(',')
+            if user in parts:
+                parts.remove(user)
+            return ",".join(parts)
+            
+        df_d['participants'] = df_d['participants'].apply(remove_participant)
+        
+        # 4. Sauvegarder
+        conn.update(worksheet="Profils", data=df_u)
+        conn.update(worksheet="Activites", data=df_a)
+        conn.update(worksheet="Defis", data=df_d)
+        
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erreur suppression : {e}")
+        return False
+
 def create_challenge(titre, type_def, obj, sport_cible, fin):
     try:
         df = conn.read(worksheet="Defis", ttl=0)
@@ -250,7 +284,6 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    # TABS (SANS ANATOMIE, AVEC BOSS & STATS)
     tabs = st.tabs(["🏠 Dashboard", "👹 Boss", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
@@ -292,13 +325,11 @@ else:
             st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
     with tabs[1]: # BOSS AUTOMATIQUE
-        # Récupération automatique du Boss du mois
         curr_month_num = datetime.now().month
         boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
         
         st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
         
-        # Filtre mois en cours
         curr_month_str = datetime.now().strftime("%Y-%m")
         df_a['month'] = df_a['date'].dt.strftime("%Y-%m")
         df_month = df_a[df_a['month'] == curr_month_str]
@@ -332,7 +363,7 @@ else:
                 for i, (u, val) in enumerate(dps.items()):
                     st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
 
-    with tabs[2]: # DEFIS
+    with tabs[2]: # DEFIS DETAILLES
         st.header("⚔️ Salle des Défis")
         
         with st.expander("➕ Lancer un nouveau défi"):
@@ -354,21 +385,25 @@ else:
                 s_txt = "tous sports confondus" if r['sport_cible'] == "Tous les sports" else f"en {r['sport_cible']}"
                 unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                 
+                # Calcul Stats pour tous les participants
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
 
-                prog = pd.Series()
+                prog = pd.Series(dtype=float)
                 if "Calories" in r['type']: prog = c_df.groupby('user')['calories'].sum()
                 elif "Durée" in r['type']: prog = c_df.groupby('user')['minutes'].sum()
                 elif "Distance" in r['type']:
                     c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
                     prog = c_df.groupby('user')['km_est'].sum()
                 
+                # S'assurer que tous les participants sont dans la série, même avec 0
+                prog = prog.reindex(parts, fill_value=0)
+
                 st.markdown(f"""
                 <div class='challenge-card'>
                     <h3>🏆 {r['titre']}</h3>
                     <p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p>
-                    <p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']} • {len(parts)} participants</p>
+                    <p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -378,12 +413,13 @@ else:
                         if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
                     else: st.write("✅ Tu participes")
                 with col_list:
-                    if not prog.empty:
-                        for u, val in prog.sort_values(ascending=False).items():
-                            pct = min(val/float(r['objectif']), 1.0)
-                            st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
-                            st.progress(pct)
-                    else: st.write("Pas encore de progression.")
+                    # Affichage liste complète
+                    st.write("**Classement :**")
+                    sorted_prog = prog.sort_values(ascending=False)
+                    for u, val in sorted_prog.items():
+                        pct = min(val/float(r['objectif']), 1.0)
+                        st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
+                        st.progress(pct)
                 st.divider()
         else: st.info("Aucun défi.")
 
@@ -430,11 +466,10 @@ else:
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(kcal), "poids": w}])):
                     st.success(f"+{int(kcal)} kcal !"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(1); st.rerun()
 
-    with tabs[5]: # PROFIL
+    with tabs[5]: # PROFIL & SUPPRESSION
         with st.form("prof"):
             nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
             nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
-            
             if st.form_submit_button("Mettre à jour"):
                 prof['h']=int(nh)
                 prof['w_obj']=float(nw)
@@ -452,6 +487,20 @@ else:
                 edi['calories'] = pd.to_numeric(edi['calories'])
                 conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
                 st.cache_data.clear(); st.success("OK"); st.rerun()
+        
+        st.divider()
+        st.error("⚠️ Zone de Danger")
+        if st.button("Supprimer mon compte définitivement"):
+            st.session_state['confirm_delete'] = True
+            
+        if st.session_state.get('confirm_delete'):
+            st.warning("Êtes-vous sûr ? Cette action est irréversible.")
+            if st.button("Confirmer la suppression"):
+                if delete_current_user():
+                    st.session_state.user = None
+                    st.success("Compte supprimé.")
+                    time.sleep(1)
+                    st.rerun()
 
     with tabs[6]: # TOP
         if not df_a.empty:

@@ -22,7 +22,7 @@ LOTTIE_GYM = "https://lottie.host/5a88c7f9-2819-4592-9654-20b18fa2409f/18qFh7lXy
 # --- 🖼️ CONFIGURATION IMAGE DE FOND ---
 # Remplace ceci par le lien "Raw" de ton image GitHub
 # Exemple : "https://raw.githubusercontent.com/ton-pseudo/ton-repo/main/background.jpg"
-BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
+BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 # Mapping des muscles par sport (Score sur 10)
 MUSCLE_MAP = {
@@ -469,3 +469,4 @@ else:
                 for i, (u, c) in enumerate(top.items()):
                     cols[i].markdown(f"<div class='podium-box'><h1>{['🥇','🥈','🥉'][i]}</h1><h3>{u}</h3><p>{int(c)} kcal</p></div>", unsafe_allow_html=True)
             else: st.warning("Pas de sport cette semaine.")
+

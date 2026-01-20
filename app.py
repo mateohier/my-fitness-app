@@ -451,13 +451,28 @@ else:
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
-            edi = st.data_editor(my_df, use_container_width=True, num_rows="dynamic")
-            if st.button("Sauvegarder Modifs"):
+            # CHECKBOX COLUMN FOR DELETE
+            df_display = my_df.copy()
+            df_display.insert(0, "Supprimer", False) # First Col
+
+            edi = st.data_editor(
+                df_display, 
+                use_container_width=True, 
+                num_rows="dynamic",
+                column_config={"Supprimer": st.column_config.CheckboxColumn(required=True)}
+            )
+            
+            if st.button("💾 Sauvegarder changements (Modifs / Suppressions)"):
+                # KEEP ROWS WHERE "Supprimer" IS FALSE
+                to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
+                
                 df_others = df_a[df_a['user'] != user]
-                edi['date'] = pd.to_datetime(edi['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                edi['poids'] = pd.to_numeric(edi['poids']); edi['calories'] = pd.to_numeric(edi['calories'])
-                conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
-                st.cache_data.clear(); st.success("OK"); st.rerun()
+                to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                to_keep['poids'] = pd.to_numeric(to_keep['poids'])
+                to_keep['calories'] = pd.to_numeric(to_keep['calories'])
+                
+                conn.update(worksheet="Activites", data=pd.concat([df_others, to_keep], ignore_index=True))
+                st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
     with tabs[2]: # BOSS
         curr_month_num = datetime.now().month

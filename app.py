@@ -569,7 +569,7 @@ else:
         if s in ["Course", "Natation","Vélo"]:
             input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
         elif s == "Marche":
-            input_type = c2.radio("Type d'objectif", ["Durée", "Pas","distance"], horizontal=True)
+            input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
         else:
             c2.info("⏱️ Objectif : Durée")
 
@@ -763,6 +763,7 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+
 
 
 

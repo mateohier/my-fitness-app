@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import hashlib
 import time
 import json
+import random
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="wide")
@@ -33,11 +34,36 @@ def get_rank(total_cal):
         if total_cal < limit: return name, limit, medal
     return "Légende 🔥", 1000000, "Diamant"
 
+def get_food_equivalent(calories):
+    """Convertit les calories en nourriture fun"""
+    if calories < 100: return "une Pomme 🍎"
+    if calories < 250: return "une Barre chocolatée 🍫"
+    if calories < 400: return "un Cheeseburger 🍔"
+    if calories < 600: return "un paquet de Frites 🍟"
+    if calories < 900: return "une Pizza entière 🍕"
+    if calories < 1500: return "un Menu Fast-Food XL 🥤"
+    return "un Festin de Roi 🍗"
+
+def get_motivational_quote():
+    """Génère une phrase mignonne aléatoire"""
+    quotes = [
+        "Chaque goutte de sueur est une victoire ! 💦",
+        "Tu es plus fort(e) que tu ne le penses ! 💪",
+        "N'abandonne jamais, les miracles prennent du temps. ✨",
+        "Ton seul ennemi, c'est toi-même d'hier. 🚀",
+        "Respire, bois de l'eau, et déchire tout ! 🥤",
+        "La douleur d'aujourd'hui est la force de demain. 🔥",
+        "Crois en toi, même quand personne ne regarde. 🦁",
+        "Petit progrès deviendra grand ! 🌱",
+        "Tu es une machine de guerre ! 🤖",
+        "Fier(e) de toi, continue comme ça ! ❤️"
+    ]
+    return random.choice(quotes)
+
 # --- 3. GESTION DONNÉES (GOOGLE SHEETS) ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
-    """Charge les données avec conversion stricte des types"""
     try:
         df_users = conn.read(worksheet="Profils", ttl=5)
         df_acts = conn.read(worksheet="Activites", ttl=5)
@@ -47,7 +73,6 @@ def get_data():
         if df_acts.empty: 
             df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
-        # --- NETTOYAGE DES DONNÉES ---
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
         df_acts['poids'] = pd.to_numeric(df_acts['poids'], errors='coerce')
         df_acts['calories'] = pd.to_numeric(df_acts['calories'], errors='coerce')
@@ -121,8 +146,17 @@ st.markdown("""
     .stMetricValue { font-size: 2rem !important; }
     div[data-testid="stSidebar"] { background-color: rgba(20, 20, 20, 0.95); }
     .podium-box { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #444; }
-    .trophy-container { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; }
-    .trophy-item { font-size: 24px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 50%; border: 1px solid gold; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+    .quote-box {
+        padding: 15px;
+        background: linear-gradient(45deg, #FF4B4B, #FF9068);
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -181,7 +215,6 @@ else:
     # Récupération Données
     my_df = df_acts[df_acts['user'] == user].copy()
     
-    # Récupération dernier poids
     start_weight = float(prof.get('w_init', 70.0))
     target_weight = float(prof.get('w_obj', 65.0))
     
@@ -195,7 +228,6 @@ else:
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
     rank, next_lvl, _ = get_rank(total_cal)
     
-    # Calcul Streak
     streak = 0
     if not my_df.empty:
         dates = pd.to_datetime(my_df['date']).dt.date.unique()
@@ -212,10 +244,13 @@ else:
     t1, t2, t3, t4, t5 = st.tabs(["🏠 Dashboard", "📈 Graphiques", "➕ Séance", "⚙️ Gestion", "🏆 Leaderboard"])
     
     with t1:
+        # --- CITATION DU MOMENT ---
+        quote = get_motivational_quote()
+        st.markdown(f"<div class='quote-box'>✨ {quote}</div>", unsafe_allow_html=True)
+        
         st.title(f"Bonjour {user.capitalize()}")
         st.caption(f"{prof['sex']} | {age} ans | {prof['h']}cm | {prof['act']}")
         
-        # --- NOUVEAUTÉ 1 : CALCUL IMC ---
         height_m = prof['h'] / 100
         imc = last_weight / (height_m ** 2)
         if imc < 18.5: imc_status = "Maigreur"
@@ -223,26 +258,23 @@ else:
         elif 25 <= imc < 30: imc_status = "Surpoids ⚠️"
         else: imc_status = "Obésité 🚨"
 
-        # --- NOUVEAUTÉ 2 : PREDICTION DATE ---
         gras_brule_kg = total_cal / 7700
         
-        # Combien reste-t-il à perdre ?
+        # --- EQUIVALENCE NOURRITURE ---
+        food_eq = get_food_equivalent(total_cal)
+        
         remaining_loss = last_weight - target_weight
         prediction_text = "Pas encore assez de données"
         
         if remaining_loss > 0 and not my_df.empty:
-            # Calcul du rythme journalier (Total calories / Jours écoulés depuis le début)
             first_date = my_df['date'].min()
             days_active = (pd.Timestamp.now() - first_date).days
             if days_active < 1: days_active = 1
-            
             avg_cal_day = total_cal / days_active
             
             if avg_cal_day > 0:
-                # Calories restantes à brûler pour atteindre l'objectif (1kg = 7700kcal)
                 cal_needed = remaining_loss * 7700
                 days_left = cal_needed / avg_cal_day
-                
                 target_date = date.today() + timedelta(days=int(days_left))
                 prediction_text = f"🎯 Objectif estimé le : **{target_date.strftime('%d/%m/%Y')}**"
             else:
@@ -250,17 +282,7 @@ else:
         elif remaining_loss <= 0:
             prediction_text = "🎉 Objectif atteint ! Bravo !"
 
-        # --- NOUVEAUTÉ 3 : TROPHÉES ---
-        badges = []
-        if len(my_df) >= 1: badges.append("🏁") # Premier pas
-        if streak >= 3: badges.append("🔥") # Série de 3
-        if streak >= 7: badges.append("🔥🔥") # Série de 7
-        if total_cal >= 10000: badges.append("🚀") # 10k calories
-        if total_cal >= 50000: badges.append("🌟") # 50k calories
-        if gras_brule_kg >= 1: badges.append("💧") # 1kg gras perdu
-        if gras_brule_kg >= 5: badges.append("⚔️") # 5kg gras perdu
-
-        # --- AFFICHAGE DASHBOARD ---
+        # --- AFFICHAGE ---
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{streak} Jours")
         c2.metric("⚖️ Gras Brûlé", f"{gras_brule_kg:.2f} kg", f"Basé sur {int(total_cal)} kcal")
@@ -272,16 +294,12 @@ else:
         
         st.info(prediction_text)
         
+        # Nouvelle section Fun
         st.divider()
-        st.subheader("🏆 Mur des Trophées")
-        if badges:
-            st.markdown(
-                f"<div class='trophy-container'>{''.join([f'<div class=trophy-item>{b}</div>' for b in badges])}</div>", 
-                unsafe_allow_html=True
-            )
-            st.caption(f"{len(badges)} trophées débloqués")
-        else:
-            st.write("Fais ta première séance pour débloquer des trophées !")
+        st.subheader("🍔 Équivalence Gourmande")
+        st.markdown(f"### Tu as éliminé l'équivalent de : **{food_eq}** !")
+        if total_cal > 2000:
+            st.balloons() # Petite fête si gros score
 
     with t2:
         if not my_df.empty:

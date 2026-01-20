@@ -37,10 +37,8 @@ def get_rank(total_cal):
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
-    """Charge les deux tables avec un cache de 5 secondes pour éviter l'erreur 429"""
+    """Charge les données avec cache intelligent (5s)"""
     try:
-        # --- CORRECTION CRUCIALE ICI (ttl=5) ---
-        # Cela empêche de harceler Google à chaque clic
         df_users = conn.read(worksheet="Profils", ttl=5)
         df_acts = conn.read(worksheet="Activites", ttl=5)
         
@@ -49,24 +47,32 @@ def get_data():
         if df_acts.empty: 
             df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
+        # Conversion sécurisée en date
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
         df_acts = df_acts.dropna(subset=['date'])
         
         return df_users, df_acts
     except Exception as e:
-        # On n'affiche plus l'erreur en gros, on attend juste que le quota revienne
-        st.warning("Connexion lente (Quota Google)... Attendez quelques secondes.")
+        # En cas de quota dépassé, on retourne vide sans planter
         return pd.DataFrame(), pd.DataFrame()
 
 def save_activity(new_row):
-    """Ajoute une ligne et vide le cache pour voir le résultat immédiat"""
+    """Ajoute une ligne et gère le conflit de types Date/Texte"""
     try:
-        # Pour écrire, on a besoin de la dernière version, donc on force ttl=0 ici exceptionnellement
+        # Lecture sans cache pour écrire sur la dernière version
         df_acts = conn.read(worksheet="Activites", ttl=0)
+        
+        # Concaténation
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
+        
+        # --- CORRECTION DU BUG .dt ---
+        # On force d'abord tout le monde en format "Date" pour que Python comprenne
+        updated_df['date'] = pd.to_datetime(updated_df['date'], errors='coerce')
+        # Ensuite on transforme en texte propre pour Google Sheets
         updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
+        
         conn.update(worksheet="Activites", data=updated_df)
-        st.cache_data.clear() # Force le rechargement visuel
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Erreur sauvegarde: {e}")
@@ -94,11 +100,17 @@ def update_history(df_edited):
     try:
         df_all_acts = conn.read(worksheet="Activites", ttl=0)
         current_user = st.session_state.user
+        
+        # On filtre
         df_others = df_all_acts[df_all_acts['user'] != current_user]
         df_edited['user'] = current_user
         
+        # Fusion
         df_final = pd.concat([df_others, df_edited], ignore_index=True)
-        df_final['date'] = pd.to_datetime(df_final['date']).dt.strftime('%Y-%m-%d')
+        
+        # --- MÊME CORRECTION ICI ---
+        df_final['date'] = pd.to_datetime(df_final['date'], errors='coerce')
+        df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
         
         conn.update(worksheet="Activites", data=df_final)
         st.cache_data.clear()
@@ -143,6 +155,7 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
+        # FIX DATE LIMITE 1900
         dob = st.sidebar.date_input("Naissance", value=date(1990,1,1), min_value=date(1900,1,1), max_value=date.today())
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
@@ -252,6 +265,7 @@ else:
         st.subheader("Profil")
         with st.form("edit_prof"):
             col1, col2 = st.columns(2)
+            # FIX DATE LIMITE 1900
             new_dob = col1.date_input("Naissance", datetime.strptime(prof['dob'], "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
             new_act = col2.selectbox("Activité", ACTIVITY_OPTS, index=ACTIVITY_OPTS.index(prof['act']))
             new_obj = st.number_input("Objectif", value=float(prof['w_obj']))

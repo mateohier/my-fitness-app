@@ -19,8 +19,22 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
-# Image du Boss (Monstre de lave stable)
-BOSS_IMG = "https://images.unsplash.com/photo-1590845947698-8924d7409b56?q=80&w=1470&auto=format&fit=crop"
+
+# --- CALENDRIER DES BOSS (1 par mois) ---
+BOSS_CALENDAR = {
+    1: ("Yéti des Glaces", 150000, "https://images.unsplash.com/photo-1546519638-68e109498ee3?q=80&w=1000"),
+    2: ("Golem de Pierre", 160000, "https://images.unsplash.com/photo-1617374028688-66236b280388?q=80&w=1000"),
+    3: ("Hydre des Marais", 180000, "https://images.unsplash.com/photo-1616091216791-a5360b5fc78a?q=80&w=1000"),
+    4: ("Titan Colossal", 200000, "https://images.unsplash.com/photo-1590845947698-8924d7409b56?q=80&w=1000"),
+    5: ("Reine des Enfers", 220000, "https://images.unsplash.com/photo-1627449557342-6323136209b9?q=80&w=1000"),
+    6: ("Dragon Solaire", 250000, "https://images.unsplash.com/photo-1594956108155-2272e5052994?q=80&w=1000"),
+    7: ("Kraken des Abysses", 250000, "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1000"),
+    8: ("Seigneur Volcanique", 240000, "https://images.unsplash.com/photo-1469598614039-ccfeb0a21111?q=80&w=1000"),
+    9: ("Chevalier Noir", 210000, "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=1000"),
+    10: ("Spectre d'Halloween", 200000, "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?q=80&w=1000"),
+    11: ("Cyborg du Futur", 190000, "https://images.unsplash.com/photo-1535378437323-955a6d73a36c?q=80&w=1000"),
+    12: ("Père Fouettard Géant", 180000, "https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=1000")
+}
 
 # --- MAPPINGS ---
 DNA_MAP = {
@@ -196,7 +210,7 @@ if not st.session_state.user:
     p_input = st.sidebar.text_input("PIN (4 chiffres)", type="password")
     
     if menu == "Se connecter":
-        if st.sidebar.button("Valider"):
+        if st.sidebar.button("Se connecter"):
             if not df_u.empty and u_input in df_u['user'].values:
                 if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input):
                     st.session_state.user = u_input; st.rerun()
@@ -236,7 +250,7 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    # ONGLETS (AVEC BOSS & DEFIS)
+    # TABS (SANS ANATOMIE, AVEC BOSS & STATS)
     tabs = st.tabs(["🏠 Dashboard", "👹 Boss", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
@@ -275,53 +289,48 @@ else:
             
             st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur {dest} ({int(rest)} km)</div>", unsafe_allow_html=True)
             st.progress(min(km/1000, 1.0))
-            st.info(f"Équivalent : **{get_food_equivalent(total_cal)}**")
+            st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # BOSS DE MONDE
-        st.header("👹 BOSS MONDIAL")
+    with tabs[1]: # BOSS AUTOMATIQUE
+        # Récupération automatique du Boss du mois
+        curr_month_num = datetime.now().month
+        boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
         
-        # Logique Boss : Calculer les calories de TOUT LE MONDE ce mois-ci
-        current_month_str = datetime.now().strftime("%Y-%m")
+        st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
+        
+        # Filtre mois en cours
+        curr_month_str = datetime.now().strftime("%Y-%m")
         df_a['month'] = df_a['date'].dt.strftime("%Y-%m")
-        df_this_month = df_a[df_a['month'] == current_month_str]
+        df_month = df_a[df_a['month'] == curr_month_str]
         
-        total_dmg = df_this_month['calories'].sum()
-        BOSS_HP = 200000 # Objectif de groupe (200k kcal)
-        hp_percent = max(0, (BOSS_HP - total_dmg) / BOSS_HP)
-        hp_percent_display = min(1.0, max(0.0, hp_percent))
+        dmg = df_month['calories'].sum()
+        pct_hp = max(0, (boss_max_hp - dmg) / boss_max_hp)
         
-        col_boss_img, col_boss_stat = st.columns([1, 2])
-        
-        with col_boss_img:
-            st.image(BOSS_IMG, use_container_width=True)
-            
-        with col_boss_stat:
-            month_name = datetime.now().strftime("%B").capitalize()
-            st.subheader(f"Le Titan du mois ({current_month_str})")
-            
-            # Barre de vie custom HTML/CSS
-            color = "#4CAF50" if hp_percent > 0.5 else ("#FF9800" if hp_percent > 0.2 else "#F44336")
+        c_img, c_stat = st.columns([1, 2])
+        with c_img:
+            st.image(boss_img, use_container_width=True)
+        with c_stat:
+            col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
             st.markdown(f"""
-            <div style="margin-bottom:5px; color:white;">PV Restants : {int(BOSS_HP - total_dmg)} / {BOSS_HP}</div>
+            <div style="margin-bottom:5px; color:white; font-size:1.2em; font-weight:bold;">
+                PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}
+            </div>
             <div class="boss-bar">
-                <div class="boss-fill" style="width: {hp_percent_display*100}%; background-color: {color};"></div>
+                <div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div>
             </div>
             """, unsafe_allow_html=True)
             
-            if hp_percent <= 0:
+            if pct_hp <= 0:
                 st.balloons()
-                st.success("🏆 LE BOSS EST VAINCU ! Bravo à tous !")
+                st.success("🏆 LE BOSS EST VAINCU ! Bravo à toute l'équipe !")
             else:
-                st.info("Faites du sport pour réduire ses PV ! 1 kcal = 1 Dégât.")
-            
-            # Leaderboard DPS (Dégâts par seconde/joueur)
+                st.info(f"L'objectif est collectif ! Il reste {int(pct_hp*100)}% de vie.")
+                
             st.markdown("### ⚔️ Meilleurs Attaquants (Top DPS)")
-            if not df_this_month.empty:
-                dps = df_this_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
-                for i, (u, dmg) in enumerate(dps.items()):
-                    st.write(f"**{i+1}. {u}** : {int(dmg)} dégâts")
-            else:
-                st.write("Le combat n'a pas encore commencé...")
+            if not df_month.empty:
+                dps = df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
+                for i, (u, val) in enumerate(dps.items()):
+                    st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
 
     with tabs[2]: # DEFIS
         st.header("⚔️ Salle des Défis")
@@ -333,7 +342,6 @@ else:
                 sport_target = st.selectbox("Sport concerné", ["Tous les sports"] + SPORTS_LIST)
                 obj = st.number_input("Objectif à atteindre", 10.0, 50000.0, 500.0)
                 fin = st.date_input("Date limite")
-                
                 if st.form_submit_button("Créer le défi"):
                     create_challenge(dt, type_def, obj, sport_target, fin)
                     st.success("Défi lancé !"); time.sleep(1); st.rerun()
@@ -381,17 +389,15 @@ else:
 
     with tabs[3]: # STATS & RECORDS
         if not my_df.empty:
-            # RECORDS PERSONNELS
             st.subheader("🏆 Tes Records Personnels")
-            max_cal_sess = my_df['calories'].max()
-            max_min_sess = my_df['minutes'].max()
-            fav_sport = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
+            max_c = my_df['calories'].max()
+            max_m = my_df['minutes'].max()
+            fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "-"
             
             k1, k2, k3 = st.columns(3)
-            k1.metric("Max Kcal (1 séance)", f"{int(max_cal_sess)}")
-            k2.metric("Séance la plus longue", f"{int(max_min_sess)} min")
-            k3.metric("Sport Favori", f"{fav_sport}")
-            
+            k1.metric("Record Kcal", f"{int(max_c)}")
+            k2.metric("Séance Longue", f"{int(max_m)} min")
+            k3.metric("Sport Favori", fav)
             st.divider()
             
             c1, c2 = st.columns(2)
@@ -453,4 +459,3 @@ else:
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
             for i, (u, c) in enumerate(top.items()):
                 st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
-

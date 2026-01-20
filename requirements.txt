@@ -1,4 +1,7 @@
 streamlit
+streamlit-gsheets
 pandas
 plotly
-st-gsheets-connection
+numpy
+requests
+streamlit-lottie

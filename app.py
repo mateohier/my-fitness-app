@@ -271,6 +271,25 @@ def delete_challenge(c_id):
         return True
     except: return False
 
+# --- FONCTION HELPER POUR L'AVATAR (PASTILLE) ---
+def get_user_badge(username, df_u):
+    # Cherche l'URL dans les données
+    try:
+        row = df_u[df_u['user'] == username].iloc[0]
+        p_data = json.loads(row['json_data'])
+        # Si pas d'avatar perso, on génère un avatar unique avec DiceBear
+        avatar = p_data.get('avatar', f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}")
+        if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
+    except:
+        avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
+    
+    return f"""
+    <span style='display:inline-flex; align-items:center; border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:2px 10px; background:rgba(0,0,0,0.3); margin-right:5px;'>
+        <img src='{avatar}' style='width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover;'>
+        <span style='font-weight:bold; color:white;'>{username.capitalize()}</span>
+    </span>
+    """
+
 # --- 4. CSS ---
 if 'user' not in st.session_state: st.session_state.user = None
 
@@ -364,7 +383,7 @@ else:
     tabs = st.tabs(["🏠 Tableau de Bord", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
     with tabs[0]: # DASHBOARD
-        st.title(f"👋 Bienvenue, {user.capitalize()} !")
+        st.markdown(f"### 👋 Bienvenue {get_user_badge(user, df_u)}", unsafe_allow_html=True)
         st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         
         lvl, pct, rem = get_level_progress(total_cal)
@@ -387,8 +406,8 @@ else:
             celebrations = []
             for u, cal in all_totals.items():
                 u_lvl, _, _ = get_level_progress(cal)
-                if u_lvl >= 5: celebrations.append(f"🎖️ **{u.capitalize()}** est un vétéran de Niveau {u_lvl} !")
-                if cal > 10000: celebrations.append(f"🔥 **{u.capitalize()}** a brûlé plus de 10 000 kcal !")
+                if u_lvl >= 5: celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est un vétéran de Niveau {u_lvl} !")
+                if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")
             
             if celebrations:
                 chosen_celeb = random.choice(celebrations)
@@ -451,26 +470,19 @@ else:
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
-            # CHECKBOX COLUMN FOR DELETE
             df_display = my_df.copy()
-            df_display.insert(0, "Supprimer", False) # First Col
-
+            df_display.insert(0, "Supprimer", False)
             edi = st.data_editor(
                 df_display, 
                 use_container_width=True, 
                 num_rows="dynamic",
-                column_config={"Supprimer": st.column_config.CheckboxColumn(required=True)}
+                column_config={"Supprimer": st.column_config.CheckboxColumn("🗑️ Cocher pour supprimer", help="Sélectionnez les lignes à effacer", default=False)}
             )
-            
             if st.button("💾 Sauvegarder changements (Modifs / Suppressions)"):
-                # KEEP ROWS WHERE "Supprimer" IS FALSE
                 to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
-                
                 df_others = df_a[df_a['user'] != user]
                 to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                to_keep['poids'] = pd.to_numeric(to_keep['poids'])
-                to_keep['calories'] = pd.to_numeric(to_keep['calories'])
-                
+                to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
                 conn.update(worksheet="Activites", data=pd.concat([df_others, to_keep], ignore_index=True))
                 st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
@@ -499,7 +511,7 @@ else:
             st.markdown("### ⚔️ Meilleurs Attaquants")
             if not df_month.empty:
                 dps = df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
-                for i, (u, val) in enumerate(dps.items()): st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
+                for i, (u, val) in enumerate(dps.items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
 
     with tabs[3]: # DEFIS
         st.header("⚔️ Salle des Défis")
@@ -533,7 +545,7 @@ else:
                     prog = c_df.groupby('user')['km_est'].sum()
                 prog = prog.reindex(parts, fill_value=0)
 
-                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']}</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
                 
                 col_act, col_list = st.columns([1, 2])
                 with col_act:
@@ -547,7 +559,7 @@ else:
                     st.write("**Classement :**")
                     for u, val in prog.sort_values(ascending=False).items():
                         pct = min(val/float(r['objectif']), 1.0)
-                        st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
+                        st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit} ({int(pct*100)}%)", unsafe_allow_html=True)
                         st.progress(pct)
                 st.divider()
         else: st.info("Aucun défi.")
@@ -613,8 +625,8 @@ else:
             max_min_all = df_a.loc[df_a['minutes'].idxmax()]
             
             c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
+            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{get_user_badge(max_cal_all['user'], df_u)}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{get_user_badge(max_min_all['user'], df_u)}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
             
             st.divider()
             
@@ -626,12 +638,12 @@ else:
                 medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
                 
                 for i, (u, c) in enumerate(top.head(3).items()):
-                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{get_user_badge(u, df_u)}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
                 
                 if len(top) > 3:
                     st.write("")
                     st.write("**La suite du peloton :**")
-                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.markdown(f"**{i+4}. {get_user_badge(u, df_u)}** - {int(c)} kcal", unsafe_allow_html=True)
             else: st.info("Le classement est vide cette semaine. À vous de jouer !")
 
     with tabs[6]: # PROFIL FULL EDIT
@@ -644,10 +656,11 @@ else:
             new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
             curr_act_idx = ACTIVITY_OPTS.index(prof.get('act', ACTIVITY_OPTS[1])) if prof.get('act') in ACTIVITY_OPTS else 1
             new_act = st.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=curr_act_idx)
+            new_avatar = st.text_input("URL de votre Avatar (Image)", value=prof.get('avatar', ''))
             new_pin = st.text_input("Nouveau PIN (Laisser vide pour ne pas changer)", type="password", max_chars=4)
 
             if st.form_submit_button("💾 Enregistrer les modifications"):
-                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act})
+                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act, 'avatar': new_avatar})
                 pin_to_save = row['pin']
                 if new_pin and len(new_pin) == 4: pin_to_save = hash_pin(new_pin); st.success("PIN modifié !")
                 save_user(user, pin_to_save, prof)

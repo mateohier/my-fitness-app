@@ -135,8 +135,6 @@ def check_achievements(df):
     if len(df[df['day'] == 'Sunday']) >= 4: badges.append(("⛪ Messe Sportive", "4 Dimanches actifs"))
     if df['minutes'].max() >= 120: badges.append(("🥵 Titan", "Séance > 2h"))
     if df['calories'].sum() >= 10000: badges.append(("🔥 Fournaise", "10k kcal brûlées"))
-    # Check si 'pas' existe pour le badge
-    if 'pas' in df.columns and df['pas'].max() >= 10000: badges.append(("🚶‍♂️ Marcheur", "10k pas en une séance"))
     return badges
 
 def calculate_advanced_streaks(df_all, current_user):
@@ -206,12 +204,7 @@ def get_data():
         except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
         
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
-        
-        # --- MISE A JOUR COLONNES ---
-        if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "pas"])
-        # On s'assure que la colonne 'pas' existe si ancienne version
-        if "pas" not in df_a.columns: df_a["pas"] = 0
-        
+        if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
@@ -225,9 +218,6 @@ def get_data():
 def save_activity(new_row):
     try:
         df = conn.read(worksheet="Activites", ttl=0)
-        # S'assurer que le df lu a bien la colonne pas
-        if "pas" not in df.columns: df["pas"] = 0
-        
         upd = pd.concat([df, new_row], ignore_index=True)
         upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
         conn.update(worksheet="Activites", data=upd)
@@ -247,10 +237,12 @@ def save_post(image_b64, comment):
     except: return False
 
 def clean_old_posts(df_p):
+    """Supprime les posts > 7 jours"""
     try:
         if df_p.empty: return
         now = datetime.now()
         df_p['date'] = pd.to_datetime(df_p['date'])
+        # Garder uniquement les posts < 7 jours
         new_df = df_p[df_p['date'] >= (now - timedelta(days=7))]
         if len(new_df) < len(df_p):
             new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -283,6 +275,7 @@ def save_user(u, p, data):
     except: return False
 
 def change_username(old_u, new_u):
+    """Change le nom d'utilisateur partout (Cascade)"""
     try:
         df_u = conn.read(worksheet="Profils", ttl=0)
         if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
@@ -291,13 +284,19 @@ def change_username(old_u, new_u):
         df_d = conn.read(worksheet="Defis", ttl=0)
         df_p = conn.read(worksheet="Posts", ttl=0)
         
+        # 1. Profils
         df_u.loc[df_u['user'] == old_u, 'user'] = new_u
+        
+        # 2. Activités
         if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
+        
+        # 3. Posts
         if not df_p.empty:
             df_p.loc[df_p['user'] == old_u, 'user'] = new_u
             def upd_csv(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
             df_p['seen_by'] = df_p['seen_by'].apply(upd_csv)
             
+        # 4. Défis
         if not df_d.empty:
             df_d.loc[df_d['createur'] == old_u, 'createur'] = new_u
             def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
@@ -521,46 +520,23 @@ else:
             t = c2.time_input("Heure", datetime.now().time())
             s = c1.selectbox("Sport", SPORTS_LIST)
             m = c2.number_input("Durée (min)", 1, 300, 45)
-            w = c1.number_input("Poids du jour", 0.0, 200.0, float(w_curr)) # Layout: Col 1
-            
-            # --- AJOUT INPUT PAS ---
-            steps = c2.number_input("Nombre de pas (optionnel)", 0, 100000, 0, step=100) # Layout: Col 2
-            
+            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
-                
-                # --- CALCUL INTELLIGENT ---
-                # 1. Calcul classique par durée/intensité
                 base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
-                time_kcal = base_kcal + epoc_bonus
-                
-                # 2. Calcul par pas (approx 0.05 kcal/pas pour simplifier le poids/vitesse)
-                step_kcal = steps * 0.05
-                
-                # 3. On prend le MAX (Le système récompense le plus gros effort)
-                final_kcal = max(time_kcal, step_kcal)
-                
-                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(final_kcal), "poids": w, "pas": steps}])):
-                    msg = f"✅ +{int(final_kcal)} kcal"
-                    if step_kcal > time_kcal: msg += f" (Boosté par vos {steps} pas ! 👣)"
-                    st.success(msg)
-                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
-        
+                total_kcal = base_kcal + epoc_bonus
+                if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
+                    st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
-            # Sécurité si colonne pas manquante
-            if "pas" not in my_df.columns: my_df["pas"] = 0
-            
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
             edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config={"Supprimer": st.column_config.CheckboxColumn("🗑️ Cocher pour supprimer", default=False)})
             if st.button("💾 Sauvegarder changements"):
                 to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
                 to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
                 to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
-                to_keep['pas'] = pd.to_numeric(to_keep['pas']).fillna(0).astype(int)
-                
                 conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                 st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
@@ -612,23 +588,19 @@ else:
         if not my_df.empty:
             st.subheader("🏆 Records")
             max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
-            # Gestion sécurité max pas
-            if "pas" in my_df.columns: max_p = my_df['pas'].max()
-            else: max_p = 0
-            
             tot_sess = len(my_df)
             
-            # CSS GRID
+            # CSS GRID pour le CARRÉ 2x2
             st.markdown(f"""
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                 <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
-                <div class="stat-card"><div style="font-size: 2em;">👣</div><div class="stat-val">{int(max_p)}</div><div class="stat-label">Record Pas</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
                 <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
                 <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
             </div>
             """, unsafe_allow_html=True)
             
-            with st.expander("🔥 Info Calcul"): st.info("Le système garde le meilleur score entre le calcul 'Temps' et le calcul 'Pas'.")
+            with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
             c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})

@@ -400,9 +400,13 @@ sidebar_bg = "rgba(10, 10, 10, 0.95)"
 glass_bg = "rgba(255,255,255,0.05)"
 card_border = "#333"
 chart_font = "white"
+chart_grid = "rgba(255,255,255,0.2)"
 metric_color = "#FF4B4B"
 card_shadow = "none"
 boss_bar_bg = "#333"
+dropdown_bg = "#333"
+dropdown_color = "white"
+expander_bg = "rgba(255,255,255,0.05)"
 
 if not st.session_state.user:
     # --- PAGE LOGIN / SIGNUP (Thème sombre par défaut) ---
@@ -446,17 +450,20 @@ else:
     theme_choice = st.sidebar.radio("🎨 Thème", ["Immersif (Sombre)", "Clair (Bureau)"], index=0)
     
     if "Clair" in theme_choice:
-        main_bg = "none" # Pas d'image
-        bg_color = "#f8f9fa" # Gris perle très doux (Apple style)
-        text_color = "#1f2937" # Gris très foncé (presque noir) pour lisibilité max
-        sidebar_bg = "#ffffff"
-        glass_bg = "#ffffff" # Carte blanche pure
-        card_border = "#e5e7eb" # Bordure gris très pâle
-        chart_font = "#1f2937"
-        metric_color = "#d90429" # Rouge un peu plus profond
-        # Ombre portée douce style "Material Design" ou "Tailwind"
+        main_bg = "none" 
+        bg_color = "#F0F2F6" 
+        text_color = "#111827" # Noir doux
+        sidebar_bg = "#FFFFFF"
+        glass_bg = "#FFFFFF" 
+        card_border = "#E5E7EB"
+        chart_font = "#111827" # Texte graphique noir
+        chart_grid = "#d1d5db" # Grille graphique grise
+        metric_color = "#d90429"
         card_shadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-        boss_bar_bg = "#e5e7eb"
+        boss_bar_bg = "#E5E7EB"
+        dropdown_bg = "#FFFFFF"
+        dropdown_color = "#111827"
+        expander_bg = "#FFFFFF"
     
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
@@ -477,52 +484,43 @@ else:
     # --- INJECTION CSS ---
     st.markdown(f"""
         <style>
-        /* FOND GENERAL */
-        .stApp {{ 
-            background-image: {main_bg}; 
-            background-color: {bg_color};
-            background-size: cover; 
-            background-attachment: fixed; 
-            color: {text_color};
-        }}
-        
-        /* SIDEBAR */
+        /* GLOBAL FOND & TEXTE */
+        .stApp {{ background-image: {main_bg}; background-color: {bg_color}; background-size: cover; background-attachment: fixed; color: {text_color}; }}
         div[data-testid="stSidebar"] {{ background-color: {sidebar_bg}; }}
         
-        /* METRIQUES & TITRES */
-        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
-        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.7; font-weight: 500; }}
+        /* TEXTES */
         h1, h2, h3, h4, h5, h6, p, span, div, label {{ color: {text_color}; }}
+        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
+        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.7; }}
         
-        /* CITATION */
+        /* DROPDOWNS & INPUTS (Force readable text) */
+        .stSelectbox div[data-baseweb="select"] > div {{ background-color: {dropdown_bg} !important; color: {dropdown_color} !important; }}
+        .stTextInput input, .stNumberInput input {{ color: {dropdown_color} !important; }}
+        
+        /* EXPANDER HEADER (Bouton Poster/Lancer défi) */
+        .streamlit-expanderHeader {{ background-color: {expander_bg}; color: {text_color} !important; border-radius: 8px; border: 1px solid {card_border}; box-shadow: {card_shadow}; font-weight: 600; }}
+        .streamlit-expanderHeader p {{ color: {text_color} !important; }}
+        
+        /* BUTTONS (Supprimer) */
+        button {{ border-radius: 5px; }}
+        
+        /* CARDS */
+        .glass {{ background: {glass_bg}; padding: 20px; border-radius: 12px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        .challenge-card {{ background: {glass_bg}; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 8px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
+        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 12px; padding: 20px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
+        .post-card {{ background: {glass_bg}; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        
+        /* SPECIAL ELEMENTS */
         .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 12px; color: white !important; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: {card_shadow}; }}
         .quote-box div {{ color: white !important; }}
-        
-        /* CARTES GENERIQUES (GLASS / WHITE) */
-        .glass {{ background: {glass_bg}; padding: 20px; border-radius: 12px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
-        
-        /* DEFIS CARDS */
-        .challenge-card {{ background: {glass_bg}; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 8px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
-        
-        /* BOSS */
-        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid {card_border}; }}
+        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
         .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
         
-        /* CELEBRATION BOX */
-        .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 12px; text-align: center; margin-top: 10px; color: {text_color}; }}
-        
-        /* STATS GRID CARDS */
-        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 12px; padding: 20px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
+        /* STATS VALUES */
         .stat-val {{ font-size: 1.8em; font-weight: bold; color: {metric_color}; }}
         .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; color: {text_color}; }}
         
-        /* FEED POSTS */
-        .post-card {{ background: {glass_bg}; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
-        
-        /* EXPANDER STYLING */
-        .streamlit-expanderHeader {{ background-color: {glass_bg}; color: {text_color}; border-radius: 8px; border: 1px solid {card_border}; }}
-        
-        /* DATA EDITOR & TABLES */
+        /* DATA EDITOR */
         div[data-testid="stDataEditor"] {{ background-color: {glass_bg}; border-radius: 10px; padding: 5px; }}
         </style>
     """, unsafe_allow_html=True)
@@ -783,12 +781,18 @@ else:
             
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
-            fig_w.update_yaxes(range=[0, max_val * 1.1])
+            fig_w.update_yaxes(range=[0, max_val * 1.1], gridcolor=chart_grid, linecolor=chart_font, zerolinecolor=chart_grid)
+            fig_w.update_xaxes(gridcolor=chart_grid, linecolor=chart_font)
             fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font)
             
             c1.plotly_chart(fig_w, use_container_width=True)
             
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font), use_container_width=True, config={'staticPlot': True})
+            fig_bar = px.bar(df_chart, x='date', y='calories', title="Kcal")
+            fig_bar.update_yaxes(gridcolor=chart_grid, linecolor=chart_font, zerolinecolor=chart_grid)
+            fig_bar.update_xaxes(gridcolor=chart_grid, linecolor=chart_font)
+            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font)
+            
+            c2.plotly_chart(fig_bar, use_container_width=True)
 
     with tabs[6]: # CLASSEMENT
         st.header("🏛️ Hall of Fame")

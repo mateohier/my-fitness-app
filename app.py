@@ -267,6 +267,7 @@ st.markdown(f"""
     .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
     .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
     .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
+    .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -293,7 +294,6 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
-        # FIX : Ajout de min_value et max_value pour permettre les dates > 2000
         dob = st.sidebar.date_input("Naissance", value=date(2000,1,1), min_value=date(1900,1,1), max_value=date.today())
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
@@ -345,6 +345,26 @@ else:
         badges = check_achievements(my_df)
         c4.metric("Trophées", f"{len(badges)}")
 
+        # --- NOUVEAU : FLASH INFOS CÉLÉBRATIONS ---
+        if not df_a.empty:
+            st.markdown("### 🌟 Célébrations de la Communauté")
+            # Analyse simple des performances globales
+            all_totals = df_a.groupby('user')['calories'].sum()
+            celebrations = []
+            
+            for u, cal in all_totals.items():
+                u_lvl, _, _ = get_level_progress(cal)
+                if u_lvl >= 5: celebrations.append(f"🎖️ **{u.capitalize()}** est un vétéran de Niveau {u_lvl} !")
+                if cal > 10000: celebrations.append(f"🔥 **{u.capitalize()}** a brûlé plus de 10 000 kcal !")
+            
+            if celebrations:
+                chosen_celeb = random.choice(celebrations)
+                st.markdown(f"<div class='celeb-box'>{chosen_celeb}</div>", unsafe_allow_html=True)
+            else:
+                st.info("Soyez le premier à accomplir un exploit !")
+
+        st.divider()
+
         c_l, c_r = st.columns(2)
         with c_l:
             st.subheader("🧬 ADN Sportif")
@@ -352,14 +372,16 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
+                # FIX ADN : Marges plus grandes + Police plus petite
                 fig.update_layout(
                     polar=dict(
                         radialaxis=dict(visible=False, range=[0, 100]),
                         bgcolor='rgba(0,0,0,0)'
                     ),
-                    font=dict(size=14, color="white"),
+                    font=dict(size=10, color="white"),
                     paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=40, r=40, t=20, b=20)
+                    margin=dict(l=80, r=80, t=20, b=20),
+                    height=300
                 )
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
@@ -478,7 +500,7 @@ else:
                 df_chart['week'] = df_chart['date'].dt.to_period('W').apply(lambda r: r.start_time)
                 df_chart = df_chart.groupby('week').agg({'poids': 'mean', 'calories': 'sum'}).reset_index().rename(columns={'week': 'date'})
 
-            # Custom Dark Theme
+            # Custom Dark Theme for Stats
             def style_fig(fig):
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
                 fig.update_xaxes(showgrid=False, linecolor='gray')
@@ -516,11 +538,7 @@ else:
         st.subheader("📝 Modifier mes informations")
         with st.form("prof_full"):
             c1, c2 = st.columns(2)
-            # FIX : Ajout de min_value et max_value pour modification
-            new_dob = c1.date_input("Date de naissance", 
-                                    value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"), 
-                                    min_value=date(1900,1,1), 
-                                    max_value=date.today())
+            new_dob = c1.date_input("Date de naissance", value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
             new_sex = c2.selectbox("Sexe", ["Homme", "Femme"], index=0 if prof.get('sex') == "Homme" else 1)
             new_h = c1.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
             new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
@@ -556,12 +574,26 @@ else:
     with tabs[6]: # TOP & HALL OF FAME
         st.header("🏛️ Hall of Fame (Records de tous les temps)")
         if not df_a.empty:
+            # Records Globaux
             max_cal_all = df_a.loc[df_a['calories'].idxmax()]
             max_min_all = df_a.loc[df_a['minutes'].idxmax()]
             
             c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
+            c1.markdown(f"""
+            <div class='glass'>
+                <h3>🔥 Machine de Guerre</h3>
+                <p><b>{max_cal_all['user'].capitalize()}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>
+                en une séance de {max_cal_all['sport']} ! 🤯</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            c2.markdown(f"""
+            <div class='glass'>
+                <h3>⏳ Endurance Infinie</h3>
+                <p><b>{max_min_all['user'].capitalize()}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>
+                sur une séance de {max_min_all['sport']} ! 👏</p>
+            </div>
+            """, unsafe_allow_html=True)
             
             st.divider()
             
@@ -573,10 +605,18 @@ else:
                 medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
                 
                 for i, (u, c) in enumerate(top.head(3).items()):
-                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{u.capitalize()}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                    cols[i].markdown(f"""
+                    <div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'>
+                        <h1>{medals[i].split()[0]}</h1>
+                        <h3>{u.capitalize()}</h3>
+                        <p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
                 if len(top) > 3:
                     st.write("")
                     st.write("**La suite du peloton :**")
-                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
-            else: st.info("Le classement est vide cette semaine. À vous de jouer !")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()):
+                        st.write(f"**{i+4}. {u.capitalize()}** - {int(c)} kcal")
+            else:
+                st.info("Le classement est vide cette semaine. À vous de jouer !")

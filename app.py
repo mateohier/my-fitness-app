@@ -214,6 +214,10 @@ def get_data():
             if 'distance' not in df_a.columns: df_a['distance'] = 0.0
             if 'pas' not in df_a.columns: df_a['pas'] = 0
             
+            # NETTOYAGE FORCE : Si 'steps' existe encore, on la supprime du DataFrame
+            if 'steps' in df_a.columns:
+                df_a = df_a.drop(columns=['steps'])
+            
         if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
         if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
@@ -596,7 +600,7 @@ else:
         if not my_df.empty:
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
             
-            # Config colonnes 'pas'
+            # Config colonnes 'pas'. Si 'steps' existe encore dans le DF, on ne l'affiche pas ici grâce à get_data nettoyé.
             col_conf = {
                 "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
                 "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),

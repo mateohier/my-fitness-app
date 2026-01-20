@@ -36,32 +36,32 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS (6 COMPETENCES) ---
-# Ajout de "Explosivité" et "Souplesse"
+# --- MAPPINGS (9 COMPETENCES) ---
+# Clés : Force, Endurance, Vitesse, Agilité, Souplesse, Explosivité, Mental, Récupération, Concentration
 DNA_MAP = {
-    "Musculation": {"Force": 9, "Endurance": 3, "Agilité": 2, "Mental": 7, "Explosivité": 6, "Souplesse": 2},
-    "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9, "Explosivité": 9, "Souplesse": 5},
-    "Course":      {"Force": 2, "Endurance": 10, "Agilité": 3, "Mental": 8, "Explosivité": 3, "Souplesse": 2},
-    "Vélo":        {"Force": 5, "Endurance": 9, "Agilité": 3, "Mental": 6, "Explosivité": 4, "Souplesse": 2},
-    "Natation":    {"Force": 6, "Endurance": 9, "Agilité": 5, "Mental": 7, "Explosivité": 5, "Souplesse": 6},
-    "Yoga":        {"Force": 4, "Endurance": 4, "Agilité": 8, "Mental": 9, "Explosivité": 1, "Souplesse": 10},
-    "Boxe":        {"Force": 6, "Endurance": 8, "Agilité": 8, "Mental": 9, "Explosivité": 9, "Souplesse": 6},
-    "Escalade":    {"Force": 8, "Endurance": 6, "Agilité": 9, "Mental": 9, "Explosivité": 6, "Souplesse": 8},
-    "Tennis":      {"Force": 5, "Endurance": 7, "Agilité": 9, "Mental": 7, "Explosivité": 7, "Souplesse": 4},
-    "Football":    {"Force": 5, "Endurance": 8, "Agilité": 7, "Mental": 7, "Explosivité": 7, "Souplesse": 4},
-    "Basket":      {"Force": 5, "Endurance": 7, "Agilité": 8, "Mental": 6, "Explosivité": 8, "Souplesse": 5},
-    "Marche":      {"Force": 2, "Endurance": 4, "Agilité": 2, "Mental": 3, "Explosivité": 1, "Souplesse": 2},
-    "Danse":       {"Force": 3, "Endurance": 6, "Agilité": 10, "Mental": 5, "Explosivité": 4, "Souplesse": 9},
-    "Pilates":     {"Force": 5, "Endurance": 4, "Agilité": 7, "Mental": 7, "Explosivité": 2, "Souplesse": 9},
-    "Ski":         {"Force": 6, "Endurance": 7, "Agilité": 7, "Mental": 6, "Explosivité": 5, "Souplesse": 3},
-    "Randonnée":   {"Force": 4, "Endurance": 8, "Agilité": 3, "Mental": 6, "Explosivité": 2, "Souplesse": 2},
-    "Judo":        {"Force": 9, "Endurance": 7, "Agilité": 7, "Mental": 9, "Explosivité": 8, "Souplesse": 6},
-    "Karaté":      {"Force": 7, "Endurance": 7, "Agilité": 8, "Mental": 9, "Explosivité": 9, "Souplesse": 7},
-    "Badminton":   {"Force": 3, "Endurance": 8, "Agilité": 10, "Mental": 7, "Explosivité": 8, "Souplesse": 5},
-    "Rameur":      {"Force": 7, "Endurance": 9, "Agilité": 3, "Mental": 8, "Explosivité": 6, "Souplesse": 3},
-    "Elliptique":  {"Force": 3, "Endurance": 8, "Agilité": 2, "Mental": 5, "Explosivité": 2, "Souplesse": 2},
-    "Gymnastique": {"Force": 9, "Endurance": 6, "Agilité": 10, "Mental": 9, "Explosivité": 9, "Souplesse": 10},
-    "Volley":      {"Force": 6, "Endurance": 6, "Agilité": 8, "Mental": 7, "Explosivité": 9, "Souplesse": 5}
+    "Musculation": {"Force": 10, "Endurance": 4, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
+    "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
+    "Course":      {"Force": 3, "Endurance": 10, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 4, "Mental": 9, "Récupération": 8, "Concentration": 6},
+    "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
+    "Natation":    {"Force": 6, "Endurance": 9, "Vitesse": 5, "Agilité": 5, "Souplesse": 6, "Explosivité": 5, "Mental": 8, "Récupération": 10, "Concentration": 7},
+    "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
+    "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
+    "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
+    "Tennis":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
+    "Football":    {"Force": 5, "Endurance": 8, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
+    "Basket":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
+    "Marche":      {"Force": 2, "Endurance": 5, "Vitesse": 2, "Agilité": 2, "Souplesse": 2, "Explosivité": 1, "Mental": 4, "Récupération": 10, "Concentration": 3},
+    "Danse":       {"Force": 4, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
+    "Pilates":     {"Force": 5, "Endurance": 4, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
+    "Ski":         {"Force": 6, "Endurance": 7, "Vitesse": 8, "Agilité": 7, "Souplesse": 3, "Explosivité": 5, "Mental": 6, "Récupération": 4, "Concentration": 8},
+    "Randonnée":   {"Force": 4, "Endurance": 9, "Vitesse": 2, "Agilité": 3, "Souplesse": 2, "Explosivité": 2, "Mental": 7, "Récupération": 8, "Concentration": 5},
+    "Judo":        {"Force": 9, "Endurance": 7, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 8, "Mental": 9, "Récupération": 4, "Concentration": 9},
+    "Karaté":      {"Force": 7, "Endurance": 7, "Vitesse": 8, "Agilité": 8, "Souplesse": 7, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
+    "Badminton":   {"Force": 3, "Endurance": 8, "Vitesse": 10, "Agilité": 10, "Souplesse": 5, "Explosivité": 8, "Mental": 7, "Récupération": 5, "Concentration": 8},
+    "Rameur":      {"Force": 7, "Endurance": 9, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
+    "Elliptique":  {"Force": 4, "Endurance": 8, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
+    "Gymnastique": {"Force": 9, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
+    "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7}
 }
 SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -352,15 +352,15 @@ else:
     
     streak_user, streak_team = calculate_advanced_streaks(df_a, user)
     
-    # Calcul ADN Dynamique (6 compétences)
-    DNA_KEYS = ["Force", "Endurance", "Agilité", "Mental", "Explosivité", "Souplesse"]
+    # 9 COMPETENCES
+    DNA_KEYS = ["Force", "Endurance", "Vitesse", "Agilité", "Souplesse", "Explosivité", "Mental", "Récupération", "Concentration"]
     dna = {k: 0 for k in DNA_KEYS}
     
     for _, r in my_df.iterrows():
         s_dna = DNA_MAP.get(r['sport'], {})
         h = r['minutes'] / 60
         for k in DNA_KEYS:
-            dna[k] += s_dna.get(k, 1) * h # Valeur par défaut 1 si sport inconnu ou clé manquante
+            dna[k] += s_dna.get(k, 1) * h
 
     tabs = st.tabs(["🏠 Tableau de Bord", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "➕ Séance", "⚙️ Profil", "🏆 Classement"])
 

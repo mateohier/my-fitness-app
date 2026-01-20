@@ -37,7 +37,7 @@ def get_rank(total_cal):
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
-    """Charge les données avec cache intelligent (5s)"""
+    """Charge les données avec conversion stricte des types"""
     try:
         df_users = conn.read(worksheet="Profils", ttl=5)
         df_acts = conn.read(worksheet="Activites", ttl=5)
@@ -47,29 +47,29 @@ def get_data():
         if df_acts.empty: 
             df_acts = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
             
-        # Conversion sécurisée en date
+        # --- NETTOYAGE DES DONNÉES ---
+        # 1. Dates
         df_acts['date'] = pd.to_datetime(df_acts['date'], errors='coerce')
+        # 2. Poids & Calories (Force en nombre, remplace les erreurs par 0)
+        df_acts['poids'] = pd.to_numeric(df_acts['poids'], errors='coerce')
+        df_acts['calories'] = pd.to_numeric(df_acts['calories'], errors='coerce')
+        
+        # On supprime les lignes vides/invalides
         df_acts = df_acts.dropna(subset=['date'])
         
         return df_users, df_acts
     except Exception as e:
-        # En cas de quota dépassé, on retourne vide sans planter
         return pd.DataFrame(), pd.DataFrame()
 
 def save_activity(new_row):
-    """Ajoute une ligne et gère le conflit de types Date/Texte"""
     try:
-        # Lecture sans cache pour écrire sur la dernière version
         df_acts = conn.read(worksheet="Activites", ttl=0)
-        
-        # Concaténation
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
         
-        # --- CORRECTION DU BUG .dt ---
-        # On force d'abord tout le monde en format "Date" pour que Python comprenne
+        # Formatage propre pour Google Sheets
         updated_df['date'] = pd.to_datetime(updated_df['date'], errors='coerce')
-        # Ensuite on transforme en texte propre pour Google Sheets
         updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
+        updated_df['poids'] = updated_df['poids'].astype(float) # Force le float
         
         conn.update(worksheet="Activites", data=updated_df)
         st.cache_data.clear()
@@ -101,16 +101,14 @@ def update_history(df_edited):
         df_all_acts = conn.read(worksheet="Activites", ttl=0)
         current_user = st.session_state.user
         
-        # On filtre
         df_others = df_all_acts[df_all_acts['user'] != current_user]
         df_edited['user'] = current_user
         
-        # Fusion
         df_final = pd.concat([df_others, df_edited], ignore_index=True)
         
-        # --- MÊME CORRECTION ICI ---
         df_final['date'] = pd.to_datetime(df_final['date'], errors='coerce')
         df_final['date'] = df_final['date'].dt.strftime('%Y-%m-%d')
+        df_final['poids'] = pd.to_numeric(df_final['poids'], errors='coerce')
         
         conn.update(worksheet="Activites", data=df_final)
         st.cache_data.clear()
@@ -155,7 +153,6 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
-        # FIX DATE LIMITE 1900
         dob = st.sidebar.date_input("Naissance", value=date(1990,1,1), min_value=date(1900,1,1), max_value=date.today())
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
@@ -183,12 +180,17 @@ else:
     user_row = df_users[df_users['user'] == user].iloc[0]
     prof = json.loads(user_row['json_data'])
     
+    # Récupération & Tri des activités
     my_df = df_acts[df_acts['user'] == user].copy()
+    
+    # CALCUL DU POIDS ACTUEL (Logique corrigée)
+    start_weight = float(prof.get('w_init', 70.0))
+    
     if not my_df.empty:
-        my_df = my_df.sort_values('date')
-        last_w = my_df.iloc[-1]['poids']
+        my_df = my_df.sort_values('date') # On trie par date
+        last_weight = float(my_df.iloc[-1]['poids']) # On prend le tout dernier poids
     else:
-        last_w = prof.get('w_init', 70.0)
+        last_weight = start_weight
 
     age = calculate_age(prof.get('dob', '1990-01-01'))
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
@@ -212,10 +214,14 @@ else:
     with t1:
         st.title(f"Bonjour {user.capitalize()}")
         st.caption(f"{prof['sex']} | {age} ans | {prof['h']}cm | {prof['act']}")
+        
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Série", f"{streak} Jours")
-        loss = prof['w_init'] - last_w
-        c2.metric("⚖️ Perte", f"{loss:.1f} kg", delta_color="normal" if loss > 0 else "off")
+        
+        # CALCUL PERTE DE GRAS
+        loss = start_weight - last_weight
+        c2.metric("⚖️ Perte Totale", f"{loss:.1f} kg", f"Départ: {start_weight}kg → Actuel: {last_weight}kg", delta_color="normal" if loss > 0 else "off")
+        
         c3.metric("⚡ Total", f"{int(total_cal):,} kcal")
         c4.metric("🏅 Rang", rank)
         st.progress(min(total_cal / next_lvl, 1.0))
@@ -223,19 +229,19 @@ else:
     with t2:
         if not my_df.empty:
             c1, c2 = st.columns(2)
-            fig1 = px.line(my_df, x='date', y='poids', title="Poids")
-            fig1.add_hline(y=prof['w_obj'], line_dash="dash", line_color="green")
+            fig1 = px.line(my_df, x='date', y='poids', title="📉 Évolution Poids")
+            fig1.add_hline(y=prof['w_obj'], line_dash="dash", line_color="green", annotation_text="Objectif")
             c1.plotly_chart(fig1, use_container_width=True)
             
-            fig2 = px.bar(my_df, x='date', y='calories', title="Calories")
+            fig2 = px.bar(my_df, x='date', y='calories', title="🔥 Calories Brûlées")
             c2.plotly_chart(fig2, use_container_width=True)
             
-            fig3 = px.pie(my_df, values='minutes', names='sport', hole=0.4, title="Sports")
+            fig3 = px.pie(my_df, values='minutes', names='sport', hole=0.4, title="⏳ Répartition Temps")
             st.plotly_chart(fig3, use_container_width=True)
-        else: st.info("Pas encore de données.")
+        else: st.info("Pas encore de données. Ajoute une séance !")
 
     with t3:
-        bmr = calculate_bmr(last_w, prof['h'], age, prof['sex'])
+        bmr = calculate_bmr(last_weight, prof['h'], age, prof['sex'])
         tdee = bmr * ACT_MAP.get(prof['act'], 1.2)
         st.info(f"💡 Calories journalières (Maintenance) : **{int(tdee)} kcal**")
         
@@ -243,7 +249,7 @@ else:
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
             s = c2.selectbox("Sport", ["Musculation", "Course", "Vélo", "Natation", "Crossfit", "Marche", "Fitness"])
-            w = c1.number_input("Poids (kg)", 0.0, 200.0, float(last_w))
+            w = c1.number_input("Poids (kg)", 0.0, 200.0, float(last_weight))
             m = c2.number_input("Durée (min)", 1, 300, 45)
             
             if st.form_submit_button("Sauvegarder"):
@@ -252,7 +258,7 @@ else:
                 
                 new_act = pd.DataFrame([{
                     "date": pd.to_datetime(d), "user": user, "sport": s, 
-                    "minutes": m, "calories": round(cal_sport), "poids": w
+                    "minutes": m, "calories": round(cal_sport), "poids": float(w)
                 }])
                 
                 with st.spinner("Sauvegarde..."):
@@ -262,25 +268,56 @@ else:
                         st.rerun()
 
     with t4:
-        st.subheader("Profil")
+        st.subheader("👤 Modifier mon profil")
         with st.form("edit_prof"):
             col1, col2 = st.columns(2)
-            # FIX DATE LIMITE 1900
-            new_dob = col1.date_input("Naissance", datetime.strptime(prof['dob'], "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
-            new_act = col2.selectbox("Activité", ACTIVITY_OPTS, index=ACTIVITY_OPTS.index(prof['act']))
-            new_obj = st.number_input("Objectif", value=float(prof['w_obj']))
+            new_dob = col1.date_input(
+                "Date de naissance", 
+                value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"),
+                min_value=date(1900,1,1),
+                max_value=date.today()
+            )
             
-            if st.form_submit_button("Mettre à jour"):
-                prof.update({"dob": str(new_dob), "act": new_act, "w_obj": new_obj})
+            sex_opts = ["Homme", "Femme"]
+            curr_sex = prof.get('sex', 'Homme')
+            idx_sex = sex_opts.index(curr_sex) if curr_sex in sex_opts else 0
+            new_sex = col2.selectbox("Sexe", sex_opts, index=idx_sex)
+            
+            col3, col4 = st.columns(2)
+            new_h = col3.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
+            
+            curr_act = prof.get('act', ACTIVITY_OPTS[0])
+            idx_act = ACTIVITY_OPTS.index(curr_act) if curr_act in ACTIVITY_OPTS else 0
+            new_act = col4.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=idx_act)
+            
+            col5, col6 = st.columns(2)
+            # Attention : Si on change ceci, cela change le point de départ du calcul de perte
+            new_w_init = col5.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
+            new_obj = col6.number_input("Objectif Poids (kg)", 30.0, 200.0, float(prof.get('w_obj', 65.0)))
+            
+            if st.form_submit_button("💾 Enregistrer toutes les modifications"):
+                prof.update({
+                    "dob": str(new_dob), "sex": new_sex, "h": new_h,
+                    "act": new_act, "w_init": new_w_init, "w_obj": new_obj
+                })
                 if save_user(user, user_row['pin'], prof):
-                    st.success("Profil mis à jour")
+                    st.success("✅ Profil mis à jour !")
+                    time.sleep(1)
                     st.rerun()
 
-        st.subheader("Historique")
+        st.subheader("📝 Modifier l'historique")
         if not my_df.empty:
+            # On configure les colonnes pour forcer le bon typage dans l'éditeur
+            col_config = {
+                "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
+                "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),
+                "calories": st.column_config.NumberColumn("Calories", format="%.1f")
+            }
             edited = st.data_editor(
                 my_df[['date', 'sport', 'minutes', 'calories', 'poids']], 
-                num_rows="dynamic", use_container_width=True
+                num_rows="dynamic", 
+                use_container_width=True,
+                column_config=col_config
             )
             if st.button("Sauvegarder historique"):
                 if update_history(edited):

@@ -19,8 +19,8 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
-# Image du Boss (Changeant ou fixe)
-BOSS_IMG = "https://cdnb.artstation.com/p/assets/images/images/011/735/209/large/george-vostrikov-render1.jpg"
+# Image du Boss (Monstre de lave stable)
+BOSS_IMG = "https://images.unsplash.com/photo-1590845947698-8924d7409b56?q=80&w=1470&auto=format&fit=crop"
 
 # --- MAPPINGS ---
 DNA_MAP = {
@@ -453,3 +453,4 @@ else:
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
             for i, (u, c) in enumerate(top.items()):
                 st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
+

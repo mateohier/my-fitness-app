@@ -385,32 +385,25 @@ def get_user_badge(username, df_u):
     except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
     return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:white;'>{username.capitalize()}</span></span>"""
 
-# --- 4. CSS ---
-if 'user' not in st.session_state: st.session_state.user = None
-
-st.markdown(f"""
-    <style>
-    .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }}
-    .stMetricValue {{ font-size: 1.5rem !important; color: #FF4B4B !important; }}
-    div[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.95); }}
-    .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
-    .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }}
-    .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
-    .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
-    .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
-    .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }}
-    .stat-card {{ background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; }}
-    .stat-val {{ font-size: 1.8em; font-weight: bold; color: #FF4B4B; }}
-    .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }}
-    .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }}
-    </style>
-""", unsafe_allow_html=True)
-
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d, df_p = get_data()
 clean_old_posts(df_p) # Nettoyage auto
 
+if 'user' not in st.session_state: st.session_state.user = None
+
+# --- 4. CSS DYNAMIQUE ---
+# Valeurs par défaut si non connecté
+main_bg = f"linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('{BACKGROUND_URL}')"
+bg_color = "transparent"
+text_color = "white"
+sidebar_bg = "rgba(10, 10, 10, 0.95)"
+glass_bg = "rgba(255,255,255,0.05)"
+card_border = "#333"
+chart_font = "white"
+metric_color = "#FF4B4B"
+
 if not st.session_state.user:
+    # --- PAGE LOGIN / SIGNUP (Thème sombre par défaut) ---
     st.title("✨ FollowFit")
     st.markdown("### L'aventure sportive commence ici.")
     st.info("👈 **C'est parti ! Ouvre le menu en haut à gauche pour te connecter ou t'inscrire.**")
@@ -441,9 +434,25 @@ if not st.session_state.user:
             elif len(p_input) == 4:
                 prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
                 if save_user(u_input, hash_pin(p_input), prof): st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
+
 else:
+    # --- UTILISATEUR CONNECTÉ ---
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
+    
+    # --- SELECTEUR DE THEME DANS LA SIDEBAR ---
+    theme_choice = st.sidebar.radio("🎨 Thème", ["Immersif (Sombre)", "Clair (Bureau)"], index=0)
+    
+    if "Clair" in theme_choice:
+        main_bg = "url('')" # Pas d'image
+        bg_color = "#ffffff"
+        text_color = "#000000"
+        sidebar_bg = "#f0f2f6"
+        glass_bg = "rgba(0,0,0,0.05)"
+        card_border = "#ddd"
+        chart_font = "black"
+        # Pour le thème clair, on garde le rouge pour les metrics mais le texte général est noir
+    
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
     row = df_u[df_u['user'] == user].iloc[0]
@@ -459,6 +468,33 @@ else:
         s_dna = DNA_MAP.get(r['sport'], {})
         h = r['minutes'] / 60
         for k in DNA_KEYS: dna[k] += s_dna.get(k, 1) * h
+
+    # --- INJECTION CSS ---
+    st.markdown(f"""
+        <style>
+        .stApp {{ 
+            background-image: {main_bg}; 
+            background-color: {bg_color};
+            background-size: cover; 
+            background-attachment: fixed; 
+            color: {text_color};
+        }}
+        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
+        div[data-testid="stSidebar"] {{ background-color: {sidebar_bg}; }}
+        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
+        .glass {{ background: {glass_bg}; padding: 15px; border-radius: 10px; border: 1px solid {card_border}; color: {text_color}; }}
+        .challenge-card {{ background: linear-gradient(135deg, {glass_bg}, rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; color: {text_color}; }}
+        .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
+        .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
+        .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: {text_color}; }}
+        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; }}
+        .stat-val {{ font-size: 1.8em; font-weight: bold; color: {metric_color}; }}
+        .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; color: {text_color}; }}
+        .post-card {{ background: {glass_bg}; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; }}
+        h1, h2, h3, h4, h5, h6, p, span, div {{ color: {text_color}; }}
+        .stMetricLabel {{ color: {text_color} !important; opacity: 0.8; }}
+        </style>
+    """, unsafe_allow_html=True)
 
     tabs = st.tabs(["🏠 Tableau de Bord", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
@@ -498,7 +534,7 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color="white"), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=chart_font), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
         with c_r:
@@ -566,17 +602,17 @@ else:
         steps = 0
         input_type = "Durée" 
         
-        if s in ["Course", "Natation","Vélo"]:
+        if s in ["Course", "Natation", "Vélo"]:
             input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
         elif s == "Marche":
-            input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
+            input_type = c2.radio("Type d'objectif", ["Durée", "Pas", "Distance"], horizontal=True)
         else:
             c2.info("⏱️ Objectif : Durée")
 
         if input_type == "Durée":
             m = c1.number_input("Durée (min)", 1, 300, 45)
         elif input_type == "Distance":
-            default_dist = 5.0 if s == "Course" else 1.0
+            default_dist = 5.0 if s == "Course" else (20.0 if s == "Vélo" else 1.0)
             dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
             speed = SPEED_MAP.get(s, 1.0)
             if speed > 0: m = (dist / speed) * 60
@@ -717,11 +753,11 @@ else:
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
             fig_w.update_yaxes(range=[0, max_val * 1.1])
-            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
+            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font)
             
             c1.plotly_chart(fig_w, use_container_width=True)
             
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
+            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=chart_font), use_container_width=True, config={'staticPlot': True})
 
     with tabs[6]: # CLASSEMENT
         st.header("🏛️ Hall of Fame")
@@ -763,7 +799,3 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
-
-
-
-

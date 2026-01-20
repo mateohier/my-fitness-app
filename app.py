@@ -274,6 +274,42 @@ def save_user(u, p, data):
         st.cache_data.clear(); return True
     except: return False
 
+def change_username(old_u, new_u):
+    """Change le nom d'utilisateur partout (Cascade)"""
+    try:
+        df_u = conn.read(worksheet="Profils", ttl=0)
+        if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
+        
+        df_a = conn.read(worksheet="Activites", ttl=0)
+        df_d = conn.read(worksheet="Defis", ttl=0)
+        df_p = conn.read(worksheet="Posts", ttl=0)
+        
+        # 1. Profils
+        df_u.loc[df_u['user'] == old_u, 'user'] = new_u
+        
+        # 2. Activités
+        if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
+        
+        # 3. Posts
+        if not df_p.empty:
+            df_p.loc[df_p['user'] == old_u, 'user'] = new_u
+            def upd_csv(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
+            df_p['seen_by'] = df_p['seen_by'].apply(upd_csv)
+            
+        # 4. Défis
+        if not df_d.empty:
+            df_d.loc[df_d['createur'] == old_u, 'createur'] = new_u
+            def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
+            df_d['participants'] = df_d['participants'].apply(upd_csv_d)
+            
+        conn.update(worksheet="Profils", data=df_u)
+        conn.update(worksheet="Activites", data=df_a)
+        conn.update(worksheet="Defis", data=df_d)
+        conn.update(worksheet="Posts", data=df_p)
+        st.cache_data.clear()
+        return "OK"
+    except Exception as e: return str(e)
+
 def delete_current_user():
     try:
         user = st.session_state.user
@@ -456,11 +492,9 @@ else:
         if not df_p.empty:
             df_p = df_p.sort_values(by="date", ascending=False)
             for _, r in df_p.iterrows():
-                # Check Viewers
                 viewers = str(r['seen_by']).split(',')
-                if user not in viewers: mark_post_seen(r['id'], user) # Update DB in background without full refresh to avoid loop
+                if user not in viewers: mark_post_seen(r['id'], user) 
                 
-                # Render
                 st.markdown(f"""
                 <div class='post-card'>
                     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
@@ -554,17 +588,8 @@ else:
         if not my_df.empty:
             st.subheader("🏆 Records")
             max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
-            tot_sess = len(my_df)
-            
-            st.markdown(f"""
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;">
-                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
-                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
-                <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
-                <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            tot_sess = len(my_df) # La 4ème boite est ici
+            st.markdown(f"""<div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;"><div class="stat-card"><div style="font-size:2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Max Kcal</div></div><div class="stat-card"><div style="font-size:2em;">⏱️</div><div class="stat-val">{int(max_m)}</div><div class="stat-label">Max Min</div></div><div class="stat-card"><div style="font-size:2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Favori</div></div><div class="stat-card"><div style="font-size:2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
             with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
@@ -587,10 +612,20 @@ else:
         st.subheader("📝 Profil")
         with st.form("prof"):
             c1, c2 = st.columns(2)
-            nd = c1.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c2.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
-            nh = c1.number_input("Taille",100,250,int(prof.get('h',175))); nw = c2.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
-            na = st.selectbox("Activité",ACTIVITY_OPTS); n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
+            new_pseudo = c1.text_input("Pseudo (Nom d'utilisateur)", value=user)
+            nd = c2.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c1.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
+            nh = c2.number_input("Taille",100,250,int(prof.get('h',175))); nw = c1.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
+            na = c2.selectbox("Activité",ACTIVITY_OPTS); n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
             if st.form_submit_button("Sauvegarder"):
+                if new_pseudo != user:
+                    res = change_username(user, new_pseudo)
+                    if res == "OK":
+                        st.session_state.user = new_pseudo
+                        user = new_pseudo
+                        st.success("Pseudo changé !")
+                    else:
+                        st.error(f"Erreur changement pseudo: {res}")
+                
                 fav = prof.get('avatar', ""); 
                 if n_av: fav = process_avatar(n_av)
                 prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'act':na,'avatar':fav})

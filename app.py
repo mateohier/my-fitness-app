@@ -156,37 +156,28 @@ def save_user(u, p, data):
     except: return False
 
 def delete_current_user():
-    """Supprime l'utilisateur, ses activités et le retire des défis"""
     try:
         user = st.session_state.user
-        
-        # 1. Lire toutes les données
         df_u = conn.read(worksheet="Profils", ttl=0)
         df_a = conn.read(worksheet="Activites", ttl=0)
         df_d = conn.read(worksheet="Defis", ttl=0)
         
-        # 2. Supprimer de Profils et Activites
         df_u = df_u[df_u['user'] != user]
         df_a = df_a[df_a['user'] != user]
         
-        # 3. Retirer des participants aux défis
         def remove_participant(participants_str):
             parts = str(participants_str).split(',')
-            if user in parts:
-                parts.remove(user)
+            if user in parts: parts.remove(user)
             return ",".join(parts)
             
         df_d['participants'] = df_d['participants'].apply(remove_participant)
         
-        # 4. Sauvegarder
         conn.update(worksheet="Profils", data=df_u)
         conn.update(worksheet="Activites", data=df_a)
         conn.update(worksheet="Defis", data=df_d)
-        
         st.cache_data.clear()
         return True
     except Exception as e:
-        st.error(f"Erreur suppression : {e}")
         return False
 
 def create_challenge(titre, type_def, obj, sport_cible, fin):
@@ -213,6 +204,16 @@ def join_challenge(c_id):
             df.at[idx, 'participants'] = ",".join(parts)
             conn.update(worksheet="Defis", data=df)
             st.cache_data.clear()
+        return True
+    except: return False
+
+def delete_challenge(c_id):
+    """Supprime un défi (seulement si créateur)"""
+    try:
+        df = conn.read(worksheet="Defis", ttl=0)
+        df = df[df['id'] != c_id] # On retire la ligne
+        conn.update(worksheet="Defis", data=df)
+        st.cache_data.clear()
         return True
     except: return False
 
@@ -363,7 +364,7 @@ else:
                 for i, (u, val) in enumerate(dps.items()):
                     st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
 
-    with tabs[2]: # DEFIS DETAILLES
+    with tabs[2]: # DEFIS DETAILLES ET SUPPRESSION
         st.header("⚔️ Salle des Défis")
         
         with st.expander("➕ Lancer un nouveau défi"):
@@ -396,7 +397,7 @@ else:
                     c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
                     prog = c_df.groupby('user')['km_est'].sum()
                 
-                # S'assurer que tous les participants sont dans la série, même avec 0
+                # Remplir les participants vides avec 0
                 prog = prog.reindex(parts, fill_value=0)
 
                 st.markdown(f"""
@@ -412,8 +413,16 @@ else:
                     if user not in parts:
                         if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
                     else: st.write("✅ Tu participes")
+                    
+                    # Bouton Supprimer (Uniquement pour le créateur)
+                    if r['createur'] == user:
+                        if st.button("🗑️ Supprimer ce défi", key=f"del_{r['id']}"):
+                            delete_challenge(r['id'])
+                            st.success("Défi supprimé.")
+                            time.sleep(1)
+                            st.rerun()
+
                 with col_list:
-                    # Affichage liste complète
                     st.write("**Classement :**")
                     sorted_prog = prog.sort_values(ascending=False)
                     for u, val in sorted_prog.items():

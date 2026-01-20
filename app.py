@@ -460,6 +460,18 @@ else:
         st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
+        
+        # --- NOUVELLE SECTION : TOTAL & PERTE DE GRAS ---
+        # 7700 kcal ~= 1 kg de graisse
+        kg_fat = total_cal / 7700
+        
+        st.markdown("### 📊 Cumul Global")
+        k1, k2 = st.columns(2)
+        k1.metric("Total Calories Brûlées", f"{int(total_cal)} kcal")
+        k2.metric("Gras fondu (est.)", f"{kg_fat:.2f} kg", help="Estimation : 7700 kcal = 1 kg de graisse")
+        
+        st.divider()
+
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
         c2.metric("🔥 Série Perso", f"{streak_user} Jours")
@@ -549,7 +561,7 @@ else:
         if s in ["Course", "Natation"]:
             input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
         elif s == "Marche":
-            input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
+            input_type = c2.radio("Type d'objectif", ["Durée", "Pas"], horizontal=True)
         else:
             # Pour les autres sports, on force Durée sans afficher de radio
             c2.info("⏱️ Objectif : Durée")
@@ -725,4 +737,3 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
-

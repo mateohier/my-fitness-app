@@ -349,4 +349,85 @@ else:
         
         with st.form("add"):
             c1, c2 = st.columns(2)
-            d = c1.date_input("Date",
+            d = c1.date_input("Date", date.today())
+            s = c2.selectbox("Sport", ["Musculation", "Course", "Vélo", "Natation", "Crossfit", "Marche", "Fitness"])
+            w = c1.number_input("Poids (kg)", 0.0, 200.0, float(last_weight))
+            m = c2.number_input("Durée (min)", 1, 300, 45)
+            
+            if st.form_submit_button("Sauvegarder"):
+                met = {"Course": 10, "Vélo": 7, "Natation": 8, "Musculation": 4, "Crossfit": 8, "Marche": 3.5, "Fitness": 6}
+                cal_sport = (calculate_bmr(w, prof['h'], age, prof['sex']) / 24) * met.get(s, 5) * (m/60)
+                
+                new_act = pd.DataFrame([{
+                    "date": pd.to_datetime(d), "user": user, "sport": s, 
+                    "minutes": m, "calories": round(cal_sport), "poids": float(w)
+                }])
+                
+                with st.spinner("Sauvegarde..."):
+                    if save_activity(new_act):
+                        st.success(f"+{int(cal_sport)} kcal !")
+                        time.sleep(1)
+                        st.rerun()
+
+    with t4:
+        st.subheader("👤 Modifier mon profil")
+        with st.form("edit_prof"):
+            col1, col2 = st.columns(2)
+            new_dob = col1.date_input("Date de naissance", value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
+            
+            sex_opts = ["Homme", "Femme"]
+            curr_sex = prof.get('sex', 'Homme')
+            idx_sex = sex_opts.index(curr_sex) if curr_sex in sex_opts else 0
+            new_sex = col2.selectbox("Sexe", sex_opts, index=idx_sex)
+            
+            col3, col4 = st.columns(2)
+            new_h = col3.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
+            
+            curr_act = prof.get('act', ACTIVITY_OPTS[0])
+            idx_act = ACTIVITY_OPTS.index(curr_act) if curr_act in ACTIVITY_OPTS else 0
+            new_act = col4.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=idx_act)
+            
+            col5, col6 = st.columns(2)
+            new_w_init = col5.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
+            new_obj = col6.number_input("Objectif Poids (kg)", 30.0, 200.0, float(prof.get('w_obj', 65.0)))
+            
+            if st.form_submit_button("💾 Enregistrer"):
+                prof.update({"dob": str(new_dob), "sex": new_sex, "h": new_h, "act": new_act, "w_init": new_w_init, "w_obj": new_obj})
+                if save_user(user, user_row['pin'], prof):
+                    st.success("✅ Profil mis à jour !")
+                    time.sleep(1)
+                    st.rerun()
+
+        st.subheader("📝 Modifier l'historique")
+        if not my_df.empty:
+            col_config = {
+                "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD", step=1),
+                "poids": st.column_config.NumberColumn("Poids (kg)", format="%.1f"),
+                "calories": st.column_config.NumberColumn("Calories", format="%.1f")
+            }
+            edited = st.data_editor(my_df[['date', 'sport', 'minutes', 'calories', 'poids']], num_rows="dynamic", use_container_width=True, column_config=col_config)
+            if st.button("Sauvegarder historique"):
+                if update_history(edited):
+                    st.success("Historique corrigé")
+                    time.sleep(1)
+                    st.rerun()
+
+    with t5:
+        st.header("🏆 Classement (7 jours)")
+        if not df_acts.empty:
+            now = pd.Timestamp.now()
+            week_df = df_acts[df_acts['date'] >= (now - pd.Timedelta(days=7))]
+            if not week_df.empty:
+                top = week_df.groupby("user")['calories'].sum().sort_values(ascending=False).head(3)
+                cols = st.columns(3)
+                medals = ["🥇", "🥈", "🥉"]
+                for i, (u, c) in enumerate(top.items()):
+                    cols[i].markdown(f"<div class='podium-box'><h1>{medals[i]}</h1><h3>{u}</h3><p>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                st.divider()
+                st.subheader("Rois du sport")
+                best = week_df.groupby(['sport', 'user'])['minutes'].sum().reset_index()
+                best = best.loc[best.groupby('sport')['minutes'].idxmax()]
+                grid = st.columns(3)
+                for i, row in best.reset_index().iterrows():
+                    grid[i%3].info(f"**{row['sport']}**: {row['user']} ({row['minutes']} min)")
+            else: st.warning("Pas de sport cette semaine.")

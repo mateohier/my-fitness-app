@@ -18,12 +18,10 @@ st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="
 
 # URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
-# Image de fond générale (Sombre pour faire ressortir les couleurs)
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
-# Image Anatomique (Planche musculaire style "Écorché" sombre)
-ANATOMY_BG = "https://img.freepik.com/premium-photo/human-muscular-system-body-muscles-part-anterior-view-isolated-black-background-3d_466045-846.jpg"
 
-# --- MAPPINGS (ADN & MUSCLES) ---
+# --- MAPPINGS ---
+# ADN (Pour le Radar Chart)
 DNA_MAP = {
     "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
     "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
@@ -38,37 +36,19 @@ DNA_MAP = {
     "Basket":      {"Force": 4, "Endurance": 8, "Agilité": 8, "Mental": 6},
     "Marche":      {"Force": 1, "Endurance": 4, "Agilité": 1, "Mental": 3},
     "Danse":       {"Force": 3, "Endurance": 6, "Agilité": 10, "Mental": 5},
-    "Pilates":     {"Force": 4, "Endurance": 3, "Agilité": 8, "Mental": 6}
+    "Pilates":     {"Force": 4, "Endurance": 3, "Agilité": 8, "Mental": 6},
+    "Ski":         {"Force": 5, "Endurance": 7, "Agilité": 6, "Mental": 5},
+    "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5}
 }
 
-MUSCLE_MAP = {
-    "Musculation": {"Biceps": 8, "Pecs": 8, "Dos": 8, "Cuisses": 6, "Epaules": 7},
-    "Course": {"Cuisses": 10, "Cardio": 9, "Mollets": 7},
-    "Vélo": {"Cuisses": 9, "Cardio": 8, "Mollets": 9},
-    "Natation": {"Dos": 10, "Epaules": 9, "Cardio": 8, "Cuisses": 6, "Pecs": 5},
-    "Crossfit": {"Biceps": 8, "Cuisses": 8, "Cardio": 9, "Pecs": 7, "Dos": 7, "Abdos": 8},
-    "Fitness": {"Cardio": 8, "Cuisses": 6, "Biceps": 5, "Abdos": 7},
-    "Boxe": {"Epaules": 9, "Cardio": 10, "Dos": 6, "Cuisses": 7, "Abdos": 8},
-    "Yoga": {"Dos": 7, "Abdos": 6, "Cuisses": 5},
-    "Escalade": {"Biceps": 10, "Dos": 9, "Cuisses": 7, "Abdos": 8},
-    "Tennis": {"Biceps": 7, "Cuisses": 8, "Cardio": 8, "Epaules": 7},
-    "Football": {"Cuisses": 9, "Cardio": 9, "Abdos": 5},
-    "Marche": {"Cardio": 4, "Cuisses": 5},
-    "Pilates": {"Abdos": 10, "Dos": 7, "Cuisses": 5},
-    "Danse": {"Cuisses": 8, "Cardio": 7, "Abdos": 6}
-}
-SPORTS_LIST = sorted(list(MUSCLE_MAP.keys()))
+SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
-# Coordonnées pour l'image spécifique (Ajustées pour le corps humain)
-BODY_COORDS = {
-    "Cardio": (0, 8.5),     # Cœur
-    "Pecs": (0, 7.3),       # Pectoraux
-    "Abdos": (0, 5.5),      # Abdominaux
-    "Biceps": (2.2, 6.8),   # Bras
-    "Epaules": (1.8, 7.8),  # Deltoïdes
-    "Dos": (0, 7.0),        # Dos (Centre)
-    "Cuisses": (1.0, 3.5),  # Quadriceps
-    "Mollets": (1.1, 1.0),  # Mollets
+# ESTIMATION VITESSE MOYENNE (KM/H) POUR CALCUL DISTANCE
+SPEED_MAP = {
+    "Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, 
+    "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
+    "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0, # Pas de distance
+    "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0
 }
 
 # --- 2. UTILITAIRES ---
@@ -92,7 +72,7 @@ def calculate_bmr(weight, height, age, sex):
     return val + 5 if sex == "Homme" else val - 161
 
 def get_level_progress(total_cal):
-    factor = 150 # Difficulté
+    factor = 150 
     if total_cal == 0: return 1, 0.0, 100
     level = int((total_cal / factor) ** 0.5)
     if level == 0: level = 1
@@ -134,7 +114,7 @@ def get_data():
         
         if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
         if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids"])
-        if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "createur", "participants", "date_fin", "statut"])
+        if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             
         df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce')
         df_a = df_a.dropna(subset=['date'])
@@ -163,13 +143,14 @@ def save_user(u, p, data):
         return True
     except: return False
 
-def create_challenge(titre, type_def, obj, fin):
+def create_challenge(titre, type_def, obj, sport_cible, fin):
     try:
         df = conn.read(worksheet="Defis", ttl=0)
         new = pd.DataFrame([{
             "id": str(uuid.uuid4()), "titre": titre, "type": type_def, 
-            "objectif": float(obj), "createur": st.session_state.user, 
-            "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"
+            "objectif": float(obj), "sport_cible": sport_cible,
+            "createur": st.session_state.user, "participants": st.session_state.user, 
+            "date_fin": str(fin), "statut": "Actif"
         }])
         conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True))
         st.cache_data.clear()
@@ -257,7 +238,8 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    tabs = st.tabs(["🏠 Dashboard", "🩻 Anatomie", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
+    # TABS (SANS ANATOMIE)
+    tabs = st.tabs(["🏠 Dashboard", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
         st.markdown(f"<div class='quote-box'>{random.choice(['Pain is fuel.', 'Go hard or go home.', 'Tu es une machine.'])}</div>", unsafe_allow_html=True)
@@ -297,80 +279,22 @@ else:
             st.progress(min(km/1000, 1.0))
             st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # ANATOMIE HEATMAP
-        st.header("🩻 Carte Musculaire (Heatmap)")
-        st.markdown("Les zones **rouges/jaunes** indiquent les muscles qui 'chauffent' le plus sur les 7 derniers jours.")
-        
-        m_scores = {}
-        recent = my_df[my_df['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
-        for _, r in recent.iterrows():
-            imps = MUSCLE_MAP.get(r['sport'], {"Cardio": 5})
-            h = r['minutes'] / 60
-            for m, s in imps.items(): m_scores[m] = m_scores.get(m, 0) + (s * h)
-            
-        if m_scores:
-            x, y, s, c, t = [], [], [], [], []
-            for m, score in m_scores.items():
-                if m in BODY_COORDS:
-                    bx, by = BODY_COORDS[m]
-                    # On crée des points larges et flous pour simuler une heatmap
-                    if m in ["Biceps", "Cuisses", "Mollets", "Epaules"]:
-                        x.extend([bx, -bx]); y.extend([by, by])
-                        s.extend([score*12, score*12]); c.extend([score, score])
-                        t.extend([m, m])
-                    else:
-                        x.append(bx); y.append(by)
-                        s.append(score*15); c.append(score); t.append(m)
-            
-            fig = go.Figure()
-            # Fond Anatomique Sombre
-            fig.add_layout_image(dict(
-                source=ANATOMY_BG,
-                xref="x", yref="y",
-                x=-4.5, y=10.5, sizex=9, sizey=11,
-                opacity=0.8, layer="below"
-            ))
-            # Heatmap simulée (Points flous et larges)
-            fig.add_trace(go.Scatter(
-                x=x, y=y, mode='markers', text=t,
-                marker=dict(
-                    size=s, 
-                    color=c, 
-                    colorscale='Hot', # Du noir au rouge/jaune/blanc
-                    opacity=0.5,      # Transparence pour l'effet "Glow"
-                    line=dict(width=0), # Pas de bordure
-                    showscale=True,
-                    colorbar=dict(title="Intensité")
-                ),
-                hovertemplate="<b>%{text}</b><br>Charge: %{marker.color:.1f}<extra></extra>"
-            ))
-            fig.update_layout(
-                width=500, height=700,
-                xaxis=dict(range=[-3, 3], visible=False),
-                yaxis=dict(range=[0, 10], visible=False),
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=0, r=0, t=0, b=0)
-            )
-            c1, c2 = st.columns([1, 1])
-            with c1: st.plotly_chart(fig, use_container_width=True)
-            with c2: 
-                st.write("### 🔥 Muscles en feu")
-                for m, sc in sorted(m_scores.items(), key=lambda x:x[1], reverse=True)[:5]:
-                    st.write(f"**{m}**")
-                    st.progress(min(sc/50, 1.0))
-        else: st.info("Fais du sport cette semaine pour voir tes muscles s'illuminer !")
-
-    with tabs[2]: # DEFIS REWORKED
+    with tabs[1]: # DEFIS CLARIFIES
         st.header("⚔️ Salle des Défis")
         
         with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
-                dt = st.text_input("Nom du défi", placeholder="Ex: Course de Noël")
-                typ = st.selectbox("Type d'objectif", ["Calories", "Minutes", "Sport"])
-                obj = st.number_input("Cible à atteindre", 100, 50000, 1000)
+                dt = st.text_input("Nom du défi", placeholder="Ex: Objectif Bikini")
+                # Sélection Cible
+                type_def = st.selectbox("Type de Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"])
+                # Sélection Sport
+                sport_target = st.selectbox("Sport concerné", ["Tous les sports"] + SPORTS_LIST)
+                
+                obj = st.number_input("Objectif à atteindre", 10.0, 50000.0, 500.0)
                 fin = st.date_input("Date limite")
+                
                 if st.form_submit_button("Créer le défi"):
-                    create_challenge(dt, typ, obj, fin)
+                    create_challenge(dt, type_def, obj, sport_target, fin)
                     st.success("Défi lancé !"); time.sleep(1); st.rerun()
         
         st.subheader("Défis en cours")
@@ -378,21 +302,34 @@ else:
             active = df_d[df_d['statut'] == 'Actif']
             for _, r in active.iterrows():
                 parts = r['participants'].split(',')
-                # Logique phrase claire
-                target_desc = f"Brûler **{int(r['objectif'])} kcal**" if r['type'] == 'Calories' else f"Faire **{int(r['objectif'])} minutes** de sport"
-                if r['type'] not in ['Calories', 'Minutes']: target_desc = f"Faire **{int(r['objectif'])} min** de {r['type']}"
+                # Description propre
+                s_txt = "tous sports confondus" if r['sport_cible'] == "Tous les sports" else f"en {r['sport_cible']}"
+                unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                 
                 # Calcul Stats
+                # Filtre date + participants
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
-                if r['type'] == 'Calories': prog = c_df.groupby('user')['calories'].sum()
-                elif r['type'] == 'Minutes': prog = c_df.groupby('user')['minutes'].sum()
-                else: prog = c_df[c_df['sport']==r['type']].groupby('user')['minutes'].sum()
+                
+                # Filtre sport si besoin
+                if r['sport_cible'] != "Tous les sports":
+                    c_df = c_df[c_df['sport'] == r['sport_cible']]
+
+                # Calcul selon type
+                prog = pd.Series()
+                if "Calories" in r['type']: 
+                    prog = c_df.groupby('user')['calories'].sum()
+                elif "Durée" in r['type']: 
+                    prog = c_df.groupby('user')['minutes'].sum()
+                elif "Distance" in r['type']:
+                    # Estimation Distance via SPEED_MAP
+                    c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
+                    prog = c_df.groupby('user')['km_est'].sum()
                 
                 # Card Design
                 st.markdown(f"""
                 <div class='challenge-card'>
                     <h3>🏆 {r['titre']}</h3>
-                    <p>{target_desc} avant le {r['date_fin']}</p>
+                    <p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p>
                     <p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']} • {len(parts)} participants</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -409,12 +346,14 @@ else:
                         sorted_prog = prog.sort_values(ascending=False)
                         for u, val in sorted_prog.items():
                             pct = min(val/float(r['objectif']), 1.0)
-                            st.write(f"**{u}** : {int(val)} ({int(pct*100)}%)")
+                            st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
                             st.progress(pct)
+                    else:
+                        st.write("Pas encore de progression.")
                 st.divider()
         else: st.info("Aucun défi pour le moment. Crées-en un !")
 
-    with tabs[3]: # STATS
+    with tabs[2]: # STATS
         if not my_df.empty:
             c1, c2 = st.columns(2)
             c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True)
@@ -429,7 +368,7 @@ else:
             st.plotly_chart(fig_hm, use_container_width=True)
         else: st.write("Pas de données.")
 
-    with tabs[4]: # SEANCE
+    with tabs[3]: # SEANCE
         st.subheader("Ajouter une séance")
         with st.form("add"):
             c1, c2 = st.columns(2)
@@ -446,7 +385,7 @@ else:
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(kcal), "poids": w}])):
                     st.success(f"+{int(kcal)} kcal !"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(1); st.rerun()
 
-    with tabs[5]: # PROFIL
+    with tabs[4]: # PROFIL
         with st.form("prof"):
             nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
             nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
@@ -469,7 +408,7 @@ else:
                 conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
                 st.cache_data.clear(); st.success("OK"); st.rerun()
 
-    with tabs[6]: # TOP
+    with tabs[5]: # TOP
         if not df_a.empty:
             w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)

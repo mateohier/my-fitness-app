@@ -510,7 +510,7 @@ else:
                 if choix == "Distance (km)":
                     val_km = st.number_input("Distance (km)", 0.0, 100.0, 5.0)
             
-            m = st.number_input("Durée (min) - Estimée auto si vide", 1, 300, 45)
+            m = st.number_input("Valeur - Estimée auto si vide", 1, 300, 45)
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
             
             if st.form_submit_button("Sauvegarder"):
@@ -640,3 +640,4 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+

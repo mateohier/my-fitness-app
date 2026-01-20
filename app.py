@@ -423,7 +423,7 @@ if current_theme == "Sombre":
     .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }}
     </style>
     """, unsafe_allow_html=True)
-    plotly_font_color = "white"
+    plotly_layout_dark = True
     
 else:
     # CSS MODE CLAIR (Haute visibilité / Clean)
@@ -444,9 +444,32 @@ else:
     .post-card {{ background: #ffffff; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: #333; }}
     h1, h2, h3, p, div, span {{ color: #212529; }}
     .stMarkdown {{ color: #212529; }}
+    
+    /* FORCER LE TEXTE SOMBRE DANS LES LISTES DÉROULANTES ET INPUTS */
+    div[data-baseweb="select"] div, div[data-baseweb="base-input"] input, div[data-baseweb="input"] input {{
+        color: #31333F !important;
+        -webkit-text-fill-color: #31333F !important;
+        caret-color: #31333F !important;
+    }}
+    /* Fond blanc pour le menu déroulant et texte noir */
+    div[data-baseweb="popover"] {{
+        background-color: #ffffff !important;
+    }}
+    div[data-baseweb="menu"] div {{
+        color: #31333F !important;
+    }}
+    
+    /* Boutons standards (comme Supprimer) en texte sombre s'ils sont clairs */
+    button {{
+        color: #31333F !important;
+    }}
+    /* Exception pour les boutons primaires (souvent rouges/blancs) */
+    button[kind="primary"] {{
+        color: #ffffff !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
-    plotly_font_color = "black"
+    plotly_layout_dark = False
 
 # --- 5. LOGIQUE INTERFACE ---
 
@@ -538,7 +561,10 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=plotly_font_color), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                
+                # Plotly layout customization based on theme
+                font_col = "white" if plotly_layout_dark else "black"
+                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=font_col), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
         with c_r:
@@ -757,11 +783,33 @@ else:
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
             fig_w.update_yaxes(range=[0, max_val * 1.1])
-            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color)
+            
+            # CONFIGURATION COULEURS PLOTLY SELON THEME
+            plotly_font_color = "white" if plotly_layout_dark else "black"
+            plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
+            
+            fig_w.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)', 
+                font_color=plotly_font_color,
+                xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                legend=dict(font=dict(color=plotly_font_color))
+            )
             
             c1.plotly_chart(fig_w, use_container_width=True)
             
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color), use_container_width=True, config={'staticPlot': True})
+            fig_bar = px.bar(df_chart, x='date', y='calories', title="Kcal")
+            fig_bar.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)', 
+                font_color=plotly_font_color,
+                xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                legend=dict(font=dict(color=plotly_font_color))
+            )
+            
+            c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
     with tabs[6]: # CLASSEMENT
         st.header("🏛️ Hall of Fame")

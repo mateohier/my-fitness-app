@@ -64,6 +64,8 @@ SPEED_MAP = {
     "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0
 }
 
+ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
+
 # --- 2. UTILITAIRES ---
 def hash_pin(pin): return hashlib.sha256(str(pin).encode()).hexdigest()
 
@@ -115,6 +117,34 @@ def check_achievements(df):
     if df['calories'].sum() >= 10000: badges.append(("🔥 Fournaise", "10k kcal brûlées"))
     return badges
 
+def calculate_advanced_streaks(df_all, current_user):
+    user_streak = 0
+    df_user = df_all[df_all['user'] == current_user].copy()
+    if not df_user.empty:
+        user_dates = df_user['date'].dt.date.unique()
+        user_dates.sort()
+        if len(user_dates) > 0:
+            last_date = user_dates[-1]
+            if (date.today() - last_date).days <= 1:
+                user_streak = 1
+                sorted_dates_desc = sorted(user_dates, reverse=True)
+                for i in range(len(sorted_dates_desc) - 1):
+                    if (sorted_dates_desc[i] - sorted_dates_desc[i+1]).days == 1: user_streak += 1
+                    else: break
+            else: user_streak = 0
+
+    team_streak = 0
+    if not df_all.empty:
+        df_all['year_week'] = df_all['date'].dt.strftime('%Y-%U')
+        weekly_counts = df_all.groupby('year_week').size()
+        weeks = sorted(weekly_counts.index)
+        current_streak = 0
+        for w in weeks:
+            if weekly_counts[w] >= 3: current_streak += 1
+            else: current_streak = 0
+        team_streak = current_streak
+    return user_streak, team_streak
+
 # --- 3. GESTION DONNÉES ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -148,8 +178,11 @@ def save_user(u, p, data):
     try:
         df = conn.read(worksheet="Profils", ttl=0)
         j = json.dumps(data)
-        if not df.empty and u in df['user'].values: df.loc[df['user'] == u, 'json_data'] = j
-        else: df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
+        if not df.empty and u in df['user'].values: 
+            df.loc[df['user'] == u, 'json_data'] = j
+            df.loc[df['user'] == u, 'pin'] = p # Update PIN as well
+        else: 
+            df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
         conn.update(worksheet="Profils", data=df)
         st.cache_data.clear()
         return True
@@ -177,8 +210,7 @@ def delete_current_user():
         conn.update(worksheet="Defis", data=df_d)
         st.cache_data.clear()
         return True
-    except Exception as e:
-        return False
+    except Exception as e: return False
 
 def create_challenge(titre, type_def, obj, sport_cible, fin):
     try:
@@ -208,10 +240,9 @@ def join_challenge(c_id):
     except: return False
 
 def delete_challenge(c_id):
-    """Supprime un défi (seulement si créateur)"""
     try:
         df = conn.read(worksheet="Defis", ttl=0)
-        df = df[df['id'] != c_id] # On retire la ligne
+        df = df[df['id'] != c_id]
         conn.update(worksheet="Defis", data=df)
         st.cache_data.clear()
         return True
@@ -235,8 +266,6 @@ st.markdown(f"""
 
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d = get_data()
-
-ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
 
 if not st.session_state.user:
     st.sidebar.title("🔥 Connexion")
@@ -278,6 +307,8 @@ else:
     w_curr = float(my_df.iloc[-1]['poids']) if not my_df.empty else float(prof.get('w_init', 70))
     total_cal = my_df['calories'].sum()
     
+    streak_user, streak_team = calculate_advanced_streaks(df_a, user)
+    
     # DNA
     dna = {"Force": 0, "Endurance": 0, "Agilité": 0, "Mental": 0}
     for _, r in my_df.iterrows():
@@ -297,8 +328,8 @@ else:
         c1, c2, c3, c4 = st.columns(4)
         today_val = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
         c1.metric("Aujourd'hui", f"{int(today_val)} kcal")
-        c2.metric("Total", f"{int(total_cal)} kcal")
-        c3.metric("Poids", f"{w_curr} kg")
+        c2.metric("🔥 Série Perso", f"{streak_user} Jours")
+        c3.metric("🛡️ Série Équipe", f"{streak_team} Sem.", "Obj: >3 act./sem")
         badges = check_achievements(my_df)
         c4.metric("Trophées", f"{len(badges)}")
 
@@ -325,10 +356,9 @@ else:
             st.progress(min(km/1000, 1.0))
             st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # BOSS AUTOMATIQUE
+    with tabs[1]: # BOSS
         curr_month_num = datetime.now().month
         boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
-        
         st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
         
         curr_month_str = datetime.now().strftime("%Y-%m")
@@ -339,34 +369,22 @@ else:
         pct_hp = max(0, (boss_max_hp - dmg) / boss_max_hp)
         
         c_img, c_stat = st.columns([1, 2])
-        with c_img:
-            st.image(boss_img, use_container_width=True)
+        with c_img: st.image(boss_img, use_container_width=True)
         with c_stat:
             col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
-            st.markdown(f"""
-            <div style="margin-bottom:5px; color:white; font-size:1.2em; font-weight:bold;">
-                PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}
-            </div>
-            <div class="boss-bar">
-                <div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f"""<div style="margin-bottom:5px;color:white;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
             if pct_hp <= 0:
                 st.balloons()
-                st.success("🏆 LE BOSS EST VAINCU ! Bravo à toute l'équipe !")
-            else:
-                st.info(f"L'objectif est collectif ! Il reste {int(pct_hp*100)}% de vie.")
-                
-            st.markdown("### ⚔️ Meilleurs Attaquants (Top DPS)")
+                st.success("🏆 LE BOSS EST VAINCU !")
+            else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
+            
+            st.markdown("### ⚔️ Meilleurs Attaquants")
             if not df_month.empty:
                 dps = df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
-                for i, (u, val) in enumerate(dps.items()):
-                    st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
+                for i, (u, val) in enumerate(dps.items()): st.write(f"**{i+1}. {u}** : {int(val)} dégâts")
 
-    with tabs[2]: # DEFIS DETAILLES ET SUPPRESSION
+    with tabs[2]: # DEFIS
         st.header("⚔️ Salle des Défis")
-        
         with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
                 dt = st.text_input("Nom du défi", placeholder="Ex: Objectif Bikini")
@@ -386,7 +404,6 @@ else:
                 s_txt = "tous sports confondus" if r['sport_cible'] == "Tous les sports" else f"en {r['sport_cible']}"
                 unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                 
-                # Calcul Stats pour tous les participants
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
 
@@ -396,66 +413,54 @@ else:
                 elif "Distance" in r['type']:
                     c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
                     prog = c_df.groupby('user')['km_est'].sum()
-                
-                # Remplir les participants vides avec 0
                 prog = prog.reindex(parts, fill_value=0)
 
-                st.markdown(f"""
-                <div class='challenge-card'>
-                    <h3>🏆 {r['titre']}</h3>
-                    <p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p>
-                    <p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']}</p></div>", unsafe_allow_html=True)
                 
                 col_act, col_list = st.columns([1, 2])
                 with col_act:
                     if user not in parts:
                         if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
                     else: st.write("✅ Tu participes")
-                    
-                    # Bouton Supprimer (Uniquement pour le créateur)
                     if r['createur'] == user:
-                        if st.button("🗑️ Supprimer ce défi", key=f"del_{r['id']}"):
-                            delete_challenge(r['id'])
-                            st.success("Défi supprimé.")
-                            time.sleep(1)
-                            st.rerun()
+                        if st.button("🗑️ Supprimer ce défi", key=f"del_{r['id']}"): delete_challenge(r['id']); st.success("Supprimé"); time.sleep(1); st.rerun()
 
                 with col_list:
                     st.write("**Classement :**")
-                    sorted_prog = prog.sort_values(ascending=False)
-                    for u, val in sorted_prog.items():
+                    for u, val in prog.sort_values(ascending=False).items():
                         pct = min(val/float(r['objectif']), 1.0)
                         st.write(f"**{u}** : {int(val)} {unit} ({int(pct*100)}%)")
                         st.progress(pct)
                 st.divider()
         else: st.info("Aucun défi.")
 
-    with tabs[3]: # STATS & RECORDS
+    with tabs[3]: # STATS
         if not my_df.empty:
             st.subheader("🏆 Tes Records Personnels")
             max_c = my_df['calories'].max()
             max_m = my_df['minutes'].max()
             fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "-"
-            
             k1, k2, k3 = st.columns(3)
             k1.metric("Record Kcal", f"{int(max_c)}")
             k2.metric("Séance Longue", f"{int(max_m)} min")
             k3.metric("Sport Favori", fav)
             st.divider()
             
-            c1, c2 = st.columns(2)
-            c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True, config={'staticPlot': True})
-            c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True, config={'staticPlot': True})
+            c_filter, _ = st.columns([1, 3])
+            with c_filter: period = st.selectbox("Période", ["7 Derniers Jours", "Mois en cours", "3 Derniers Mois", "Tout"])
             
-            hm_data = my_df.groupby(my_df['date'].dt.date)['minutes'].sum().reset_index()
-            hm_data['date'] = pd.to_datetime(hm_data['date'])
-            hm_data['week'] = hm_data['date'].dt.isocalendar().week
-            hm_data['day'] = hm_data['date'].dt.dayofweek
-            fig_hm = go.Figure(go.Heatmap(x=hm_data['week'], y=hm_data['day'], z=hm_data['minutes'], colorscale='Greens', showscale=False))
-            fig_hm.update_layout(height=150, margin=dict(t=20,b=20), yaxis=dict(ticktext=['Lun','','','','','','Dim'], tickvals=[0,1,2,3,4,5,6]), title="Régularité (Heatmap)")
-            st.plotly_chart(fig_hm, use_container_width=True, config={'staticPlot': True})
+            df_chart = my_df.copy()
+            now = pd.Timestamp.now()
+            if period == "7 Derniers Jours": df_chart = df_chart[df_chart['date'] >= (now - pd.Timedelta(days=7))]
+            elif period == "Mois en cours": df_chart = df_chart[df_chart['date'].dt.month == now.month]
+            elif period == "3 Derniers Mois": df_chart = df_chart[df_chart['date'] >= (now - pd.Timedelta(days=90))]
+            if period in ["Tout", "3 Derniers Mois"]:
+                df_chart['week'] = df_chart['date'].dt.to_period('W').apply(lambda r: r.start_time)
+                df_chart = df_chart.groupby('week').agg({'poids': 'mean', 'calories': 'sum'}).reset_index().rename(columns={'week': 'date'})
+
+            c1, c2 = st.columns(2)
+            c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Évolution Poids", markers=True), use_container_width=True, config={'staticPlot': True})
+            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Calories Brûlées"), use_container_width=True, config={'staticPlot': True})
         else: st.write("Pas de données.")
 
     with tabs[4]: # SEANCE
@@ -475,45 +480,45 @@ else:
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(kcal), "poids": w}])):
                     st.success(f"+{int(kcal)} kcal !"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(1); st.rerun()
 
-    with tabs[5]: # PROFIL & SUPPRESSION
-        with st.form("prof"):
-            nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
-            nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
-            if st.form_submit_button("Mettre à jour"):
-                prof['h']=int(nh)
-                prof['w_obj']=float(nw)
-                save_user(user, row['pin'], prof)
-                st.success("Profil mis à jour !")
-                time.sleep(1); st.rerun()
+    with tabs[5]: # PROFIL FULL EDIT
+        st.subheader("📝 Modifier mes informations")
+        with st.form("prof_full"):
+            c1, c2 = st.columns(2)
+            new_dob = c1.date_input("Date de naissance", datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"))
+            new_sex = c2.selectbox("Sexe", ["Homme", "Femme"], index=0 if prof.get('sex') == "Homme" else 1)
+            new_h = c1.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
+            new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
+            curr_act_idx = ACTIVITY_OPTS.index(prof.get('act', ACTIVITY_OPTS[1])) if prof.get('act') in ACTIVITY_OPTS else 1
+            new_act = st.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=curr_act_idx)
+            new_pin = st.text_input("Nouveau PIN (Laisser vide pour ne pas changer)", type="password", max_chars=4)
+
+            if st.form_submit_button("💾 Enregistrer les modifications"):
+                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act})
+                pin_to_save = row['pin']
+                if new_pin and len(new_pin) == 4: pin_to_save = hash_pin(new_pin); st.success("PIN modifié !")
+                save_user(user, pin_to_save, prof)
+                st.success("Profil mis à jour !"); time.sleep(1); st.rerun()
         
-        st.subheader("Editer Historique")
+        st.subheader("Historique")
         if not my_df.empty:
             edi = st.data_editor(my_df, use_container_width=True, num_rows="dynamic")
             if st.button("Sauvegarder Modifs"):
                 df_others = df_a[df_a['user'] != user]
                 edi['date'] = pd.to_datetime(edi['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                edi['poids'] = pd.to_numeric(edi['poids'])
-                edi['calories'] = pd.to_numeric(edi['calories'])
+                edi['poids'] = pd.to_numeric(edi['poids']); edi['calories'] = pd.to_numeric(edi['calories'])
                 conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
                 st.cache_data.clear(); st.success("OK"); st.rerun()
         
         st.divider()
         st.error("⚠️ Zone de Danger")
-        if st.button("Supprimer mon compte définitivement"):
-            st.session_state['confirm_delete'] = True
-            
+        if st.button("Supprimer mon compte définitivement"): st.session_state['confirm_delete'] = True
         if st.session_state.get('confirm_delete'):
-            st.warning("Êtes-vous sûr ? Cette action est irréversible.")
-            if st.button("Confirmer la suppression"):
-                if delete_current_user():
-                    st.session_state.user = None
-                    st.success("Compte supprimé.")
-                    time.sleep(1)
-                    st.rerun()
+            st.warning("Irréversible. Confirmer ?")
+            if st.button("OUI, Supprimer"):
+                if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()
 
     with tabs[6]: # TOP
         if not df_a.empty:
             w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
             top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
-            for i, (u, c) in enumerate(top.items()):
-                st.markdown(f"### {i+1}. {u} - {int(c)} kcal")
+            for i, (u, c) in enumerate(top.items()): st.markdown(f"### {i+1}. {u} - {int(c)} kcal")

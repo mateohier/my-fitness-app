@@ -36,31 +36,32 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS ---
+# --- MAPPINGS (6 COMPETENCES) ---
+# Ajout de "Explosivité" et "Souplesse"
 DNA_MAP = {
-    "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
-    "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
-    "Course":      {"Force": 2, "Endurance": 10, "Agilité": 3, "Mental": 8},
-    "Vélo":        {"Force": 4, "Endurance": 9, "Agilité": 3, "Mental": 6},
-    "Natation":    {"Force": 5, "Endurance": 9, "Agilité": 5, "Mental": 7},
-    "Yoga":        {"Force": 3, "Endurance": 3, "Agilité": 10, "Mental": 8},
-    "Boxe":        {"Force": 6, "Endurance": 8, "Agilité": 8, "Mental": 9},
-    "Escalade":    {"Force": 7, "Endurance": 5, "Agilité": 9, "Mental": 9},
-    "Tennis":      {"Force": 4, "Endurance": 7, "Agilité": 9, "Mental": 6},
-    "Football":    {"Force": 4, "Endurance": 8, "Agilité": 7, "Mental": 6},
-    "Basket":      {"Force": 4, "Endurance": 8, "Agilité": 8, "Mental": 6},
-    "Marche":      {"Force": 1, "Endurance": 4, "Agilité": 1, "Mental": 3},
-    "Danse":       {"Force": 3, "Endurance": 7, "Agilité": 10, "Mental": 7},
-    "Pilates":     {"Force": 4, "Endurance": 3, "Agilité": 8, "Mental": 6},
-    "Ski":         {"Force": 5, "Endurance": 7, "Agilité": 6, "Mental": 5},
-    "Randonnée":   {"Force": 3, "Endurance": 6, "Agilité": 2, "Mental": 5},
-    "Judo":        {"Force": 8, "Endurance": 6, "Agilité": 7, "Mental": 9},
-    "Karaté":      {"Force": 7, "Endurance": 6, "Agilité": 8, "Mental": 9},
-    "Badminton":   {"Force": 4, "Endurance": 8, "Agilité": 9, "Mental": 7},
-    "Rameur":      {"Force": 7, "Endurance": 9, "Agilité": 3, "Mental": 7},
-    "Elliptique":  {"Force": 4, "Endurance": 8, "Agilité": 2, "Mental": 5},
-    "Gymnastique": {"Force": 8, "Endurance": 5, "Agilité": 10, "Mental": 9},
-    "Volley":      {"Force": 6, "Endurance": 5, "Agilité": 8, "Mental": 7}
+    "Musculation": {"Force": 9, "Endurance": 3, "Agilité": 2, "Mental": 7, "Explosivité": 6, "Souplesse": 2},
+    "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9, "Explosivité": 9, "Souplesse": 5},
+    "Course":      {"Force": 2, "Endurance": 10, "Agilité": 3, "Mental": 8, "Explosivité": 3, "Souplesse": 2},
+    "Vélo":        {"Force": 5, "Endurance": 9, "Agilité": 3, "Mental": 6, "Explosivité": 4, "Souplesse": 2},
+    "Natation":    {"Force": 6, "Endurance": 9, "Agilité": 5, "Mental": 7, "Explosivité": 5, "Souplesse": 6},
+    "Yoga":        {"Force": 4, "Endurance": 4, "Agilité": 8, "Mental": 9, "Explosivité": 1, "Souplesse": 10},
+    "Boxe":        {"Force": 6, "Endurance": 8, "Agilité": 8, "Mental": 9, "Explosivité": 9, "Souplesse": 6},
+    "Escalade":    {"Force": 8, "Endurance": 6, "Agilité": 9, "Mental": 9, "Explosivité": 6, "Souplesse": 8},
+    "Tennis":      {"Force": 5, "Endurance": 7, "Agilité": 9, "Mental": 7, "Explosivité": 7, "Souplesse": 4},
+    "Football":    {"Force": 5, "Endurance": 8, "Agilité": 7, "Mental": 7, "Explosivité": 7, "Souplesse": 4},
+    "Basket":      {"Force": 5, "Endurance": 7, "Agilité": 8, "Mental": 6, "Explosivité": 8, "Souplesse": 5},
+    "Marche":      {"Force": 2, "Endurance": 4, "Agilité": 2, "Mental": 3, "Explosivité": 1, "Souplesse": 2},
+    "Danse":       {"Force": 3, "Endurance": 6, "Agilité": 10, "Mental": 5, "Explosivité": 4, "Souplesse": 9},
+    "Pilates":     {"Force": 5, "Endurance": 4, "Agilité": 7, "Mental": 7, "Explosivité": 2, "Souplesse": 9},
+    "Ski":         {"Force": 6, "Endurance": 7, "Agilité": 7, "Mental": 6, "Explosivité": 5, "Souplesse": 3},
+    "Randonnée":   {"Force": 4, "Endurance": 8, "Agilité": 3, "Mental": 6, "Explosivité": 2, "Souplesse": 2},
+    "Judo":        {"Force": 9, "Endurance": 7, "Agilité": 7, "Mental": 9, "Explosivité": 8, "Souplesse": 6},
+    "Karaté":      {"Force": 7, "Endurance": 7, "Agilité": 8, "Mental": 9, "Explosivité": 9, "Souplesse": 7},
+    "Badminton":   {"Force": 3, "Endurance": 8, "Agilité": 10, "Mental": 7, "Explosivité": 8, "Souplesse": 5},
+    "Rameur":      {"Force": 7, "Endurance": 9, "Agilité": 3, "Mental": 8, "Explosivité": 6, "Souplesse": 3},
+    "Elliptique":  {"Force": 3, "Endurance": 8, "Agilité": 2, "Mental": 5, "Explosivité": 2, "Souplesse": 2},
+    "Gymnastique": {"Force": 9, "Endurance": 6, "Agilité": 10, "Mental": 9, "Explosivité": 9, "Souplesse": 10},
+    "Volley":      {"Force": 6, "Endurance": 6, "Agilité": 8, "Mental": 7, "Explosivité": 9, "Souplesse": 5}
 }
 SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -73,8 +74,6 @@ SPEED_MAP = {
     "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0
 }
 
-# --- NOUVEAU : FACTEUR EPOC (Afterburn Effect) ---
-# Pourcentage de calories supplémentaires brûlées au repos après l'effort
 EPOC_MAP = {
     "Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12,
     "Course": 0.07, "Vélo": 0.05, "Natation": 0.06, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
@@ -353,11 +352,15 @@ else:
     
     streak_user, streak_team = calculate_advanced_streaks(df_a, user)
     
-    dna = {"Force": 0, "Endurance": 0, "Agilité": 0, "Mental": 0}
+    # Calcul ADN Dynamique (6 compétences)
+    DNA_KEYS = ["Force", "Endurance", "Agilité", "Mental", "Explosivité", "Souplesse"]
+    dna = {k: 0 for k in DNA_KEYS}
+    
     for _, r in my_df.iterrows():
-        s_dna = DNA_MAP.get(r['sport'], {"Force":1, "Endurance":1})
+        s_dna = DNA_MAP.get(r['sport'], {})
         h = r['minutes'] / 60
-        for k in dna: dna[k] += s_dna.get(k, 0) * h
+        for k in DNA_KEYS:
+            dna[k] += s_dna.get(k, 1) * h # Valeur par défaut 1 si sport inconnu ou clé manquante
 
     tabs = st.tabs(["🏠 Tableau de Bord", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "➕ Séance", "⚙️ Profil", "🏆 Classement"])
 
@@ -570,18 +573,13 @@ else:
                 dt = datetime.combine(d, t)
                 dna = DNA_MAP.get(s, {})
                 intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
-                # Calcul Base Kcal
                 base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
-                # Calcul Bonus EPOC (Afterburn)
-                epoc_rate = EPOC_MAP.get(s, 0.05) # 5% par défaut
+                epoc_rate = EPOC_MAP.get(s, 0.05)
                 epoc_bonus = base_kcal * epoc_rate
                 total_kcal = base_kcal + epoc_bonus
                 
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
-                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal")
-                    st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal")
-                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
-                    time.sleep(2); st.rerun()
+                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal"); st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
 
     with tabs[5]: # PROFIL FULL EDIT
         st.subheader("📝 Modifier mes informations")

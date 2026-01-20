@@ -39,7 +39,7 @@ BOSS_CALENDAR = {
     12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
 }
 
-# --- MAPPINGS (9 COMPETENCES) ---
+# --- MAPPINGS (AJOUT SPORT DE CHAMBRE) ---
 DNA_MAP = {
     "Musculation": {"Force": 10, "Endurance": 4, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
     "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
@@ -63,7 +63,8 @@ DNA_MAP = {
     "Rameur":      {"Force": 7, "Endurance": 9, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
     "Elliptique":  {"Force": 4, "Endurance": 8, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
     "Gymnastique": {"Force": 9, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
-    "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7}
+    "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
+    "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
 }
 SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -73,7 +74,8 @@ SPEED_MAP = {
     "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
     "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
     "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
-    "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0
+    "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
+    "Sport de chambre": 0.0
 }
 
 EPOC_MAP = {
@@ -81,7 +83,8 @@ EPOC_MAP = {
     "Course": 0.07, "Vélo": 0.05, "Natation": 0.06, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
     "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
     "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
-    "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03
+    "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
+    "Sport de chambre": 0.04
 }
 
 ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]

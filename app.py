@@ -399,9 +399,14 @@ else:
     tabs = st.tabs(["🏠 Tableau de Bord", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
     with tabs[0]: # DASHBOARD
-        st.markdown(f"### 👋 Bienvenue {get_user_badge(user, df_u)}", unsafe_allow_html=True)
-        st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
+        # CORRECTION ICI : On utilise un div HTML pur au lieu du markdown "###" pour forcer le rendu de l'image
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; font-size: 24px; font-weight: bold; margin-bottom: 20px;">
+            👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}
+        </div>
+        """, unsafe_allow_html=True)
         
+        st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}")
         st.progress(pct)
@@ -699,3 +704,4 @@ else:
             st.warning("Irréversible. Confirmer ?")
             if st.button("OUI, Supprimer"):
                 if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()
+

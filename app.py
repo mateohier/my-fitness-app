@@ -172,13 +172,16 @@ def calculate_advanced_streaks(df_all, current_user):
     return user_streak, team_streak
 
 def process_avatar(image_file):
+    """Redimensionne et convertit l'image en base64 pour stockage léger"""
     if image_file is None: return None
     try:
-        img = Image.open(image_file).convert('RGB')
-        img.thumbnail((150, 150))
+        img = Image.open(image_file)
+        img = img.convert('RGB') # Assurer format compatible
+        img.thumbnail((150, 150)) # Redimensionner petit pour la base de données
         buffered = io.BytesIO()
         img.save(buffered, format="JPEG", quality=70)
-        return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        return f"data:image/jpeg;base64,{img_str}"
     except: return None
 
 def process_post_image(image_file):
@@ -190,6 +193,14 @@ def process_post_image(image_file):
         buffered = io.BytesIO()
         img.save(buffered, format="JPEG", quality=60) # Compression
         return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+    except: return None
+
+def base64_to_bytes(base64_string):
+    """Convertit une string base64 (data:image...) en bytes pour téléchargement"""
+    try:
+        if "," in base64_string:
+            base64_string = base64_string.split(",")[1]
+        return base64.b64decode(base64_string)
     except: return None
 
 # --- 3. GESTION DONNÉES ---
@@ -221,7 +232,8 @@ def save_activity(new_row):
         upd = pd.concat([df, new_row], ignore_index=True)
         upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
         conn.update(worksheet="Activites", data=upd)
-        st.cache_data.clear(); return True
+        st.cache_data.clear()
+        return True
     except: return False
 
 def save_post(image_b64, comment):
@@ -267,34 +279,51 @@ def save_user(u, p, data):
         df = conn.read(worksheet="Profils", ttl=0)
         j = json.dumps(data)
         if not df.empty and u in df['user'].values: 
-            df.loc[df['user'] == u, 'json_data'] = j; df.loc[df['user'] == u, 'pin'] = p
+            df.loc[df['user'] == u, 'json_data'] = j
+            df.loc[df['user'] == u, 'pin'] = p
         else: 
             df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
         conn.update(worksheet="Profils", data=df)
-        st.cache_data.clear(); return True
+        st.cache_data.clear()
+        return True
     except: return False
 
 def delete_current_user():
     try:
         user = st.session_state.user
-        df_u = conn.read(worksheet="Profils", ttl=0); df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0)
-        df_u = df_u[df_u['user'] != user]; df_a = df_a[df_a['user'] != user]
-        def remove_p(p_str): parts = str(p_str).split(','); return ",".join([p for p in parts if p != user])
-        df_d['participants'] = df_d['participants'].apply(remove_p)
-        conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d)
-        st.cache_data.clear(); return True
-    except: return False
+        df_u = conn.read(worksheet="Profils", ttl=0)
+        df_a = conn.read(worksheet="Activites", ttl=0)
+        df_d = conn.read(worksheet="Defis", ttl=0)
+        
+        df_u = df_u[df_u['user'] != user]
+        df_a = df_a[df_a['user'] != user]
+        
+        def remove_participant(participants_str):
+            parts = str(participants_str).split(',')
+            if user in parts: parts.remove(user)
+            return ",".join(parts)
+            
+        df_d['participants'] = df_d['participants'].apply(remove_participant)
+        
+        conn.update(worksheet="Profils", data=df_u)
+        conn.update(worksheet="Activites", data=df_a)
+        conn.update(worksheet="Defis", data=df_d)
+        st.cache_data.clear()
+        return True
+    except Exception as e: return False
 
 def create_challenge(titre, type_def, obj, sport_cible, fin):
     try:
         df = conn.read(worksheet="Defis", ttl=0)
         new = pd.DataFrame([{
-            "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
-            "sport_cible": sport_cible, "createur": st.session_state.user, 
-            "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"
+            "id": str(uuid.uuid4()), "titre": titre, "type": type_def, 
+            "objectif": float(obj), "sport_cible": sport_cible,
+            "createur": st.session_state.user, "participants": st.session_state.user, 
+            "date_fin": str(fin), "statut": "Actif"
         }])
         conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True))
-        st.cache_data.clear(); return True
+        st.cache_data.clear()
+        return True
     except: return False
 
 def join_challenge(c_id):
@@ -305,24 +334,38 @@ def join_challenge(c_id):
         if st.session_state.user not in parts:
             parts.append(st.session_state.user)
             df.at[idx, 'participants'] = ",".join(parts)
-            conn.update(worksheet="Defis", data=df); st.cache_data.clear()
+            conn.update(worksheet="Defis", data=df)
+            st.cache_data.clear()
         return True
     except: return False
 
 def delete_challenge(c_id):
     try:
-        df = conn.read(worksheet="Defis", ttl=0); df = df[df['id'] != c_id]
-        conn.update(worksheet="Defis", data=df); st.cache_data.clear(); return True
+        df = conn.read(worksheet="Defis", ttl=0)
+        df = df[df['id'] != c_id]
+        conn.update(worksheet="Defis", data=df)
+        st.cache_data.clear()
+        return True
     except: return False
 
+# --- FONCTION HELPER POUR L'AVATAR (PASTILLE) ---
 def get_user_badge(username, df_u):
+    # Cherche l'URL dans les données
     try:
         row = df_u[df_u['user'] == username].iloc[0]
         p_data = json.loads(row['json_data'])
+        # Si pas d'avatar perso, on génère un avatar unique avec DiceBear
         avatar = p_data.get('avatar', "")
         if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
-    except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
-    return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:2px 10px;background:rgba(0,0,0,0.3);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;color:white;'>{username.capitalize()}</span></span>"""
+    except:
+        avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
+    
+    return f"""
+    <span style='display:inline-flex; align-items:center; border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:2px 10px; background:rgba(0,0,0,0.3); margin-right:5px;'>
+        <img src='{avatar}' style='width:25px; height:25px; border-radius:50%; margin-right:8px; object-fit:cover; background: white;'>
+        <span style='font-weight:bold; color:white;'>{username.capitalize()}</span>
+    </span>
+    """
 
 # --- 4. CSS ---
 if 'user' not in st.session_state: st.session_state.user = None
@@ -353,9 +396,18 @@ if not st.session_state.user:
     st.title("✨ FollowFit")
     st.markdown("### L'aventure sportive commence ici.")
     st.info("👈 **C'est parti ! Ouvre le menu en haut à gauche pour te connecter ou t'inscrire.**")
+    
     st.divider()
     with st.expander("💌 Le mot du Développeur", expanded=True):
-        st.markdown("Salut la famille et les amis ! 👋 Ici, on se motive ensemble. Battez mes records ! 😉")
+        st.markdown("""
+        Salut la famille et les amis ! 👋
+        
+        J'ai créé **FollowFit** pour qu'on puisse se motiver ensemble, peu importe où l'on est.
+        Ici, pas de jugement, juste du fun, des défis et un gros monstre à battre tous les mois !
+        
+        Amusez-vous bien, bougez bien, et surtout... **battez mes records !** 😉
+        """)
+
     st.sidebar.title("🔥 Connexion")
     menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"])
     u_input = st.sidebar.text_input("Pseudo").strip().lower()
@@ -364,9 +416,11 @@ if not st.session_state.user:
     if menu == "Se connecter":
         if st.sidebar.button("Se connecter"):
             if not df_u.empty and u_input in df_u['user'].values:
-                if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input): st.session_state.user = u_input; st.rerun()
+                if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input):
+                    st.session_state.user = u_input; st.rerun()
                 else: st.sidebar.error("Mauvais PIN")
             else: st.sidebar.error("Utilisateur inconnu")
+            
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
         dob = st.sidebar.date_input("Naissance", value=date(2000,1,1), min_value=date(1900,1,1), max_value=date.today())
@@ -375,11 +429,13 @@ if not st.session_state.user:
         act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
         w_init = st.sidebar.number_input("Poids actuel (kg)", 30.0, 200.0, 70.0)
         w_obj = st.sidebar.number_input("Objectif (kg)", 30.0, 200.0, 65.0)
+        
         if st.sidebar.button("S'inscrire"):
             if not df_u.empty and u_input in df_u['user'].values: st.sidebar.error("Pseudo pris")
             elif len(p_input) == 4:
                 prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
-                if save_user(u_input, hash_pin(p_input), prof): st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
+                if save_user(u_input, hash_pin(p_input), prof):
+                    st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
 else:
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
@@ -390,36 +446,61 @@ else:
     my_df = df_a[df_a['user'] == user].copy()
     w_curr = float(my_df.iloc[-1]['poids']) if not my_df.empty else float(prof.get('w_init', 70))
     total_cal = my_df['calories'].sum()
+    
     streak_user, streak_team = calculate_advanced_streaks(df_a, user)
     
+    # 9 COMPETENCES
     DNA_KEYS = ["Force", "Endurance", "Vitesse", "Agilité", "Souplesse", "Explosivité", "Mental", "Récupération", "Concentration"]
     dna = {k: 0 for k in DNA_KEYS}
+    
     for _, r in my_df.iterrows():
         s_dna = DNA_MAP.get(r['sport'], {})
         h = r['minutes'] / 60
-        for k in DNA_KEYS: dna[k] += s_dna.get(k, 1) * h
+        for k in DNA_KEYS:
+            dna[k] += s_dna.get(k, 1) * h
 
     tabs = st.tabs(["🏠 Tableau de Bord", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
     with tabs[0]: # DASHBOARD
-        st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; font-size: 24px; font-weight: bold; margin-bottom: 20px;">
+            👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
+        
         lvl, pct, rem = get_level_progress(total_cal)
-        st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
+        st.markdown(f"### ⚡ Niveau {lvl}")
+        st.progress(pct)
+        st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
+        
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
+        today_val = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
+        c1.metric("Aujourd'hui", f"{int(today_val)} kcal")
         c2.metric("🔥 Série Perso", f"{streak_user} Jours")
         c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
-        c4.metric("Trophées", f"{len(check_achievements(my_df))}")
+        badges = check_achievements(my_df)
+        c4.metric("Trophées", f"{len(badges)}")
+
+        # FLASH INFOS CÉLÉBRATIONS
         if not df_a.empty:
+            st.markdown("### 🌟 Célébrations de la Communauté")
             all_totals = df_a.groupby('user')['calories'].sum()
             celebrations = []
             for u, cal in all_totals.items():
                 u_lvl, _, _ = get_level_progress(cal)
                 if u_lvl >= 5: celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est un vétéran de Niveau {u_lvl} !")
                 if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")
-            if celebrations: st.markdown(f"<div class='celeb-box'>{random.choice(celebrations)}</div>", unsafe_allow_html=True)
+            
+            if celebrations:
+                chosen_celeb = random.choice(celebrations)
+                st.markdown(f"<div class='celeb-box'>{chosen_celeb}</div>", unsafe_allow_html=True)
+            else:
+                st.info("Soyez le premier à accomplir un exploit !")
+
         st.divider()
+
         c_l, c_r = st.columns(2)
         with c_l:
             st.subheader("🧬 ADN Sportif")
@@ -427,9 +508,16 @@ else:
                 mx = max(dna.values())
                 fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                 fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color="white"), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                fig.update_layout(
+                    polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'),
+                    font=dict(size=10, color="white"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=80, r=80, t=20, b=20),
+                    height=300
+                )
                 st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
             else: st.info("Pas assez de données")
+            
         with c_r:
             st.subheader("🌍 Voyage")
             km = total_cal / 60
@@ -437,8 +525,10 @@ else:
             dest, rest = "Marseille", 0
             for v, d in villes:
                 if km < d: dest = v; rest = d - km; break
+            
             st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur {dest} ({int(rest)} km)</div>", unsafe_allow_html=True)
             st.progress(min(km/1000, 1.0))
+            st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
     with tabs[1]: # PARTAGE (FEED)
         st.header("📸 Mur de Partage (7 jours)")
@@ -458,16 +548,26 @@ else:
             for _, r in df_p.iterrows():
                 # Check Viewers
                 viewers = str(r['seen_by']).split(',')
-                if user not in viewers: mark_post_seen(r['id'], user) # Update DB in background without full refresh to avoid loop
+                if user not in viewers: mark_post_seen(r['id'], user)
                 
-                # Render
+                # Conversion Image
+                img_data = base64_to_bytes(r['image'])
+                
                 st.markdown(f"""
                 <div class='post-card'>
                     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
                         {get_user_badge(r['user'], df_u)}
                         <span style='color:#aaa; font-size:0.8em;'>{r['date']}</span>
                     </div>
-                    <img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if img_data:
+                    st.image(img_data, use_container_width=True)
+                    st.download_button(label="📥 Télécharger la photo", data=img_data, file_name=f"followfit_{r['user']}.jpg", mime="image/jpeg", key=f"dl_{r['id']}")
+                
+                st.markdown(f"""
+                <div class='post-card' style='margin-top:-20px; border-top:none;'>
                     <p style='font-size:1.1em;'>{r['comment']}</p>
                     <hr style='border-color:#555;'>
                     <div style='display:flex; flex-wrap:wrap; align-items:center;'>
@@ -489,104 +589,229 @@ else:
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
-                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
-                epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
+                dna = DNA_MAP.get(s, {})
+                intens = (dna.get("Force", 5) + dna.get("Endurance", 5))/2
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * (intens/1.5) * (m/60)
+                epoc_rate = EPOC_MAP.get(s, 0.05)
+                epoc_bonus = base_kcal * epoc_rate
                 total_kcal = base_kcal + epoc_bonus
+                
                 if save_activity(pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w}])):
-                    st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+                    st.success(f"✅ Séance enregistrée : {int(total_kcal)} kcal"); st.caption(f"Dont Effort : {int(base_kcal)} kcal + 🔥 Afterburn (Récupération) : {int(epoc_bonus)} kcal"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+        
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
-            df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
-            edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config={"Supprimer": st.column_config.CheckboxColumn("🗑️ Cocher pour supprimer", default=False)})
-            if st.button("💾 Sauvegarder changements"):
+            df_display = my_df.copy()
+            df_display.insert(0, "Supprimer", False)
+            edi = st.data_editor(
+                df_display, 
+                use_container_width=True, 
+                num_rows="dynamic",
+                column_config={"Supprimer": st.column_config.CheckboxColumn("🗑️ Cocher pour supprimer", help="Sélectionnez les lignes à effacer", default=False)}
+            )
+            if st.button("💾 Sauvegarder changements (Modifs / Suppressions)"):
                 to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
+                df_others = df_a[df_a['user'] != user]
                 to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
                 to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
-                conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
+                conn.update(worksheet="Activites", data=pd.concat([df_others, to_keep], ignore_index=True))
                 st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
     with tabs[3]: # BOSS
         curr_month_num = datetime.now().month
         boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
         st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
-        df_month = df_a[df_a['date'].dt.strftime("%Y-%m") == datetime.now().strftime("%Y-%m")]
-        dmg = df_month['calories'].sum(); pct_hp = max(0, (boss_max_hp - dmg) / boss_max_hp)
+        
+        curr_month_str = datetime.now().strftime("%Y-%m")
+        df_a['month'] = df_a['date'].dt.strftime("%Y-%m")
+        df_month = df_a[df_a['month'] == curr_month_str]
+        
+        dmg = df_month['calories'].sum()
+        pct_hp = max(0, (boss_max_hp - dmg) / boss_max_hp)
+        
         c_img, c_stat = st.columns([1, 2])
         with c_img: st.image(boss_img, use_container_width=True)
         with c_stat:
             col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
             st.markdown(f"""<div style="margin-bottom:5px;color:white;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
-            if pct_hp <= 0: st.balloons(); st.success("🏆 LE BOSS EST VAINCU !")
+            if pct_hp <= 0:
+                st.balloons()
+                st.success("🏆 LE BOSS EST VAINCU !")
             else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
+            
             st.markdown("### ⚔️ Meilleurs Attaquants")
             if not df_month.empty:
-                for i, (u, val) in enumerate(df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5).items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
+                dps = df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5)
+                for i, (u, val) in enumerate(dps.items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
 
     with tabs[4]: # DEFIS
         st.header("⚔️ Salle des Défis")
         with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
-                dt = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin")
-                if st.form_submit_button("Créer"): create_challenge(dt, type_def, obj, sport_target, fin); st.success("Lancé !"); time.sleep(1); st.rerun()
+                dt = st.text_input("Nom du défi", placeholder="Ex: Objectif Bikini")
+                type_def = st.selectbox("Type de Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"])
+                sport_target = st.selectbox("Sport concerné", ["Tous les sports"] + SPORTS_LIST)
+                obj = st.number_input("Objectif à atteindre", 10.0, 50000.0, 500.0)
+                fin = st.date_input("Date limite")
+                if st.form_submit_button("Créer le défi"):
+                    create_challenge(dt, type_def, obj, sport_target, fin)
+                    st.success("Défi lancé !"); time.sleep(1); st.rerun()
+        
         st.subheader("Défis en cours")
         if not df_d.empty:
-            for _, r in df_d[df_d['statut'] == 'Actif'].iterrows():
-                parts = r['participants'].split(','); unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
+            active = df_d[df_d['statut'] == 'Actif']
+            for _, r in active.iterrows():
+                parts = r['participants'].split(',')
+                s_txt = "tous sports confondus" if r['sport_cible'] == "Tous les sports" else f"en {r['sport_cible']}"
+                unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
+                
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
-                prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
+
+                prog = pd.Series(dtype=float)
+                if "Calories" in r['type']: prog = c_df.groupby('user')['calories'].sum()
+                elif "Durée" in r['type']: prog = c_df.groupby('user')['minutes'].sum()
+                elif "Distance" in r['type']:
+                    c_df['km_est'] = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1)
+                    prog = c_df.groupby('user')['km_est'].sum()
                 prog = prog.reindex(parts, fill_value=0)
-                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
-                c_act, c_list = st.columns([1, 2])
-                with c_act:
-                    if user not in parts: 
-                        if st.button("Rejoindre", key=r['id']): join_challenge(r['id']); st.rerun()
-                    else: st.write("✅ Participant")
-                    if r['createur'] == user: 
-                        if st.button("🗑️ Supprimer", key=f"del_{r['id']}"): delete_challenge(r['id']); st.rerun()
-                with c_list:
+
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> ({s_txt}) avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
+                
+                col_act, col_list = st.columns([1, 2])
+                with col_act:
+                    if user not in parts:
+                        if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
+                    else: st.write("✅ Tu participes")
+                    if r['createur'] == user:
+                        if st.button("🗑️ Supprimer ce défi", key=f"del_{r['id']}"): delete_challenge(r['id']); st.success("Supprimé"); time.sleep(1); st.rerun()
+
+                with col_list:
+                    st.write("**Classement :**")
                     for u, val in prog.sort_values(ascending=False).items():
-                        pct = min(val/float(r['objectif']), 1.0); st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit}", unsafe_allow_html=True); st.progress(pct)
+                        pct = min(val/float(r['objectif']), 1.0)
+                        st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit} ({int(pct*100)}%)", unsafe_allow_html=True)
+                        st.progress(pct)
                 st.divider()
+        else: st.info("Aucun défi.")
 
     with tabs[5]: # STATS
         if not my_df.empty:
-            st.subheader("🏆 Records")
-            max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
-            st.markdown(f"""<div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;"><div class="stat-card"><div style="font-size:2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Max Kcal</div></div><div class="stat-card"><div style="font-size:2em;">⏱️</div><div class="stat-val">{int(max_m)}</div><div class="stat-label">Max Min</div></div><div class="stat-card"><div style="font-size:2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Favori</div></div></div>""", unsafe_allow_html=True)
-            with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
-            df_chart = my_df.copy(); c1, c2 = st.columns(2)
-            c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
-            c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
+            st.subheader("🏆 Tes Records Personnels")
+            max_c = my_df['calories'].max()
+            max_m = my_df['minutes'].max()
+            fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
+            tot_sess = len(my_df)
+            
+            st.markdown(f"""
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;">
+                <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
+                <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.expander("🔥 Qu'est-ce que l'Afterburn ?", expanded=False):
+                st.info("""
+                **L'Afterburn Effect (EPOC)** est le fait de brûler des calories *après* le sport, pendant que le corps récupère.
+                Les sports intenses comme le CrossFit ou la Musculation ont un effet plus fort que la marche. 
+                Dans **FollowFit**, nous ajoutons un "Bonus Afterburn" à chaque séance selon le sport !
+                """)
+
+            st.divider()
+            
+            c_filter, _ = st.columns([1, 3])
+            with c_filter: period = st.selectbox("Période", ["7 Derniers Jours", "Mois en cours", "3 Derniers Mois", "Tout"])
+            
+            df_chart = my_df.copy()
+            now = pd.Timestamp.now()
+            if period == "7 Derniers Jours": df_chart = df_chart[df_chart['date'] >= (now - pd.Timedelta(days=7))]
+            elif period == "Mois en cours": df_chart = df_chart[df_chart['date'].dt.month == now.month]
+            elif period == "3 Derniers Mois": df_chart = df_chart[df_chart['date'] >= (now - pd.Timedelta(days=90))]
+            if period in ["Tout", "3 Derniers Mois"]:
+                df_chart['week'] = df_chart['date'].dt.to_period('W').apply(lambda r: r.start_time)
+                df_chart = df_chart.groupby('week').agg({'poids': 'mean', 'calories': 'sum'}).reset_index().rename(columns={'week': 'date'})
+
+            def style_fig(fig):
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                fig.update_xaxes(showgrid=False, linecolor='gray')
+                fig.update_yaxes(gridcolor='rgba(255,255,255,0.1)')
+                return fig
+
+            c1, c2 = st.columns(2)
+            fig1 = px.line(df_chart, x='date', y='poids', title="Évolution Poids", markers=True)
+            fig1.update_traces(line_color='#FF4B4B', marker_color='white')
+            c1.plotly_chart(style_fig(fig1), use_container_width=True, config={'staticPlot': True})
+            
+            fig2 = px.bar(df_chart, x='date', y='calories', title="Calories Brûlées")
+            fig2.update_traces(marker_color='#FF4B4B')
+            c2.plotly_chart(style_fig(fig2), use_container_width=True, config={'staticPlot': True})
+        else: st.write("Pas de données.")
 
     with tabs[6]: # CLASSEMENT
-        st.header("🏛️ Hall of Fame")
+        st.header("🏛️ Hall of Fame (Records de tous les temps)")
         if not df_a.empty:
-            mc = df_a.loc[df_a['calories'].idxmax()]; mm = df_a.loc[df_a['minutes'].idxmax()]
+            max_cal_all = df_a.loc[df_a['calories'].idxmax()]
+            max_min_all = df_a.loc[df_a['minutes'].idxmax()]
+            
             c1, c2 = st.columns(2)
-            c1.markdown(f"<div class='glass'><h3>🔥 Machine</h3><p><b>{get_user_badge(mc['user'], df_u)}</b> {int(mc['calories'])} kcal</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div class='glass'><h3>⏳ Endurance</h3><p><b>{get_user_badge(mm['user'], df_u)}</b> {int(mm['minutes'])} min</p></div>", unsafe_allow_html=True)
-            st.divider(); st.subheader("🏆 Semaine")
+            c1.markdown(f"<div class='glass'><h3>🔥 Machine de Guerre</h3><p><b>{get_user_badge(max_cal_all['user'], df_u)}</b> a brûlé <b>{int(max_cal_all['calories'])} kcal</b><br>en une séance de {max_cal_all['sport']} ! 🤯</p></div>", unsafe_allow_html=True)
+            c2.markdown(f"<div class='glass'><h3>⏳ Endurance Infinie</h3><p><b>{get_user_badge(max_min_all['user'], df_u)}</b> a tenu <b>{int(max_min_all['minutes'])} min</b><br>sur une séance de {max_min_all['sport']} ! 👏</p></div>", unsafe_allow_html=True)
+            
+            st.divider()
+            
+            st.subheader("🏆 Classement Hebdomadaire")
             w_df = df_a[df_a['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
             if not w_df.empty:
-                for i, (u, c) in enumerate(w_df.groupby("user")['calories'].sum().sort_values(ascending=False).items()):
-                    st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** - {int(c)} kcal", unsafe_allow_html=True)
+                top = w_df.groupby("user")['calories'].sum().sort_values(ascending=False)
+                cols = st.columns(3)
+                medals = ["🥇 Or", "🥈 Argent", "🥉 Bronze"]
+                
+                for i, (u, c) in enumerate(top.head(3).items()):
+                    cols[i].markdown(f"<div style='text-align:center; padding:20px; background:rgba(255,255,255,0.1); border-radius:10px; border:1px solid #555;'><h1>{medals[i].split()[0]}</h1><h3>{get_user_badge(u, df_u)}</h3><p style='font-size:1.2em; font-weight:bold;'>{int(c)} kcal</p></div>", unsafe_allow_html=True)
+                
+                if len(top) > 3:
+                    st.write("")
+                    st.write("**La suite du peloton :**")
+                    for i, (u, c) in enumerate(top.iloc[3:].items()): st.markdown(f"**{i+4}. {get_user_badge(u, df_u)}** - {int(c)} kcal", unsafe_allow_html=True)
+            else: st.info("Le classement est vide cette semaine. À vous de jouer !")
 
-    with tabs[7]: # PROFIL
-        st.subheader("📝 Profil")
-        with st.form("prof"):
+    with tabs[7]: # PROFIL FULL EDIT
+        st.subheader("📝 Modifier mes informations")
+        with st.form("prof_full"):
             c1, c2 = st.columns(2)
-            nd = c1.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c2.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
-            nh = c1.number_input("Taille",100,250,int(prof.get('h',175))); nw = c2.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
-            na = st.selectbox("Activité",ACTIVITY_OPTS); n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
-            if st.form_submit_button("Sauvegarder"):
-                fav = prof.get('avatar', ""); 
-                if n_av: fav = process_avatar(n_av)
-                prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'act':na,'avatar':fav})
-                ps = row['pin']; 
-                if np and len(np)==4: ps = hash_pin(np)
-                save_user(user, ps, prof); st.success("Mis à jour !"); st.rerun()
+            new_dob = c1.date_input("Date de naissance", value=datetime.strptime(prof.get('dob', '1990-01-01'), "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
+            new_sex = c2.selectbox("Sexe", ["Homme", "Femme"], index=0 if prof.get('sex') == "Homme" else 1)
+            new_h = c1.number_input("Taille (cm)", 100, 250, int(prof.get('h', 175)))
+            new_w_obj = c2.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof.get('w_obj', 65.0)))
+            curr_act_idx = ACTIVITY_OPTS.index(prof.get('act', ACTIVITY_OPTS[1])) if prof.get('act') in ACTIVITY_OPTS else 1
+            new_act = st.selectbox("Niveau d'activité", ACTIVITY_OPTS, index=curr_act_idx)
+            
+            # FILE UPLOADER FOR AVATAR
+            new_avatar_file = st.file_uploader("Photo de profil (Image)", type=['png', 'jpg', 'jpeg'])
+            new_pin = st.text_input("Nouveau PIN (Laisser vide pour ne pas changer)", type="password", max_chars=4)
+
+            if st.form_submit_button("💾 Enregistrer les modifications"):
+                # Handle avatar
+                final_avatar = prof.get('avatar', "")
+                if new_avatar_file:
+                    processed_avatar = process_avatar(new_avatar_file)
+                    if processed_avatar: final_avatar = processed_avatar
+
+                prof.update({'dob': str(new_dob), 'sex': new_sex, 'h': int(new_h), 'w_obj': float(new_w_obj), 'act': new_act, 'avatar': final_avatar})
+                
+                pin_to_save = row['pin']
+                if new_pin and len(new_pin) == 4: pin_to_save = hash_pin(new_pin); st.success("PIN modifié !")
+                
+                save_user(user, pin_to_save, prof)
+                st.success("Profil mis à jour !"); time.sleep(1); st.rerun()
+        
         st.divider()
-        if st.button("Supprimer mon compte"): 
-            if delete_current_user(): st.session_state.user = None; st.rerun()
+        st.error("⚠️ Zone de Danger")
+        if st.button("Supprimer mon compte définitivement"): st.session_state['confirm_delete'] = True
+        if st.session_state.get('confirm_delete'):
+            st.warning("Irréversible. Confirmer ?")
+            if st.button("OUI, Supprimer"):
+                if delete_current_user(): st.session_state.user = None; st.success("Compte supprimé."); time.sleep(1); st.rerun()

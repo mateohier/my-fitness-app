@@ -696,8 +696,18 @@ else:
             """, unsafe_allow_html=True)
             
             with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
+            
             df_chart = my_df.copy(); c1, c2 = st.columns(2)
-            c1.plotly_chart(px.line(df_chart, x='date', y='poids', title="Poids", markers=True).update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
+            
+            # --- MODIF ICI: Graphique Poids avec Objectif ---
+            target_w = float(prof.get('w_obj', 65.0))
+            fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
+            # Ajout de la ligne d'objectif
+            fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
+            fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
+            
+            c1.plotly_chart(fig_w, use_container_width=True)
+            
             c2.plotly_chart(px.bar(df_chart, x='date', y='calories', title="Kcal").update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white'), use_container_width=True, config={'staticPlot': True})
 
     with tabs[6]: # CLASSEMENT

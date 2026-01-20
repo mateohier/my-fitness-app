@@ -1,6 +1,4 @@
 streamlit
 pandas
 plotly
-PyGithub
 streamlit-google-sheets
-

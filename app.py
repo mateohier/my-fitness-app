@@ -401,6 +401,8 @@ glass_bg = "rgba(255,255,255,0.05)"
 card_border = "#333"
 chart_font = "white"
 metric_color = "#FF4B4B"
+card_shadow = "none"
+boss_bar_bg = "#333"
 
 if not st.session_state.user:
     # --- PAGE LOGIN / SIGNUP (Thème sombre par défaut) ---
@@ -445,13 +447,15 @@ else:
     
     if "Clair" in theme_choice:
         main_bg = "url('')" # Pas d'image
-        bg_color = "#ffffff"
-        text_color = "#000000"
-        sidebar_bg = "#f0f2f6"
-        glass_bg = "rgba(0,0,0,0.05)"
-        card_border = "#ddd"
-        chart_font = "black"
-        # Pour le thème clair, on garde le rouge pour les metrics mais le texte général est noir
+        bg_color = "#F0F2F6" # Gris très clair moderne
+        text_color = "#31333F" # Gris foncé pour texte
+        sidebar_bg = "#FFFFFF"
+        glass_bg = "#FFFFFF" # Carte blanche
+        card_border = "#E6E9EF" # Bordure très subtile
+        chart_font = "#31333F"
+        metric_color = "#FF4B4B"
+        card_shadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)" # Ombre légère
+        boss_bar_bg = "#e0e0e0" # Fond barre boss plus clair
     
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
@@ -472,6 +476,7 @@ else:
     # --- INJECTION CSS ---
     st.markdown(f"""
         <style>
+        /* FOND GENERAL */
         .stApp {{ 
             background-image: {main_bg}; 
             background-color: {bg_color};
@@ -479,20 +484,43 @@ else:
             background-attachment: fixed; 
             color: {text_color};
         }}
-        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
+        
+        /* SIDEBAR */
         div[data-testid="stSidebar"] {{ background-color: {sidebar_bg}; }}
+        
+        /* METRIQUES */
+        .stMetricValue {{ font-size: 1.5rem !important; color: {metric_color} !important; }}
+        div[data-testid="stMetricLabel"] {{ color: {text_color} !important; opacity: 0.8; }}
+        
+        /* CITATION */
         .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
-        .glass {{ background: {glass_bg}; padding: 15px; border-radius: 10px; border: 1px solid {card_border}; color: {text_color}; }}
-        .challenge-card {{ background: linear-gradient(135deg, {glass_bg}, rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; color: {text_color}; }}
-        .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
+        
+        /* CARTES GENERIQUES (GLASS) */
+        .glass {{ background: {glass_bg}; padding: 15px; border-radius: 10px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        
+        /* DEFIS CARDS */
+        .challenge-card {{ background: linear-gradient(135deg, {glass_bg}, rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; color: {text_color}; box-shadow: {card_shadow}; border: 1px solid {card_border}; }}
+        
+        /* BOSS */
+        .boss-bar {{ width: 100%; background-color: {boss_bar_bg}; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
         .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
+        
+        /* CELEBRATION BOX */
         .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: {text_color}; }}
-        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; }}
+        
+        /* STATS GRID CARDS */
+        .stat-card {{ background: {glass_bg}; border: 1px solid {card_border}; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; color: {text_color}; box-shadow: {card_shadow}; }}
         .stat-val {{ font-size: 1.8em; font-weight: bold; color: {metric_color}; }}
         .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; color: {text_color}; }}
-        .post-card {{ background: {glass_bg}; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; }}
+        
+        /* FEED POSTS */
+        .post-card {{ background: {glass_bg}; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid {card_border}; color: {text_color}; box-shadow: {card_shadow}; }}
+        
+        /* HEADERS */
         h1, h2, h3, h4, h5, h6, p, span, div {{ color: {text_color}; }}
-        .stMetricLabel {{ color: {text_color} !important; opacity: 0.8; }}
+        
+        /* EXPANDER STYLING (Mode clair propre) */
+        .streamlit-expanderHeader {{ background-color: {glass_bg}; color: {text_color}; border-radius: 5px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -679,7 +707,7 @@ else:
         with c_img: st.image(boss_img, use_container_width=True)
         with c_stat:
             col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
-            st.markdown(f"""<div style="margin-bottom:5px;color:white;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom:5px;color:{text_color};font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
             if pct_hp <= 0: st.balloons(); st.success("🏆 LE BOSS EST VAINCU !")
             else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
             st.markdown("### ⚔️ Meilleurs Attaquants")
@@ -700,7 +728,7 @@ else:
                 if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
                 prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
                 prog = prog.reindex(parts, fill_value=0)
-                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; color:#aaa'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; opacity:0.8;'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
                 c_act, c_list = st.columns([1, 2])
                 with c_act:
                     if user not in parts: 

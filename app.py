@@ -16,12 +16,12 @@ from streamlit_lottie import st_lottie
 # --- 1. CONFIGURATION & CONSTANTES ---
 st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="wide")
 
-# URLs Animations & Images
+# URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
-# Image de fond générale (Remplace par ton lien RAW GitHub si tu veux)
+# Image de fond générale (Sombre pour faire ressortir les couleurs)
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
-# Image Anatomique (Silhouette Humaine)
-ANATOMY_BG = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Human_body_front_and_side_schematics.svg/800px-Human_body_front_and_side_schematics.svg.png"
+# Image Anatomique (Planche musculaire style "Écorché" sombre)
+ANATOMY_BG = "https://img.freepik.com/premium-photo/human-muscular-system-body-muscles-part-anterior-view-isolated-black-background-3d_466045-846.jpg"
 
 # --- MAPPINGS (ADN & MUSCLES) ---
 DNA_MAP = {
@@ -42,16 +42,16 @@ DNA_MAP = {
 }
 
 MUSCLE_MAP = {
-    "Musculation": {"Bras": 8, "Pecs": 8, "Dos": 8, "Cuisses": 6, "Cardio": 2},
+    "Musculation": {"Biceps": 8, "Pecs": 8, "Dos": 8, "Cuisses": 6, "Epaules": 7},
     "Course": {"Cuisses": 10, "Cardio": 9, "Mollets": 7},
     "Vélo": {"Cuisses": 9, "Cardio": 8, "Mollets": 9},
-    "Natation": {"Dos": 10, "Bras": 9, "Cardio": 8, "Cuisses": 6, "Pecs": 5},
-    "Crossfit": {"Bras": 8, "Cuisses": 8, "Cardio": 9, "Pecs": 7, "Dos": 7, "Abdos": 8},
-    "Fitness": {"Cardio": 8, "Cuisses": 6, "Bras": 5, "Abdos": 7},
-    "Boxe": {"Bras": 9, "Cardio": 10, "Dos": 6, "Cuisses": 7, "Abdos": 8},
+    "Natation": {"Dos": 10, "Epaules": 9, "Cardio": 8, "Cuisses": 6, "Pecs": 5},
+    "Crossfit": {"Biceps": 8, "Cuisses": 8, "Cardio": 9, "Pecs": 7, "Dos": 7, "Abdos": 8},
+    "Fitness": {"Cardio": 8, "Cuisses": 6, "Biceps": 5, "Abdos": 7},
+    "Boxe": {"Epaules": 9, "Cardio": 10, "Dos": 6, "Cuisses": 7, "Abdos": 8},
     "Yoga": {"Dos": 7, "Abdos": 6, "Cuisses": 5},
-    "Escalade": {"Bras": 10, "Dos": 9, "Cuisses": 7, "Abdos": 8},
-    "Tennis": {"Bras": 7, "Cuisses": 8, "Cardio": 8},
+    "Escalade": {"Biceps": 10, "Dos": 9, "Cuisses": 7, "Abdos": 8},
+    "Tennis": {"Biceps": 7, "Cuisses": 8, "Cardio": 8, "Epaules": 7},
     "Football": {"Cuisses": 9, "Cardio": 9, "Abdos": 5},
     "Marche": {"Cardio": 4, "Cuisses": 5},
     "Pilates": {"Abdos": 10, "Dos": 7, "Cuisses": 5},
@@ -59,15 +59,16 @@ MUSCLE_MAP = {
 }
 SPORTS_LIST = sorted(list(MUSCLE_MAP.keys()))
 
-# Coordonnées Anatomiques (X, Y) pour l'image de fond
+# Coordonnées pour l'image spécifique (Ajustées pour le corps humain)
 BODY_COORDS = {
-    "Cardio": (0, 8.5),     # Coeur/Tête
-    "Pecs": (0, 7.2),       # Poitrine
-    "Abdos": (0, 5.8),      # Ventre
-    "Bras": (1.8, 6.5),     # Bras (Sera dupliqué G/D)
-    "Dos": (0, 7.5),        # Haut du dos
-    "Cuisses": (0.8, 4.0),  # Cuisses (Sera dupliqué G/D)
-    "Mollets": (0.9, 1.5),  # Mollets (Sera dupliqué G/D)
+    "Cardio": (0, 8.5),     # Cœur
+    "Pecs": (0, 7.3),       # Pectoraux
+    "Abdos": (0, 5.5),      # Abdominaux
+    "Biceps": (2.2, 6.8),   # Bras
+    "Epaules": (1.8, 7.8),  # Deltoïdes
+    "Dos": (0, 7.0),        # Dos (Centre)
+    "Cuisses": (1.0, 3.5),  # Quadriceps
+    "Mollets": (1.1, 1.0),  # Mollets
 }
 
 # --- 2. UTILITAIRES ---
@@ -198,6 +199,7 @@ st.markdown(f"""
     div[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.95); }}
     .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
     .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }}
+    .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -209,16 +211,15 @@ ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55
 # SIDEBAR LOGIN
 if not st.session_state.user:
     st.sidebar.title("🔥 Connexion")
-    menu = st.sidebar.selectbox("Menu", ["Connexion", "Créer un compte"])
+    menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"])
     u_input = st.sidebar.text_input("Pseudo").strip().lower()
     p_input = st.sidebar.text_input("PIN (4 chiffres)", type="password")
     
-    if menu == "Connexion":
-        if st.sidebar.button("Se connecter"):
+    if menu == "Se connecter":
+        if st.sidebar.button("Valider"):
             if not df_u.empty and u_input in df_u['user'].values:
                 if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input):
-                    st.session_state.user = u_input
-                    st.rerun()
+                    st.session_state.user = u_input; st.rerun()
                 else: st.sidebar.error("Mauvais PIN")
             else: st.sidebar.error("Utilisateur inconnu")
             
@@ -236,16 +237,13 @@ if not st.session_state.user:
             elif len(p_input) == 4:
                 prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
                 if save_user(u_input, hash_pin(p_input), prof):
-                    st.sidebar.success("Compte créé ! Connecte-toi.")
-                    time.sleep(1)
-                    st.rerun()
+                    st.sidebar.success("Compte créé !"); time.sleep(1); st.rerun()
 else:
     # --- USER LOGGED IN ---
     user = st.session_state.user
     st.sidebar.markdown(f"👤 **{user.capitalize()}**")
     if st.sidebar.button("Déconnexion"): st.session_state.user = None; st.rerun()
     
-    # LOAD USER DATA
     row = df_u[df_u['user'] == user].iloc[0]
     prof = json.loads(row['json_data'])
     my_df = df_a[df_a['user'] == user].copy()
@@ -259,13 +257,11 @@ else:
         h = r['minutes'] / 60
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
-    # TABS
     tabs = st.tabs(["🏠 Dashboard", "🩻 Anatomie", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
         st.markdown(f"<div class='quote-box'>{random.choice(['Pain is fuel.', 'Go hard or go home.', 'Tu es une machine.'])}</div>", unsafe_allow_html=True)
         
-        # XP
         lvl, pct, rem = get_level_progress(total_cal)
         st.markdown(f"### ⚡ Niveau {lvl}")
         st.progress(pct)
@@ -275,7 +271,6 @@ else:
         c1.metric("Aujourd'hui", f"{int(today_val)} kcal")
         c2.metric("Total", f"{int(total_cal)} kcal")
         c3.metric("Poids", f"{w_curr} kg")
-        
         badges = check_achievements(my_df)
         c4.metric("Trophées", f"{len(badges)}")
 
@@ -302,9 +297,10 @@ else:
             st.progress(min(km/1000, 1.0))
             st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
-    with tabs[1]: # ANATOMIE REALISTE
-        st.header("🩻 Carte Corporelle (7 jours)")
-        # Calcul 7 jours
+    with tabs[1]: # ANATOMIE HEATMAP
+        st.header("🩻 Carte Musculaire (Heatmap)")
+        st.markdown("Les zones **rouges/jaunes** indiquent les muscles qui 'chauffent' le plus sur les 7 derniers jours.")
+        
         m_scores = {}
         recent = my_df[my_df['date'] >= (pd.Timestamp.now() - pd.Timedelta(days=7))]
         for _, r in recent.iterrows():
@@ -317,88 +313,106 @@ else:
             for m, score in m_scores.items():
                 if m in BODY_COORDS:
                     bx, by = BODY_COORDS[m]
-                    # Duplication symétrique pour membres
-                    if m in ["Bras", "Cuisses", "Mollets"]:
+                    # On crée des points larges et flous pour simuler une heatmap
+                    if m in ["Biceps", "Cuisses", "Mollets", "Epaules"]:
                         x.extend([bx, -bx]); y.extend([by, by])
-                        s.extend([score*8, score*8]); c.extend([score, score])
+                        s.extend([score*12, score*12]); c.extend([score, score])
                         t.extend([m, m])
                     else:
                         x.append(bx); y.append(by)
-                        s.append(score*10); c.append(score); t.append(m)
+                        s.append(score*15); c.append(score); t.append(m)
             
             fig = go.Figure()
-            # Image Anatomique en Fond
+            # Fond Anatomique Sombre
             fig.add_layout_image(dict(
                 source=ANATOMY_BG,
                 xref="x", yref="y",
-                x=-4, y=10.5, sizex=8, sizey=11,
-                opacity=0.6, layer="below"
+                x=-4.5, y=10.5, sizex=9, sizey=11,
+                opacity=0.8, layer="below"
             ))
-            # Heatmap Points
+            # Heatmap simulée (Points flous et larges)
             fig.add_trace(go.Scatter(
                 x=x, y=y, mode='markers', text=t,
-                marker=dict(size=s, color=c, colorscale='Reds', opacity=0.8, showscale=False),
-                hovertemplate="<b>%{text}</b><br>Intensité: %{marker.color:.1f}<extra></extra>"
+                marker=dict(
+                    size=s, 
+                    color=c, 
+                    colorscale='Hot', # Du noir au rouge/jaune/blanc
+                    opacity=0.5,      # Transparence pour l'effet "Glow"
+                    line=dict(width=0), # Pas de bordure
+                    showscale=True,
+                    colorbar=dict(title="Intensité")
+                ),
+                hovertemplate="<b>%{text}</b><br>Charge: %{marker.color:.1f}<extra></extra>"
             ))
             fig.update_layout(
-                width=400, height=600,
+                width=500, height=700,
                 xaxis=dict(range=[-3, 3], visible=False),
                 yaxis=dict(range=[0, 10], visible=False),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=0, r=0, t=0, b=0)
             )
-            c1, c2 = st.columns([1, 2])
+            c1, c2 = st.columns([1, 1])
             with c1: st.plotly_chart(fig, use_container_width=True)
             with c2: 
-                st.write("### Top Muscles")
+                st.write("### 🔥 Muscles en feu")
                 for m, sc in sorted(m_scores.items(), key=lambda x:x[1], reverse=True)[:5]:
-                    st.progress(min(sc/50, 1.0), text=f"{m}")
-        else: st.info("Fais du sport cette semaine pour voir l'anatomie !")
+                    st.write(f"**{m}**")
+                    st.progress(min(sc/50, 1.0))
+        else: st.info("Fais du sport cette semaine pour voir tes muscles s'illuminer !")
 
-    with tabs[2]: # DEFIS
-        st.header("⚔️ Défis de Groupe")
+    with tabs[2]: # DEFIS REWORKED
+        st.header("⚔️ Salle des Défis")
         
-        # Création
-        with st.expander("Créer un nouveau défi"):
+        with st.expander("➕ Lancer un nouveau défi"):
             with st.form("new_def"):
-                dt = st.text_input("Titre du défi (ex: 'Marathon de Noël')")
-                typ = st.selectbox("Type", ["Calories", "Minutes", "Sport"])
-                obj = st.number_input("Objectif (Total à atteindre)", 100, 50000, 1000)
-                fin = st.date_input("Date de fin")
-                if st.form_submit_button("Lancer le défi 🔥"):
+                dt = st.text_input("Nom du défi", placeholder="Ex: Course de Noël")
+                typ = st.selectbox("Type d'objectif", ["Calories", "Minutes", "Sport"])
+                obj = st.number_input("Cible à atteindre", 100, 50000, 1000)
+                fin = st.date_input("Date limite")
+                if st.form_submit_button("Créer le défi"):
                     create_challenge(dt, typ, obj, fin)
-                    st.success("Défi créé !"); time.sleep(1); st.rerun()
+                    st.success("Défi lancé !"); time.sleep(1); st.rerun()
         
-        # Liste
         st.subheader("Défis en cours")
         if not df_d.empty:
             active = df_d[df_d['statut'] == 'Actif']
             for _, r in active.iterrows():
                 parts = r['participants'].split(',')
-                my_contribution = 0
+                # Logique phrase claire
+                target_desc = f"Brûler **{int(r['objectif'])} kcal**" if r['type'] == 'Calories' else f"Faire **{int(r['objectif'])} minutes** de sport"
+                if r['type'] not in ['Calories', 'Minutes']: target_desc = f"Faire **{int(r['objectif'])} min** de {r['type']}"
                 
-                # Calcul contribution
+                # Calcul Stats
                 c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                 if r['type'] == 'Calories': prog = c_df.groupby('user')['calories'].sum()
                 elif r['type'] == 'Minutes': prog = c_df.groupby('user')['minutes'].sum()
-                else: prog = c_df[c_df['sport']==r['type']].groupby('user')['minutes'].sum() # Si type est un sport
+                else: prog = c_df[c_df['sport']==r['type']].groupby('user')['minutes'].sum()
                 
-                # Affichage Card
-                with st.container():
-                    st.markdown(f"<div class='glass'><h4>{r['titre']}</h4>Objectif: {r['objectif']} {r['type']} <br> Fin: {r['date_fin']}</div>", unsafe_allow_html=True)
-                    
-                    # Bouton rejoindre
+                # Card Design
+                st.markdown(f"""
+                <div class='challenge-card'>
+                    <h3>🏆 {r['titre']}</h3>
+                    <p>{target_desc} avant le {r['date_fin']}</p>
+                    <p style='font-size:0.9em; color:#aaa'>Créé par {r['createur']} • {len(parts)} participants</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_act, col_list = st.columns([1, 2])
+                with col_act:
                     if user not in parts:
-                        if st.button(f"Rejoindre", key=r['id']): join_challenge(r['id']); st.rerun()
-                    
-                    # Leaderboard interne
+                        if st.button(f"Rejoindre l'équipe", key=r['id']): join_challenge(r['id']); st.rerun()
+                    else:
+                        st.write("✅ Tu participes")
+                        
+                with col_list:
                     if not prog.empty:
-                        st.caption("Classement :")
-                        for u, val in prog.sort_values(ascending=False).items():
-                            st.write(f"{'👑' if val>=float(r['objectif']) else '🏃'} **{u}** : {int(val)} / {int(r['objectif'])}")
-                            st.progress(min(val/float(r['objectif']), 1.0))
-                    st.divider()
-        else: st.info("Aucun défi actif.")
+                        sorted_prog = prog.sort_values(ascending=False)
+                        for u, val in sorted_prog.items():
+                            pct = min(val/float(r['objectif']), 1.0)
+                            st.write(f"**{u}** : {int(val)} ({int(pct*100)}%)")
+                            st.progress(pct)
+                st.divider()
+        else: st.info("Aucun défi pour le moment. Crées-en un !")
 
     with tabs[3]: # STATS
         if not my_df.empty:
@@ -406,7 +420,6 @@ else:
             c1.plotly_chart(px.line(my_df, x='date', y='poids', title="Poids"), use_container_width=True)
             c2.plotly_chart(px.bar(my_df, x='date', y='calories', title="Calories"), use_container_width=True)
             
-            # Heatmap
             hm_data = my_df.groupby(my_df['date'].dt.date)['minutes'].sum().reset_index()
             hm_data['date'] = pd.to_datetime(hm_data['date'])
             hm_data['week'] = hm_data['date'].dt.isocalendar().week
@@ -435,7 +448,6 @@ else:
 
     with tabs[5]: # PROFIL
         with st.form("prof"):
-            # FIX IMPORTANT : Forcer les floats et ints pour éviter l'erreur MixedTypes
             nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
             nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
             

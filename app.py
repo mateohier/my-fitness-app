@@ -16,15 +16,14 @@ from streamlit_lottie import st_lottie
 # --- 1. CONFIGURATION & CONSTANTES ---
 st.set_page_config(page_title="Fitness Gamified Pro", page_icon="🔥", layout="wide")
 
-# URLs
+# URLs Animations & Images
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
-LOTTIE_GYM = "https://lottie.host/5a88c7f9-2819-4592-9654-20b18fa2409f/18qFh7lXyR.json"
-# Image de fond de l'app
+# Image de fond générale (Remplace par ton lien RAW GitHub si tu veux)
 BACKGROUND_URL = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"
-# Image Anatomique (Silhouette)
+# Image Anatomique (Silhouette Humaine)
 ANATOMY_BG = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Human_body_front_and_side_schematics.svg/800px-Human_body_front_and_side_schematics.svg.png"
 
-# --- MAPPINGS ---
+# --- MAPPINGS (ADN & MUSCLES) ---
 DNA_MAP = {
     "Musculation": {"Force": 9, "Endurance": 2, "Agilité": 2, "Mental": 7},
     "Crossfit":    {"Force": 8, "Endurance": 7, "Agilité": 6, "Mental": 9},
@@ -60,8 +59,7 @@ MUSCLE_MAP = {
 }
 SPORTS_LIST = sorted(list(MUSCLE_MAP.keys()))
 
-# Coordonnées Anatomiques (Pour l'image de fond spécifique wikimedia)
-# Echelle approx X: [-3, 3], Y: [0, 10]
+# Coordonnées Anatomiques (X, Y) pour l'image de fond
 BODY_COORDS = {
     "Cardio": (0, 8.5),     # Coeur/Tête
     "Pecs": (0, 7.2),       # Poitrine
@@ -104,10 +102,12 @@ def get_level_progress(total_cal):
 
 def get_food_equivalent(calories):
     if calories < 100: return "une Pomme 🍎"
-    if calories < 300: return "une Barre Choco 🍫"
-    if calories < 500: return "un Burger 🍔"
-    if calories < 1000: return "une Pizza 🍕"
-    return "un Festin Royal 🍗"
+    if calories < 250: return "une Barre chocolatée 🍫"
+    if calories < 400: return "un Cheeseburger 🍔"
+    if calories < 600: return "un paquet de Frites 🍟"
+    if calories < 900: return "une Pizza entière 🍕"
+    if calories < 1500: return "un Menu Fast-Food XL 🥤"
+    return "un Festin de Roi 🍗"
 
 def check_achievements(df):
     badges = []
@@ -204,23 +204,41 @@ st.markdown(f"""
 # --- 5. LOGIQUE ---
 df_u, df_a, df_d = get_data()
 
+ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
+
 # SIDEBAR LOGIN
 if not st.session_state.user:
     st.sidebar.title("🔥 Connexion")
-    menu = st.sidebar.radio("Option", ["Login", "Inscription"])
-    u = st.sidebar.text_input("Pseudo").strip().lower()
-    p = st.sidebar.text_input("PIN", type="password")
-    if st.sidebar.button("Go"):
-        if menu == "Login":
-            if not df_u.empty and u in df_u['user'].values:
-                if df_u[df_u['user']==u].iloc[0]['pin'] == hash_pin(p): st.session_state.user = u; st.rerun()
+    menu = st.sidebar.selectbox("Menu", ["Connexion", "Créer un compte"])
+    u_input = st.sidebar.text_input("Pseudo").strip().lower()
+    p_input = st.sidebar.text_input("PIN (4 chiffres)", type="password")
+    
+    if menu == "Connexion":
+        if st.sidebar.button("Se connecter"):
+            if not df_u.empty and u_input in df_u['user'].values:
+                if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input):
+                    st.session_state.user = u_input
+                    st.rerun()
                 else: st.sidebar.error("Mauvais PIN")
-            else: st.sidebar.error("Inconnu")
-        else:
-            if not df_u.empty and u in df_u['user'].values: st.sidebar.error("Pris")
-            elif len(p)==4:
-                prof = {"dob":"1995-01-01", "sex":"Homme", "h":175, "act":"Actif", "w_init":70, "w_obj":65}
-                if save_user(u, hash_pin(p), prof): st.session_state.user = u; st.rerun()
+            else: st.sidebar.error("Utilisateur inconnu")
+            
+    elif menu == "Créer un compte":
+        st.sidebar.markdown("### Profil")
+        dob = st.sidebar.date_input("Naissance", value=date(1990,1,1))
+        sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
+        h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
+        act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
+        w_init = st.sidebar.number_input("Poids actuel (kg)", 30.0, 200.0, 70.0)
+        w_obj = st.sidebar.number_input("Objectif (kg)", 30.0, 200.0, 65.0)
+        
+        if st.sidebar.button("S'inscrire"):
+            if not df_u.empty and u_input in df_u['user'].values: st.sidebar.error("Pseudo pris")
+            elif len(p_input) == 4:
+                prof = {"dob": str(dob), "sex": sex, "h": h, "act": act, "w_init": w_init, "w_obj": w_obj}
+                if save_user(u_input, hash_pin(p_input), prof):
+                    st.sidebar.success("Compte créé ! Connecte-toi.")
+                    time.sleep(1)
+                    st.rerun()
 else:
     # --- USER LOGGED IN ---
     user = st.session_state.user
@@ -242,7 +260,7 @@ else:
         for k in dna: dna[k] += s_dna.get(k, 0) * h
 
     # TABS
-    tabs = st.tabs(["🏠 Dash", "🩻 Anatomie", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
+    tabs = st.tabs(["🏠 Dashboard", "🩻 Anatomie", "⚔️ Défis", "📈 Stats", "➕ Séance", "⚙️ Profil", "🏆 Top"])
 
     with tabs[0]: # DASHBOARD
         st.markdown(f"<div class='quote-box'>{random.choice(['Pain is fuel.', 'Go hard or go home.', 'Tu es une machine.'])}</div>", unsafe_allow_html=True)
@@ -253,8 +271,8 @@ else:
         st.progress(pct)
         
         c1, c2, c3, c4 = st.columns(4)
-        today = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
-        c1.metric("Aujourd'hui", f"{int(today)} kcal")
+        today_val = my_df[my_df['date'].dt.date == date.today()]['calories'].sum()
+        c1.metric("Aujourd'hui", f"{int(today_val)} kcal")
         c2.metric("Total", f"{int(total_cal)} kcal")
         c3.metric("Poids", f"{w_curr} kg")
         
@@ -279,9 +297,10 @@ else:
             dest, rest = "Marseille", 0
             for v, d in villes:
                 if km < d: dest = v; rest = d - km; break
+            
             st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur {dest} ({int(rest)} km)</div>", unsafe_allow_html=True)
             st.progress(min(km/1000, 1.0))
-            if badges: st.success(f"Dernier : {badges[-1][0]}")
+            st.info(f"Tu as brûlé l'équivalent de : **{get_food_equivalent(total_cal)}**")
 
     with tabs[1]: # ANATOMIE REALISTE
         st.header("🩻 Carte Corporelle (7 jours)")
@@ -346,7 +365,7 @@ else:
                 typ = st.selectbox("Type", ["Calories", "Minutes", "Sport"])
                 obj = st.number_input("Objectif (Total à atteindre)", 100, 50000, 1000)
                 fin = st.date_input("Date de fin")
-                if st.form_submit_button("Lancer 🔥"):
+                if st.form_submit_button("Lancer le défi 🔥"):
                     create_challenge(dt, typ, obj, fin)
                     st.success("Défi créé !"); time.sleep(1); st.rerun()
         
@@ -398,14 +417,14 @@ else:
         else: st.write("Pas de données.")
 
     with tabs[4]: # SEANCE
-        st.subheader("Ajouter")
+        st.subheader("Ajouter une séance")
         with st.form("add"):
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
             t = c2.time_input("Heure", datetime.now().time())
             s = c1.selectbox("Sport", SPORTS_LIST)
             m = c2.number_input("Durée (min)", 1, 300, 45)
-            w = st.number_input("Poids", 0.0, 200.0, float(w_curr))
+            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
             if st.form_submit_button("Sauvegarder"):
                 dt = datetime.combine(d, t)
                 dna = DNA_MAP.get(s, {})
@@ -416,11 +435,16 @@ else:
 
     with tabs[5]: # PROFIL
         with st.form("prof"):
-            nh = st.number_input("Taille", 100, 250, prof['h'])
-            nw = st.number_input("Obj Poids", 40, 150, prof['w_obj'])
-            if st.form_submit_button("MAJ"):
-                prof['h']=nh; prof['w_obj']=nw
-                save_user(user, row['pin'], prof); st.success("OK"); st.rerun()
+            # FIX IMPORTANT : Forcer les floats et ints pour éviter l'erreur MixedTypes
+            nh = st.number_input("Taille (cm)", 100, 250, int(prof['h']))
+            nw = st.number_input("Objectif Poids (kg)", 40.0, 150.0, float(prof['w_obj']))
+            
+            if st.form_submit_button("Mettre à jour"):
+                prof['h']=int(nh)
+                prof['w_obj']=float(nw)
+                save_user(user, row['pin'], prof)
+                st.success("Profil mis à jour !")
+                time.sleep(1); st.rerun()
         
         st.subheader("Editer Historique")
         if not my_df.empty:
@@ -428,8 +452,10 @@ else:
             if st.button("Sauvegarder Modifs"):
                 df_others = df_a[df_a['user'] != user]
                 edi['date'] = pd.to_datetime(edi['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                edi['poids'] = pd.to_numeric(edi['poids'])
+                edi['calories'] = pd.to_numeric(edi['calories'])
                 conn.update(worksheet="Activites", data=pd.concat([df_others, edi], ignore_index=True))
-                st.cache_data.clear(); st.rerun()
+                st.cache_data.clear(); st.success("OK"); st.rerun()
 
     with tabs[6]: # TOP
         if not df_a.empty:

@@ -527,71 +527,72 @@ else:
 
     with tabs[2]: # SEANCE
         st.subheader("Ajouter une séance")
-        with st.form("add"):
-            c1, c2 = st.columns(2)
-            d = c1.date_input("Date", date.today())
-            t = c2.time_input("Heure", datetime.now().time())
-            s = c1.selectbox("Sport", SPORTS_LIST)
-            
-            # --- LOGIQUE DYNAMIQUE DES CHAMPS ---
-            m = 0.0
-            dist = 0.0
-            steps = 0
-            
-            # Définition du type de saisie selon le sport
-            input_type = "Durée" # Par défaut
-            
-            if s in ["Course", "Natation"]:
-                input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
-            elif s == "Marche":
-                input_type = c2.radio("Type d'objectif", ["Durée", "Pas"], horizontal=True)
-            
-            # Affichage du champ adéquat
-            if input_type == "Durée":
-                m = c1.number_input("Durée (min)", 1, 300, 45)
-            elif input_type == "Distance":
-                default_dist = 5.0 if s == "Course" else 1.0
-                dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
-                # Conversion auto
-                speed = SPEED_MAP.get(s, 1.0)
-                if speed > 0: m = (dist / speed) * 60
-            elif input_type == "Pas":
-                steps = c1.number_input("Nombre de pas", 100, 100000, 5000)
-                # Estimation : ~10 min pour 1000 pas
-                m = steps / 100.0
+        # IMPORTANT : Pas de st.form ici pour garder l'interactivité "en cascade"
+        
+        c1, c2 = st.columns(2)
+        d = c1.date_input("Date", date.today())
+        t = c2.time_input("Heure", datetime.now().time())
+        s = c1.selectbox("Sport", SPORTS_LIST)
+        
+        # --- LOGIQUE DYNAMIQUE EN CASCADE ---
+        m = 0.0
+        dist = 0.0
+        steps = 0
+        input_type = "Durée" # Par défaut
+        
+        # 1. Le choix du TYPE apparaît seulement si le sport le permet
+        if s in ["Course", "Natation"]:
+            input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
+        elif s == "Marche":
+            input_type = c2.radio("Type d'objectif", ["Durée", "Pas"], horizontal=True)
+        else:
+            # Pour les autres sports, on force Durée sans afficher de radio
+            c2.info("⏱️ Objectif : Durée")
 
-            if input_type != "Durée":
-                c2.info(f"⏱️ Durée estimée : {int(m)} min")
+        # 2. Le champ de saisie apparaît selon le TYPE choisi
+        if input_type == "Durée":
+            m = c1.number_input("Durée (min)", 1, 300, 45)
+        elif input_type == "Distance":
+            default_dist = 5.0 if s == "Course" else 1.0
+            dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
+            # Conversion auto pour les stats
+            speed = SPEED_MAP.get(s, 1.0)
+            if speed > 0: m = (dist / speed) * 60
+        elif input_type == "Pas":
+            steps = c1.number_input("Nombre de pas", 100, 100000, 5000)
+            m = steps / 100.0 # Estimation
 
-            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
+        # Feedback immédiat
+        if input_type != "Durée":
+            c2.success(f"⏱️ Équivalent : {int(m)} min")
+
+        w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
+        
+        # Bouton de validation (hors formulaire, agit directement)
+        if st.button("Sauvegarder la séance", type="primary"):
+            dt = datetime.combine(d, t)
+            base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
+            epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
+            total_kcal = base_kcal + epoc_bonus
             
-            if st.form_submit_button("Sauvegarder"):
-                dt = datetime.combine(d, t)
-                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
-                epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
-                total_kcal = base_kcal + epoc_bonus
-                
-                # Sauvegarde avec nouvelles colonnes
-                new_row = pd.DataFrame([{
-                    "date": dt, "user": user, "sport": s, 
-                    "minutes": m, "calories": int(total_kcal), "poids": w,
-                    "distance": dist, "steps": steps
-                }])
-                
-                if save_activity(new_row):
-                    st.success(f"✅ +{int(total_kcal)} kcal")
-                    if dist > 0: st.caption(f"Distance : {dist} km")
-                    if steps > 0: st.caption(f"Pas : {steps}")
-                    st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}")
-                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
-                    time.sleep(2); st.rerun()
+            new_row = pd.DataFrame([{
+                "date": dt, "user": user, "sport": s, 
+                "minutes": m, "calories": int(total_kcal), "poids": w,
+                "distance": dist, "steps": steps
+            }])
+            
+            if save_activity(new_row):
+                st.success(f"✅ +{int(total_kcal)} kcal")
+                if dist > 0: st.caption(f"Distance : {dist} km")
+                st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}")
+                st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
+                time.sleep(2); st.rerun()
         
         st.divider()
         st.subheader("📜 Historique de vos séances")
         if not my_df.empty:
             df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
             
-            # Config colonnes pour afficher distance/pas si pertinent
             col_conf = {
                 "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
                 "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),

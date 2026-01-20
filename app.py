@@ -34,14 +34,15 @@ def get_rank(total_cal):
     return "Légende 🔥", 1000000, "Diamant"
 
 # --- 3. GESTION DONNÉES (GOOGLE SHEETS) ---
-# Connexion unique et optimisée
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
-    """Charge les deux tables : Profils et Activités"""
+    """Charge les deux tables avec un cache de 5 secondes pour éviter l'erreur 429"""
     try:
-        df_users = conn.read(worksheet="Profils", ttl=0)
-        df_acts = conn.read(worksheet="Activites", ttl=0)
+        # --- CORRECTION CRUCIALE ICI (ttl=5) ---
+        # Cela empêche de harceler Google à chaque clic
+        df_users = conn.read(worksheet="Profils", ttl=5)
+        df_acts = conn.read(worksheet="Activites", ttl=5)
         
         if df_users.empty: 
             df_users = pd.DataFrame(columns=["user", "pin", "json_data"])
@@ -53,29 +54,30 @@ def get_data():
         
         return df_users, df_acts
     except Exception as e:
-        st.error(f"Erreur connexion Google Sheets: {e}")
+        # On n'affiche plus l'erreur en gros, on attend juste que le quota revienne
+        st.warning("Connexion lente (Quota Google)... Attendez quelques secondes.")
         return pd.DataFrame(), pd.DataFrame()
 
 def save_activity(new_row):
-    """Ajoute une ligne dans l'onglet Activites"""
+    """Ajoute une ligne et vide le cache pour voir le résultat immédiat"""
     try:
-        _, df_acts = get_data()
+        # Pour écrire, on a besoin de la dernière version, donc on force ttl=0 ici exceptionnellement
+        df_acts = conn.read(worksheet="Activites", ttl=0)
         updated_df = pd.concat([df_acts, new_row], ignore_index=True)
         updated_df['date'] = updated_df['date'].dt.strftime('%Y-%m-%d')
         conn.update(worksheet="Activites", data=updated_df)
-        st.cache_data.clear()
+        st.cache_data.clear() # Force le rechargement visuel
         return True
     except Exception as e:
         st.error(f"Erreur sauvegarde: {e}")
         return False
 
 def save_user(username, pin_hash, profile_data):
-    """Crée ou met à jour un utilisateur dans l'onglet Profils"""
     try:
-        df_users, _ = get_data()
+        df_users = conn.read(worksheet="Profils", ttl=0)
         json_str = json.dumps(profile_data)
         
-        if username in df_users['user'].values:
+        if not df_users.empty and username in df_users['user'].values:
             df_users.loc[df_users['user'] == username, 'json_data'] = json_str
         else:
             new_user = pd.DataFrame([{"user": username, "pin": pin_hash, "json_data": json_str}])
@@ -89,9 +91,8 @@ def save_user(username, pin_hash, profile_data):
         return False
 
 def update_history(df_edited):
-    """Met à jour tout l'historique"""
     try:
-        _, df_all_acts = get_data()
+        df_all_acts = conn.read(worksheet="Activites", ttl=0)
         current_user = st.session_state.user
         df_others = df_all_acts[df_all_acts['user'] != current_user]
         df_edited['user'] = current_user
@@ -142,13 +143,7 @@ if not st.session_state.user:
             
     elif menu == "Créer un compte":
         st.sidebar.markdown("### Profil")
-        # CORRECTION 1 : Bornes explicites pour l'inscription
-        dob = st.sidebar.date_input(
-            "Naissance", 
-            value=date(1990,1,1), 
-            min_value=date(1900,1,1), 
-            max_value=date.today()
-        )
+        dob = st.sidebar.date_input("Naissance", value=date(1990,1,1), min_value=date(1900,1,1), max_value=date.today())
         sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
         h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
         act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
@@ -172,11 +167,9 @@ else:
         st.session_state.user = None
         st.rerun()
         
-    # Chargement Données Utilisateur
     user_row = df_users[df_users['user'] == user].iloc[0]
     prof = json.loads(user_row['json_data'])
     
-    # Filtrage des activités
     my_df = df_acts[df_acts['user'] == user].copy()
     if not my_df.empty:
         my_df = my_df.sort_values('date')
@@ -184,12 +177,10 @@ else:
     else:
         last_w = prof.get('w_init', 70.0)
 
-    # Calculs KPI
     age = calculate_age(prof.get('dob', '1990-01-01'))
     total_cal = my_df['calories'].sum() if not my_df.empty else 0
     rank, next_lvl, _ = get_rank(total_cal)
     
-    # Calcul Streak
     streak = 0
     if not my_df.empty:
         dates = pd.to_datetime(my_df['date']).dt.date.unique()
@@ -203,7 +194,6 @@ else:
                     else: break
             else: streak = 0
 
-    # Onglets
     t1, t2, t3, t4, t5 = st.tabs(["🏠 Dashboard", "📈 Graphiques", "➕ Séance", "⚙️ Gestion", "🏆 Leaderboard"])
     
     with t1:
@@ -262,13 +252,7 @@ else:
         st.subheader("Profil")
         with st.form("edit_prof"):
             col1, col2 = st.columns(2)
-            # CORRECTION 2 : Bornes explicites pour la modification aussi !
-            new_dob = col1.date_input(
-                "Naissance", 
-                value=datetime.strptime(prof['dob'], "%Y-%m-%d"),
-                min_value=date(1900,1,1),
-                max_value=date.today()
-            )
+            new_dob = col1.date_input("Naissance", datetime.strptime(prof['dob'], "%Y-%m-%d"), min_value=date(1900,1,1), max_value=date.today())
             new_act = col2.selectbox("Activité", ACTIVITY_OPTS, index=ACTIVITY_OPTS.index(prof['act']))
             new_obj = st.number_input("Objectif", value=float(prof['w_obj']))
             

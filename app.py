@@ -52,6 +52,7 @@ DNA_MAP = {
     "Tennis":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
     "Football":    {"Force": 5, "Endurance": 8, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
     "Basket":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
+    "Handball":    {"Force": 6, "Endurance": 7, "Vitesse": 7, "Agilité": 8, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
     "Marche":      {"Force": 2, "Endurance": 5, "Vitesse": 2, "Agilité": 2, "Souplesse": 2, "Explosivité": 1, "Mental": 4, "Récupération": 10, "Concentration": 3},
     "Danse":       {"Force": 4, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
     "Pilates":     {"Force": 5, "Endurance": 4, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
@@ -74,6 +75,7 @@ SPEED_MAP = {
     "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
     "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
     "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
+    "Handball": 6.0,
     "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
     "Sport de chambre": 0.0
 }
@@ -83,6 +85,7 @@ EPOC_MAP = {
     "Course": 0.07, "Vélo": 0.05, "Natation": 0.06, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
     "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
     "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
+    "Handball": 0.07,
     "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
     "Sport de chambre": 0.04
 }
@@ -792,6 +795,18 @@ else:
             fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
             fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
             
+            # --- CALCUL DU POIDS THEORIQUE ---
+            if not df_chart.empty:
+                df_chart = df_chart.sort_values(by='date')
+                start_w = float(prof.get('w_init', 70.0))
+                # Calcul cumulatif des calories brûlées
+                df_chart['cum_cal'] = df_chart['calories'].cumsum()
+                # Poids théorique = Poids initial - (Calories cumulées / 7700)
+                df_chart['theo_weight'] = start_w - (df_chart['cum_cal'] / 7700)
+                
+                # Ajout de la courbe théorique au graphique
+                fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
+
             # AXE Y COMMENCE A 0
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
             fig_w.update_yaxes(range=[0, max_val * 1.1])

@@ -798,18 +798,17 @@ else:
             # --- CALCUL DU POIDS THEORIQUE ---
             if not df_chart.empty:
                 df_chart = df_chart.sort_values(by='date')
-                start_w = float(prof.get('w_init', 70.0))
-                # Calcul cumulatif des calories brûlées
+                # Anchor: First weight of the selected period to align curves visually
+                anchor_w = df_chart['poids'].iloc[0] 
                 df_chart['cum_cal'] = df_chart['calories'].cumsum()
-                # Poids théorique = Poids initial - (Calories cumulées / 7700)
-                df_chart['theo_weight'] = start_w - (df_chart['cum_cal'] / 7700)
+                df_chart['theo_weight'] = anchor_w - (df_chart['cum_cal'] / 7700)
                 
                 # Ajout de la courbe théorique au graphique
                 fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
 
-            # AXE Y COMMENCE A 0
+            # AXE Y DYNAMIQUE (Poids actuel - 20kg)
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
-            fig_w.update_yaxes(range=[0, max_val * 1.1])
+            fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
             
             # CONFIGURATION COULEURS PLOTLY SELON THEME
             plotly_font_color = "white" if plotly_layout_dark else "black"
@@ -821,7 +820,6 @@ else:
                 font_color=plotly_font_color,
                 xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                 yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
-                # Modification ici : orientation horizontale ("h") et positionnement en bas (y=-0.2)
                 legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color))
             )
             
@@ -885,4 +883,3 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
-

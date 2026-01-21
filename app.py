@@ -821,7 +821,8 @@ else:
                 font_color=plotly_font_color,
                 xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                 yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
-                legend=dict(font=dict(color=plotly_font_color))
+                # Modification ici : orientation horizontale ("h") et positionnement en bas (y=-0.2)
+                legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color))
             )
             
             c1.plotly_chart(fig_w, use_container_width=True)
@@ -884,3 +885,4 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+

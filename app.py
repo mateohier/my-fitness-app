@@ -795,7 +795,7 @@ else:
             fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
             fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
             
-            # --- CALCUL DU POIDS THEORIQUE ---
+            # --- CALCUL DU POIDS THEORIQUE & ALERTE ---
             if not df_chart.empty:
                 df_chart = df_chart.sort_values(by='date')
                 # Anchor: First weight of the selected period to align curves visually
@@ -805,6 +805,12 @@ else:
                 
                 # Ajout de la courbe théorique au graphique
                 fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
+                
+                # --- ALERTE ---
+                last_theo = df_chart['theo_weight'].iloc[-1]
+                last_real = df_chart['poids'].iloc[-1]
+                if (last_real - last_theo) > 1.0: # Seuil de 1kg
+                    st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
 
             # AXE Y DYNAMIQUE (Poids actuel - 20kg)
             max_val = df_chart['poids'].max() if not df_chart.empty else 100

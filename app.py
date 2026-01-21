@@ -807,15 +807,15 @@ else:
                 # Ajout de la courbe théorique au graphique
                 fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
 
-            # AXE Y COMMENCE A 0
+             # AXE Y DYNAMIQUE (Poids actuel - 20kg)
             max_val = df_chart['poids'].max() if not df_chart.empty else 100
-            fig_w.update_yaxes(range=[0, max_val * 1.1])
+            fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
             
             # CONFIGURATION COULEURS PLOTLY SELON THEME
             plotly_font_color = "white" if plotly_layout_dark else "black"
             plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
             
-            fig_w.update_layout(
+            # AXE Y COMMENCE A 0(
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)', 
                 font_color=plotly_font_color,
@@ -885,4 +885,5 @@ else:
         st.divider()
         if st.button("Supprimer mon compte"): 
             if delete_current_user(): st.session_state.user = None; st.rerun()
+
 

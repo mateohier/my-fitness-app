@@ -46,7 +46,7 @@ def main():
         "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Course":      {"Force": 3, "Endurance": 10, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 4, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
-        "Natation":    {"Force": 8, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 5},
+        "Natation":    {"Force": 10, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
         "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
@@ -123,7 +123,7 @@ def main():
 
     def calculate_bmr(weight, height, age, sex):
         val = (10 * weight) + (6.25 * height) - (5 * age)
-        return (val + 5)*1.2 if sex == "Homme" else (val - 161)*1.2
+        return val + 5 if sex == "Homme" else val - 161
 
     def get_level_progress(total_cal):
         factor = 150 
@@ -878,8 +878,7 @@ def main():
                 
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                # --- GRAPHIQUE CALORIES + BMR ---
-                # Graphique en Barres Empilées (BMR + Sport)
+                # --- GRAPHIQUE CALORIES + BMR (STACKED) ---
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
                 
                 # Préparation des données par jour
@@ -889,7 +888,7 @@ def main():
 
                 fig_bar = go.Figure()
 
-                # Trace 1: BMR (Fond) - Blanc Foncé (Gris clair)
+                # Trace 1: BMR (Fond) - Blanc Foncé (Gris argenté)
                 fig_bar.add_trace(go.Bar(
                     x=df_sport['date_day'],
                     y=[bmr_daily] * len(df_sport),
@@ -914,7 +913,7 @@ def main():
                     bargap=0.1, 
                     xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                     yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
-                    legend=dict(font=dict(color=plotly_font_color))
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color))
                 )
                 
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
@@ -1010,5 +1009,3 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
-
-

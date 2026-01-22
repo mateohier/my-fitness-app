@@ -46,7 +46,7 @@ def main():
         "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Course":      {"Force": 3, "Endurance": 10, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 4, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
-        "Natation":    {"Force": 10, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
+        "Natation":    {"Force": 8, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 7},
         "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
@@ -1009,3 +1009,4 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
+

@@ -841,15 +841,20 @@ def main():
                 
                 # --- CALCUL DU POIDS THEORIQUE & ALERTE ---
                 if not df_chart.empty:
-                    df_chart = df_chart.sort_values(by='date')
-                    anchor_w = df_chart['poids'].iloc[0] 
-                    df_chart['cum_cal'] = df_chart['calories'].cumsum()
-                    df_chart['theo_weight'] = anchor_w - (df_chart['cum_cal'] / 7700)
+                    my_df = my_df.sort_values(by='date')
+                    initial_w = float(prof.get('w_init', 70.0))
+                    my_df['cum_cal_global'] = my_df['calories'].cumsum()
+                    my_df['theo_weight'] = initial_w - (my_df['cum_cal_global'] / 7700)
                     
-                    fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
+                    # On filtre seulement pour l'affichage, mais le calcul est fait sur l'historique complet
+                    df_chart_theo = my_df.copy()
+                    if start_date:
+                        df_chart_theo = df_chart_theo[df_chart_theo['date'] >= start_date]
+                        
+                    fig_w.add_trace(go.Scatter(x=df_chart_theo['date'], y=df_chart_theo['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
                     
                     # --- ALERTE ---
-                    last_theo = df_chart['theo_weight'].iloc[-1]
+                    last_theo = df_chart_theo['theo_weight'].iloc[-1]
                     last_real = df_chart['poids'].iloc[-1]
                     if (last_real - last_theo) > 1.0: # Seuil de 1kg
                         st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")

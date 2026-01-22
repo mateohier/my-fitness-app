@@ -46,7 +46,7 @@ def main():
         "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Course":      {"Force": 3, "Endurance": 10, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 4, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
-        "Natation":    {"Force": 8, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 7},
+        "Natation":    {"Force": 10, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
         "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
@@ -221,6 +221,8 @@ def main():
             df_d = conn.read(worksheet="Defis", ttl=600)
             try: df_p = conn.read(worksheet="Posts", ttl=600)
             except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
+            try: df_f = conn.read(worksheet="Food", ttl=600)
+            except: df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
             
             if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
             
@@ -234,13 +236,15 @@ def main():
                 
             if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
+            if df_f.empty: df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
                 
             df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce')
             df_a = df_a.dropna(subset=['date'])
             df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
+            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce')
             
-            return df_u, df_a, df_d, df_p
-        except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            return df_u, df_a, df_d, df_p, df_f
+        except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     def save_activity(new_row):
         try:
@@ -263,6 +267,15 @@ def main():
                 "image": image_b64, "comment": comment, "seen_by": st.session_state.user
             }])
             conn.update(worksheet="Posts", data=pd.concat([df, new], ignore_index=True))
+            st.cache_data.clear(); return True
+        except: return False
+    
+    def save_food(new_row):
+        try:
+            df = conn.read(worksheet="Food", ttl=0)
+            upd = pd.concat([df, new_row], ignore_index=True)
+            upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+            conn.update(worksheet="Food", data=upd)
             st.cache_data.clear(); return True
         except: return False
 
@@ -312,12 +325,17 @@ def main():
             df_a = conn.read(worksheet="Activites", ttl=0)
             df_d = conn.read(worksheet="Defis", ttl=0)
             df_p = conn.read(worksheet="Posts", ttl=0)
+            try: df_f = conn.read(worksheet="Food", ttl=0)
+            except: df_f = pd.DataFrame()
             
             # Profils
             df_u.loc[df_u['user'] == old_u, 'user'] = new_u
             
             # Activités
             if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
+            
+            # Food
+            if not df_f.empty: df_f.loc[df_f['user'] == old_u, 'user'] = new_u
             
             # Posts
             if not df_p.empty:
@@ -335,6 +353,7 @@ def main():
             conn.update(worksheet="Activites", data=df_a)
             conn.update(worksheet="Defis", data=df_d)
             conn.update(worksheet="Posts", data=df_p)
+            if not df_f.empty: conn.update(worksheet="Food", data=df_f)
             st.cache_data.clear()
             return "OK"
         except Exception as e: return str(e)
@@ -395,7 +414,7 @@ def main():
     if 'user' not in st.session_state: st.session_state.user = None
 
     # Chargement données
-    df_u, df_a, df_d, df_p = get_data()
+    df_u, df_a, df_d, df_p, df_f = get_data()
     clean_old_posts(df_p)
 
     # Détermination du thème
@@ -539,7 +558,7 @@ def main():
             h = r['minutes'] / 60
             for k in DNA_KEYS: dna[k] += s_dna.get(k, 1) * h
 
-        tabs = st.tabs(["🏠 Tableau de Bord", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
+        tabs = st.tabs(["🏠 Tableau de Bord", "📸 Partage", "➕ Séance", "🍎 Bouffe", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
         with tabs[0]: # DASHBOARD
             st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
@@ -725,7 +744,58 @@ def main():
                     conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                     st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
-        with tabs[3]: # BOSS
+        with tabs[3]: # BOUFFE
+            st.subheader("🍎 Journal Alimentaire")
+            st.info("💡 Notez ce que vous mangez pour ajuster votre équilibre !")
+            
+            with st.form("food_log"):
+                c1, c2 = st.columns(2)
+                f_date = c1.date_input("Date", date.today())
+                f_type = c2.selectbox("Type de repas", ["Petit-Déjeuner", "Déjeuner", "Dîner", "Collation"])
+                
+                # Ressenti Calorique pour estimation rapide
+                # BMR / 3 environ pour un repas standard
+                bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
+                avg_meal = int(bmr_user / 3)
+                
+                f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", 
+                    options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"],
+                    value="Normal"
+                )
+                
+                cal_map = {
+                    "Très Léger": int(avg_meal * 0.5),
+                    "Léger": int(avg_meal * 0.8),
+                    "Normal": int(avg_meal * 1.0),
+                    "Copieux": int(avg_meal * 1.5),
+                    "Festin": int(avg_meal * 2.5)
+                }
+                est_cal = cal_map[f_feeling]
+                st.caption(f"Estimation auto : ~{est_cal} kcal")
+                
+                f_items = st.text_area("Qu'avez-vous mangé ? (Ex: Pâtes carbo, Pomme)", height=80)
+                
+                if st.form_submit_button("Ajouter ce repas"):
+                    new_food = pd.DataFrame([{
+                        "date": f_date.strftime('%Y-%m-%d %H:%M:%S'),
+                        "user": user,
+                        "type_repas": f_type,
+                        "calories_est": est_cal,
+                        "aliments": f_items
+                    }])
+                    if save_food(new_food):
+                        st.success("Repas ajouté !"); time.sleep(1); st.rerun()
+            
+            st.divider()
+            if not df_f.empty:
+                my_food = df_f[df_f['user'] == user].sort_values(by="date", ascending=False)
+                if not my_food.empty:
+                    for _, r in my_food.head(5).iterrows():
+                        st.markdown(f"**{r['date'].split(' ')[0]} - {r['type_repas']}** ({r['calories_est']} kcal)")
+                        st.caption(f"{r['aliments']}")
+                        st.divider()
+
+        with tabs[4]: # BOSS
             curr_month_num = datetime.now().month
             boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
             st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
@@ -742,7 +812,7 @@ def main():
                 if not df_month.empty:
                     for i, (u, val) in enumerate(df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5).items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
 
-        with tabs[4]: # DEFIS
+        with tabs[5]: # DEFIS
             st.header("⚔️ Salle des Défis")
             
             # --- SECTION VICTOIRES ---
@@ -801,7 +871,7 @@ def main():
                             pct = min(val/float(r['objectif']), 1.0); st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit}", unsafe_allow_html=True); st.progress(pct)
                     st.divider()
 
-        with tabs[5]: # STATS
+        with tabs[6]: # STATS
             if not my_df.empty:
                 st.subheader("🏆 Records")
                 max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
@@ -879,13 +949,27 @@ def main():
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
                 # --- GRAPHIQUE CALORIES + BMR (STACKED) ---
+                # Graphique en Barres Empilées (BMR + Sport + Food)
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
                 
-                # Préparation des données par jour
+                # Préparation des données par jour (Sport)
                 df_bar_daily = df_chart.copy()
                 df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
 
+                # Préparation des données par jour (Bouffe)
+                df_food_daily = pd.DataFrame()
+                if not df_f.empty:
+                    df_f_user = df_f[df_f['user'] == user].copy()
+                    if start_date:
+                         df_f_user = df_f_user[df_f_user['date'] >= start_date]
+                    df_f_user['date_day'] = df_f_user['date'].dt.date
+                    df_food_daily = df_f_user.groupby('date_day')['calories_est'].sum().reset_index()
+
+                # Merge pour aligner les dates (Sport + BMR vs Food)
+                # On utilise df_sport comme base des dates, mais idéalement on prendrait un range de dates
+                all_dates = df_sport['date_day'].unique() # Simplification
+                
                 fig_bar = go.Figure()
 
                 # Trace 1: BMR (Fond) - Blanc Foncé (Gris argenté)
@@ -903,10 +987,25 @@ def main():
                     name='Sport',
                     marker_color='#00BFFF' # Deep Sky Blue
                 ))
+                
+                # Trace 3: Bouffe (Comparaison) - Orange (Ligne ou Points pour ne pas empiler ?)
+                # Le prompt demandait "ajouté en orange sur le diagramme".
+                # On va l'ajouter comme une barre à côté (Grouped) ou une ligne. 
+                # Pour un bilan, une ligne est souvent mieux lisible sur des barres empilées, ou alors un groupe à côté.
+                # Essayons Barres empilées (Sorties) vs Barres (Entrées) n'est pas possible facilement en mixed mode simple.
+                # On va mettre une LIGNE Orange pour l'Apport Calorique par dessus les barres de dépense.
+                if not df_food_daily.empty:
+                     fig_bar.add_trace(go.Scatter(
+                        x=df_food_daily['date_day'],
+                        y=df_food_daily['calories_est'],
+                        name='Apport Nourriture',
+                        mode='lines+markers',
+                        line=dict(color='#FF4500', width=3) # Orange Red
+                    ))
 
                 fig_bar.update_layout(
-                    barmode='stack', # Empilement
-                    title="Dépense Totale (BMR + Sport)",
+                    barmode='stack', # Empilement pour BMR + Sport
+                    title="Bilan Energétique (Dépense vs Apport)",
                     paper_bgcolor='rgba(0,0,0,0)', 
                     plot_bgcolor='rgba(0,0,0,0)', 
                     font_color=plotly_font_color,
@@ -918,7 +1017,7 @@ def main():
                 
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
-        with tabs[6]: # CLASSEMENT
+        with tabs[7]: # CLASSEMENT
             st.header("🏛️ Hall of Fame")
             if not df_a.empty:
                 mc = df_a.loc[df_a['calories'].idxmax()]; mm = df_a.loc[df_a['minutes'].idxmax()]
@@ -931,7 +1030,7 @@ def main():
                     for i, (u, c) in enumerate(w_df.groupby("user")['calories'].sum().sort_values(ascending=False).items()):
                         st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** - {int(c)} kcal", unsafe_allow_html=True)
 
-        with tabs[7]: # PROFIL
+        with tabs[8]: # PROFIL
             st.subheader("📝 Profil")
             with st.form("prof"):
                 c1, c2 = st.columns(2)
@@ -1009,4 +1108,3 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
-

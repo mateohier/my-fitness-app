@@ -748,43 +748,46 @@ def main():
             st.subheader("🍎 Journal Alimentaire")
             st.info("💡 Notez ce que vous mangez pour ajuster votre équilibre !")
             
-            with st.form("food_log"):
-                c1, c2 = st.columns(2)
-                f_date = c1.date_input("Date", date.today())
-                f_type = c2.selectbox("Type de repas", ["Petit-Déjeuner", "Déjeuner", "Dîner", "Collation"])
-                
-                # Ressenti Calorique pour estimation rapide
-                # BMR / 3 environ pour un repas standard
-                bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
-                avg_meal = int(bmr_user / 3)
-                
-                f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", 
-                    options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"],
-                    value="Normal"
-                )
-                
-                cal_map = {
-                    "Très Léger": int(avg_meal * 0.5),
-                    "Léger": int(avg_meal * 0.8),
-                    "Normal": int(avg_meal * 1.0),
-                    "Copieux": int(avg_meal * 1.5),
-                    "Festin": int(avg_meal * 2.5)
-                }
-                est_cal = cal_map[f_feeling]
-                st.caption(f"Estimation auto : ~{est_cal} kcal")
-                
-                f_items = st.text_area("Qu'avez-vous mangé ? (Ex: Pâtes carbo, Pomme)", height=80)
-                
-                if st.form_submit_button("Ajouter ce repas"):
-                    new_food = pd.DataFrame([{
-                        "date": f_date.strftime('%Y-%m-%d %H:%M:%S'),
-                        "user": user,
-                        "type_repas": f_type,
-                        "calories_est": est_cal,
-                        "aliments": f_items
-                    }])
-                    if save_food(new_food):
-                        st.success("Repas ajouté !"); time.sleep(1); st.rerun()
+            # --- MODIFICATION ICI : REMPLACEMENT DU FORMULAIRE PAR DES WIDGETS DIRECTS ---
+            # Pas de st.form ici pour permettre la mise à jour dynamique
+            c1, c2 = st.columns(2)
+            f_date = c1.date_input("Date", date.today())
+            f_type = c2.selectbox("Type de repas", ["Petit-Déjeuner", "Déjeuner", "Dîner", "Collation"])
+            
+            # Ressenti Calorique pour estimation rapide
+            # BMR / 3 environ pour un repas standard
+            bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
+            avg_meal = int(bmr_user / 3)
+            
+            f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", 
+                options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"],
+                value="Normal"
+            )
+            
+            cal_map = {
+                "Très Léger": int(avg_meal * 0.5),
+                "Léger": int(avg_meal * 0.8),
+                "Normal": int(avg_meal * 1.0),
+                "Copieux": int(avg_meal * 1.5),
+                "Festin": int(avg_meal * 2.5)
+            }
+            est_cal = cal_map[f_feeling]
+            
+            # Affichage dynamique immédiat (hors form)
+            st.markdown(f"**Estimation auto : ~{est_cal} kcal**")
+            
+            f_items = st.text_area("Qu'avez-vous mangé ? (Ex: Pâtes carbo, Pomme)", height=80)
+            
+            if st.button("Ajouter ce repas"):
+                new_food = pd.DataFrame([{
+                    "date": f_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    "user": user,
+                    "type_repas": f_type,
+                    "calories_est": est_cal,
+                    "aliments": f_items
+                }])
+                if save_food(new_food):
+                    st.success("Repas ajouté !"); time.sleep(1); st.rerun()
             
             st.divider()
             if not df_f.empty:

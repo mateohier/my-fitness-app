@@ -917,6 +917,9 @@ def main():
                 new_pseudo = c1.text_input("Pseudo (Nom d'utilisateur)", value=user)
                 nd = c2.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c1.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
                 nh = c2.number_input("Taille",100,250,int(prof.get('h',175))); nw = c1.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
+                # Ajout de l'input Poids de départ
+                ni = c1.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
+                
                 na = c2.selectbox("Activité",ACTIVITY_OPTS)
                 
                 # THEME SELECTOR
@@ -936,7 +939,16 @@ def main():
                     
                     fav = prof.get('avatar', ""); 
                     if n_av: fav = process_avatar(n_av)
-                    prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'act':na,'avatar':fav, 'theme': nt})
+                    prof.update({
+                        'dob':str(nd),
+                        'sex':ns,
+                        'h':int(nh),
+                        'w_obj':float(nw),
+                        'w_init': float(ni), # Sauvegarde du nouveau poids initial
+                        'act':na,
+                        'avatar':fav, 
+                        'theme': nt
+                    })
                     ps = row['pin']; 
                     if np and len(np)==4: ps = hash_pin(np)
                     save_user(user, ps, prof); st.success("Mis à jour !"); st.rerun()

@@ -878,21 +878,27 @@ def main():
                 
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                # --- GRAPHIQUE CALORIES + BMR ---
-                fig_bar = px.bar(df_chart, x='date', y='calories', title="Dépense Energétique")
-                
-                # Calcul BMR Journalier (approximatif) pour la ligne
+                # --- GRAPHIQUE CALORIES + BMR (CORRIGÉ) ---
+                # On agrège par jour pour que le graphique soit cohérent
+                # Les barres représentent le TOTAL (Métabolisme + Sport) pour être visibles par rapport à la ligne BMR
                 bmr_daily = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
-                # On ajoute une ligne horizontale pour le BMR
-                fig_bar.add_hline(y=bmr_daily, line_color="#4CAF50", line_width=2, annotation_text=f"BMR (Repos): {int(bmr_daily)} kcal", annotation_position="top left")
+                
+                df_bar_daily = df_chart.copy()
+                df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
+                df_bar_grouped = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
+                df_bar_grouped['total_display'] = df_bar_grouped['calories'] + bmr_daily # On empile pour l'affichage
+                
+                fig_bar = px.bar(df_bar_grouped, x='date_day', y='total_display', title="Dépense Totale (BMR + Sport)")
+                
+                fig_bar.add_hline(y=bmr_daily, line_color="#4CAF50", line_width=2, annotation_text=f"BMR: {int(bmr_daily)}", annotation_position="top left")
 
                 fig_bar.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)', 
                     plot_bgcolor='rgba(0,0,0,0)', 
                     font_color=plotly_font_color,
-                    bargap=0.0001, # <--- AJOUT ICI (Réduit l'espace entre les barres pour les épaissir)
-                    xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
-                    yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    bargap=0.1, # Espace réduit = Barres plus larges
+                    xaxis=dict(title="Date", showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    yaxis=dict(title="Calories (kcal)", range=[0, df_bar_grouped['total_display'].max()*1.1], showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                     legend=dict(font=dict(color=plotly_font_color))
                 )
                 
@@ -989,5 +995,3 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
-
-

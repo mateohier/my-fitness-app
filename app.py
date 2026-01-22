@@ -890,7 +890,7 @@ def main():
                     paper_bgcolor='rgba(0,0,0,0)', 
                     plot_bgcolor='rgba(0,0,0,0)', 
                     font_color=plotly_font_color,
-                    bargap=0.01, # <--- AJOUT ICI (Réduit l'espace entre les barres pour les épaissir)
+                    bargap=0.0001, # <--- AJOUT ICI (Réduit l'espace entre les barres pour les épaissir)
                     xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                     yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
                     legend=dict(font=dict(color=plotly_font_color))
@@ -989,4 +989,5 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
+
 

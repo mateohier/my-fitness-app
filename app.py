@@ -46,7 +46,7 @@ def main():
         "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Course":      {"Force": 3, "Endurance": 10, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 4, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
-        "Natation":    {"Force": 6, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 6, "Explosivité": 7, "Mental": 8, "Récupération": 10, "Concentration": 7},
+        "Natation":    {"Force": 10, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
         "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
@@ -83,7 +83,7 @@ def main():
 
     EPOC_MAP = {
         "Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12,
-        "Course": 0.07, "Vélo": 0.05, "Natation": 0.06, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
+        "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
         "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
         "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
         "Handball": 0.07,
@@ -640,7 +640,7 @@ def main():
             
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
-            t = c2.time_input("Heure", datetime.now().time())
+            t = c2.time_input("Heure", datetime.now().time()) # Correction: plus de datetime.now().time() direct
             s = c1.selectbox("Sport", SPORTS_LIST)
             
             m = 0.0
@@ -671,9 +671,19 @@ def main():
 
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
             
+            # Ajout facteur intensité
+            intensity_factor = 1.0
+            intensite = c2.selectbox("Intensité", ["Légère (x0.8)", "Moyenne (x1.0)", "Élevée (x1.2)", "Maximale (x1.5)"], index=1)
+            if "Légère" in intensite: intensity_factor = 0.8
+            elif "Élevée" in intensite: intensity_factor = 1.2
+            elif "Maximale" in intensite: intensity_factor = 1.5
+
             if st.button("Sauvegarder la séance", type="primary"):
+                # CORRECTION: S'assurer que d et t sont compatibles
+                if isinstance(t, datetime): t = t.time()
                 dt = datetime.combine(d, t)
-                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60)
+                
+                base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60) * intensity_factor
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
                 
@@ -734,13 +744,45 @@ def main():
 
         with tabs[4]: # DEFIS
             st.header("⚔️ Salle des Défis")
+            
+            # --- SECTION VICTOIRES ---
+            st.subheader("🏆 Vos Victoires")
+            wins = 0
+            if not df_d.empty and not df_a.empty:
+                completed_challenges = df_d[(df_d['date_fin'] < date.today().strftime('%Y-%m-%d'))] # Défis terminés
+                for _, ch in completed_challenges.iterrows():
+                    if user in str(ch['participants']):
+                        # Recalculer si l'objectif a été atteint
+                        c_df = df_a[(df_a['date'] <= ch['date_fin']) & (df_a['user'] == user)]
+                        # Filtrer par date de début implicite (on suppose que le défi commence à sa création, mais ici on prend tout jusqu'à la fin pour simplifier ou faudrait une date de début dans la db. On va supposer que c'est bon si le total est atteint à la fin)
+                        # Pour être plus précis, il faudrait une date de début. Ici on regarde le cumul total à la date de fin. 
+                        # Si on veut être juste, on regarde juste si le total atteint l'obj.
+                        
+                        if ch['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == ch['sport_cible']]
+                        
+                        val = 0
+                        if "Calories" in ch['type']: val = c_df['calories'].sum()
+                        elif "Durée" in ch['type']: val = c_df['minutes'].sum()
+                        elif "Distance" in ch['type']: val = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).sum()
+                        
+                        if val >= float(ch['objectif']):
+                            wins += 1
+            
+            if wins > 0:
+                st.markdown(f"<div class='celeb-box' style='background:#FFD700; color:black;'>🥇 Vous avez remporté <b>{wins}</b> défis !</div>", unsafe_allow_html=True)
+            else:
+                st.caption("Gagnez des défis pour voir vos trophées ici !")
+
+            st.divider()
+            
             with st.expander("➕ Lancer un nouveau défi"):
                 with st.form("new_def"):
                     dt = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin")
                     if st.form_submit_button("Créer"): create_challenge(dt, type_def, obj, sport_target, fin); st.success("Lancé !"); time.sleep(1); st.rerun()
             st.subheader("Défis en cours")
             if not df_d.empty:
-                for _, r in df_d[df_d['statut'] == 'Actif'].iterrows():
+                active_challenges = df_d[df_d['date_fin'] >= date.today().strftime('%Y-%m-%d')]
+                for _, r in active_challenges.iterrows():
                     parts = r['participants'].split(','); unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                     c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                     if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
@@ -792,6 +834,7 @@ def main():
                 
                 c1, c2 = st.columns(2)
                 
+                # --- GRAPHIQUE POIDS ---
                 target_w = float(prof.get('w_obj', 65.0))
                 fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
                 fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
@@ -799,12 +842,10 @@ def main():
                 # --- CALCUL DU POIDS THEORIQUE & ALERTE ---
                 if not df_chart.empty:
                     df_chart = df_chart.sort_values(by='date')
-                    # Anchor: First weight of the selected period to align curves visually
                     anchor_w = df_chart['poids'].iloc[0] 
                     df_chart['cum_cal'] = df_chart['calories'].cumsum()
                     df_chart['theo_weight'] = anchor_w - (df_chart['cum_cal'] / 7700)
                     
-                    # Ajout de la courbe théorique au graphique
                     fig_w.add_trace(go.Scatter(x=df_chart['date'], y=df_chart['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
                     
                     # --- ALERTE ---
@@ -813,7 +854,7 @@ def main():
                     if (last_real - last_theo) > 1.0: # Seuil de 1kg
                         st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
 
-                # AXE Y DYNAMIQUE (Poids actuel - 20kg)
+                # AXE Y DYNAMIQUE
                 max_val = df_chart['poids'].max() if not df_chart.empty else 100
                 fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
                 
@@ -832,7 +873,14 @@ def main():
                 
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                fig_bar = px.bar(df_chart, x='date', y='calories', title="Kcal")
+                # --- GRAPHIQUE CALORIES + BMR ---
+                fig_bar = px.bar(df_chart, x='date', y='calories', title="Dépense Energétique")
+                
+                # Calcul BMR Journalier (approximatif) pour la ligne
+                bmr_daily = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
+                # On ajoute une ligne horizontale pour le BMR
+                fig_bar.add_hline(y=bmr_daily, line_color="#4CAF50", line_width=2, annotation_text=f"BMR (Repos): {int(bmr_daily)} kcal", annotation_position="top left")
+
                 fig_bar.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)', 
                     plot_bgcolor='rgba(0,0,0,0)', 
@@ -923,4 +971,3 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
-

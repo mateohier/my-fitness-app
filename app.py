@@ -123,7 +123,7 @@ def main():
 
     def calculate_bmr(weight, height, age, sex):
         val = (10 * weight) + (6.25 * height) - (5 * age)
-        return val + 5 if sex == "Homme" else val - 161
+        return (val + 5)*1.2 if sex == "Homme" else (val - 161)*1.2
 
     def get_level_progress(total_cal):
         factor = 150 
@@ -1010,3 +1010,4 @@ if __name__ == "__main__":
                 Relance l'application, tout va bien !
             </div>
         """, unsafe_allow_html=True)
+

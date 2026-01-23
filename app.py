@@ -604,9 +604,9 @@ def main():
                 st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
                 st.progress(min(km/target_km, 1.0))
 
-        with tabs[1]: # BALANCE (NOUVEL ONGLET)
+        with tabs[1]: # BALANCE
             st.header("⚖️ Suivi du Poids")
-            st.caption("Suivez votre progression ici. Le poids est indépendant des séances.")
+            st.caption("Suivez votre progression ici.")
             
             with st.form("weight_form"):
                 w_date = st.date_input("Date de la pesée", date.today())
@@ -620,10 +620,36 @@ def main():
                         time.sleep(1); st.rerun()
 
             st.divider()
-            st.subheader("Historique Balance")
+            st.subheader("Historique et Modification")
             if not my_bal.empty:
-                df_bal_display = my_bal.copy().sort_values(by='date', ascending=False)
-                st.dataframe(df_bal_display[['date', 'poids']], hide_index=True, use_container_width=True)
+                # Préparation de l'éditeur
+                df_bal_edit = my_bal.copy().sort_values(by='date', ascending=False)
+                df_bal_edit.insert(0, "Supprimer", False)
+                
+                col_conf_bal = {
+                    "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
+                    "date": st.column_config.DatetimeColumn("Date", format="D MMM HH:mm"),
+                    "poids": st.column_config.NumberColumn("Poids (kg)", min_value=30.0, max_value=200.0, step=0.1)
+                }
+                
+                edi_bal = st.data_editor(df_bal_edit, column_config=col_conf_bal, use_container_width=True, num_rows="dynamic", hide_index=True)
+                
+                if st.button("💾 Sauvegarder modifications balance"):
+                    # Filtrer les lignes à garder
+                    to_keep_bal = edi_bal[edi_bal['Supprimer'] == False].drop(columns=['Supprimer'])
+                    # Formater les dates pour GSheets
+                    to_keep_bal['date'] = pd.to_datetime(to_keep_bal['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    to_keep_bal['poids'] = pd.to_numeric(to_keep_bal['poids'])
+                    
+                    # Récupérer les données des autres utilisateurs pour ne pas les écraser
+                    other_users_bal = df_bal[df_bal['user'] != user]
+                    
+                    # Concaténer et sauvegarder
+                    final_bal = pd.concat([other_users_bal, to_keep_bal], ignore_index=True)
+                    conn.update(worksheet="Balance", data=final_bal)
+                    st.cache_data.clear()
+                    st.success("Historique balance mis à jour !")
+                    time.sleep(1); st.rerun()
             else:
                 st.info("Aucune pesée enregistrée.")
         
@@ -830,43 +856,67 @@ def main():
                 elif filter_option == "3 Mois": start_date = today - timedelta(days=90)
                 elif filter_option == "Année": start_date = today - timedelta(days=365)
                 
-                # GRAPHIQUE POIDS (Source: BALANCE) 
-
+                # --- GRAPHIQUE ÉVOLUTION DU POIDS ---
                 c1, c2 = st.columns(2)
                 
+                # 1. Données réelles (Balance)
                 df_w_chart = my_bal.copy()
                 if start_date: df_w_chart = df_w_chart[df_w_chart['date'] >= start_date]
                 
                 target_w = float(prof.get('w_obj', 65.0))
+                initial_w_profile = float(prof.get('w_init', 70.0)) # Récupération poids départ profil
                 
-                # Si pas de données Balance, graphique vide
-                if df_w_chart.empty:
-                    fig_w = go.Figure()
-                    fig_w.update_layout(title="Pas de données de pesée")
-                else:
-                    fig_w = px.line(df_w_chart, x='date', y='poids', title="Évolution du Poids (Balance)", markers=True)
-                    fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
+                fig_w = go.Figure()
+                
+                # Trace Réelle (Points bleus)
+                if not df_w_chart.empty:
+                    fig_w.add_trace(go.Scatter(x=df_w_chart['date'], y=df_w_chart['poids'], mode='lines+markers', name='Poids Réel (Balance)', line=dict(color='#00BFFF', width=3)))
+                
+                # Trace Objectif (Ligne verte)
+                fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
+
+                # 2. Données Théoriques (Calculées sur TOUT l'historique d'activités)
+                # On reprend toutes les activités, on les trie
+                df_theo = my_df.copy().sort_values(by='date')
+                # Calcul cumulatif total
+                df_theo['cum_cal'] = df_theo['calories'].cumsum()
+                # Poids théorique = Poids Départ (Profil) - (Total Calories / 7700)
+                df_theo['theo_weight'] = initial_w_profile - (df_theo['cum_cal'] / 7700)
+                
+                # On filtre pour l'affichage selon la période choisie
+                if start_date: df_theo_display = df_theo[df_theo['date'] >= start_date]
+                else: df_theo_display = df_theo
+
+                if not df_theo_display.empty:
+                    fig_w.add_trace(go.Scatter(x=df_theo_display['date'], y=df_theo_display['theo_weight'], mode='lines', name='Théorique (selon Activité)', line=dict(dash='dot', color='#FFA500')))
                     
-                    # Courbe théorique basée sur les calories brûlées (approximation)
-                    # On prend le premier poids de la période affichée comme ref
-                    initial_w = df_w_chart.iloc[0]['poids']
-                    # On filtre les activités sur la même période
-                    df_act_period = my_df[my_df['date'] >= df_w_chart['date'].min()].copy().sort_values(by='date')
-                    if not df_act_period.empty:
-                        df_act_period['cum_cal'] = df_act_period['calories'].cumsum()
-                        df_act_period['theo_loss'] = df_act_period['cum_cal'] / 7700
-                        # On mappe les dates pour le graph
-                        fig_w.add_trace(go.Scatter(x=df_act_period['date'], y=initial_w - df_act_period['theo_loss'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
+                    # Alerte écart (si on a des données réelles récentes)
+                    if not df_w_chart.empty:
+                        last_real = df_w_chart.sort_values('date').iloc[-1]['poids']
+                        # On cherche le poids théorique le plus proche en date
+                        last_theo = df_theo.iloc[-1]['theo_weight']
+                        diff = last_real - last_theo
+                        if diff > 1.0: 
+                             st.warning(f"⚠️ **Écart de +{diff:.1f} kg** entre la balance et la théorie.\nLa théorie part de votre poids initial ({initial_w_profile} kg) et soustrait les calories brûlées.")
 
-                    max_val = df_w_chart['poids'].max()
-                    fig_w.update_yaxes(range=[w_curr - 10, max_val + 5])
+                # Ajustement échelle Y
+                vals = []
+                if not df_w_chart.empty: vals.extend(df_w_chart['poids'].tolist())
+                if not df_theo_display.empty: vals.extend(df_theo_display['theo_weight'].tolist())
+                if vals:
+                    min_y, max_y = min(vals), max(vals)
+                    fig_w.update_yaxes(range=[min_y - 2, max_y + 2])
 
-                plotly_font_color = "white" if plotly_layout_dark else "black"
-                plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
-                fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
+                # Layout
+                fig_w.update_layout(title="Évolution du Poids (Réel vs Théorique)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                                    font_color=("white" if current_theme=="Sombre" else "black"),
+                                    xaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")), 
+                                    yaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")),
+                                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
+                
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                # GRAPHIQUE CALORIES VS BOUFFE
+                # --- GRAPHIQUE CALORIES VS BOUFFE ---
                 df_chart = my_df.copy()
                 if start_date: df_chart = df_chart[df_chart['date'] >= start_date]
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
@@ -884,7 +934,13 @@ def main():
                 fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=[bmr_daily] * len(df_sport), name='Métabolisme (BMR)', marker_color='#C0C0C0'))
                 fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=df_sport['calories'], name='Sport', marker_color='#00BFFF'))
                 if not df_food_agg.empty: fig_bar.add_trace(go.Scatter(x=df_food_agg['date_day'], y=df_food_agg['calorie_est'], mode='lines+markers', name='Apport Bouffe', line=dict(color='red', width=3)))
-                fig_bar.update_layout(barmode='stack', title="Dépense Totale (BMR+Sport) vs Apport (Rouge)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, bargap=0.1, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
+                
+                fig_bar.update_layout(barmode='stack', title="Dépense Totale (BMR+Sport) vs Apport (Rouge)", 
+                                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                                      font_color=("white" if current_theme=="Sombre" else "black"), bargap=0.1,
+                                      xaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")), 
+                                      yaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")),
+                                      legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
         with tabs[8]: # CLASSEMENT
@@ -945,4 +1001,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-

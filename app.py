@@ -93,10 +93,13 @@ def main():
 
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
 
-    # --- MAPPING BOUFFE ---
+    # CORRECTION : Ajout de FOOD_LEVELS qui manquait et causait une erreur pour l'affichage du guide
     FOOD_LEVELS = {
-        1: 200, 2: 400, 3: 600, 4: 800, 5: 1200, 6: 1800, 7: 2500
+        1: 150, 2: 300, 3: 500,
+        4: 800, 5: 1200, 6: 1800,
+        7: 2500
     }
+
     FOOD_LABELS = {
         1: "🍏 Très léger (Snack)", 2: "🥗 Léger (Salade)", 3: "🍲 Moyen (Equilibré)",
         4: "🍝 Normal (Assiette pleine)", 5: "🍗 Copieux (Resto)", 6: "🍔 Très Riche (Fast Food XL)",
@@ -591,7 +594,7 @@ def main():
                 st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
                 st.progress(min(km/target_km, 1.0))
         
-        with tabs[1]: 
+        with tabs[1]: # BOUFFE
             st.header("🍔 Suivi Alimentaire (Est.)")
             st.caption("Une méthode simple basée sur le ressenti, pas de calcul savant !")
             c_f1, c_f2 = st.columns([1, 2])
@@ -602,13 +605,14 @@ def main():
                     st.markdown("### Ressenti du repas")
                     f_level = st.slider("Quelle taille faisait ce repas ?", 1, 7, 4)
                     
-                    # Display scale permanently below slider
+                    # Display scale permanently below slider (GUIDE CONSERVÉ)
                     st.markdown("##### 📏 Guide des portions :")
                     for i in range(1, 8):
                         st.markdown(f"<div style='font-size:0.8em; color:gray;'><b>Niveau {i}</b> : {FOOD_LABELS[i]} (~{FOOD_LEVELS[i]} kcal)</div>", unsafe_allow_html=True)
                     
                     est_cal = FOOD_LEVELS[f_level]; est_label = FOOD_LABELS[f_level]
-                    st.markdown(f"<h2 style='text-align:center; color:#FFA500;'>~ {est_cal} kcal</h2>", unsafe_allow_html=True)
+                    # LIGNE SUPPRIMÉE ICI POUR ALLÉGER (st.markdown avec le H2 orange retiré)
+                    
                     if st.form_submit_button("Enregistrer ce repas"):
                         dt_food = datetime.combine(f_date, f_time)
                         new_food = pd.DataFrame([{"date": dt_food, "user": user, "type_repas": est_label, "calorie_est": est_cal}])

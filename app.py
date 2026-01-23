@@ -16,12 +16,10 @@ from PIL import Image
 import io
 import base64
 
-# --- 1. CONFIGURATION & CONSTANTES (Doit rester en dehors du main) ---
+# --- 1. CONFIGURATION & CONSTANTES ---
 st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
-
-# URLs
-LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
+LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 
 def main():
     # --- CALENDRIER DES BOSS ---
@@ -69,41 +67,10 @@ def main():
         "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
-
-    SPEED_MAP = {
-        "Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, 
-        "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
-        "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
-        "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
-        "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
-        "Handball": 6.0,
-        "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
-        "Sport de chambre": 0.0
-    }
-
-    EPOC_MAP = {
-        "Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12,
-        "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
-        "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
-        "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
-        "Handball": 0.07,
-        "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
-        "Sport de chambre": 0.04
-    }
-
+    SPEED_MAP = {"Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0, "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0, "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0, "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0, "Handball": 6.0, "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0, "Sport de chambre": 0.0}
+    EPOC_MAP = {"Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12, "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07, "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04, "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06, "Handball": 0.07, "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03, "Sport de chambre": 0.04}
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
-
-    # --- PALIERS DE VOYAGE (KM) ---
-    MILESTONES = [
-        (42, "Marathon 🏃"),
-        (344, "Paris ➡ Londres 🇬🇧"),
-        (1000, "Traversée de la France (Nord-Sud) 🇫🇷"),
-        (1332, "Tour de l'Islande 🇮🇸"),
-        (2480, "Paris ➡ Moscou 🇷🇺"),
-        (3940, "Route 66 (USA) 🇺🇸"),
-        (4500, "New York ➡ Los Angeles 🗽"),
-        (5836, "Paris ➡ New York ✈️")
-    ]
+    MILESTONES = [(42, "Marathon 🏃"), (344, "Paris ➡ Londres 🇬🇧"), (1000, "Traversée de la France (Nord-Sud) 🇫🇷"), (1332, "Tour de l'Islande 🇮🇸"), (2480, "Paris ➡ Moscou 🇷🇺"), (3940, "Route 66 (USA) 🇺🇸"), (4500, "New York ➡ Los Angeles 🗽"), (5836, "Paris ➡ New York ✈️")]
 
     # --- 2. UTILITAIRES ---
     def hash_pin(pin): return hashlib.sha256(str(pin).encode()).hexdigest()
@@ -123,9 +90,7 @@ def main():
 
     def calculate_bmr(weight, height, age, sex):
         try:
-            w = float(weight)
-            h = float(height)
-            a = int(age)
+            w, h, a = float(weight), float(height), int(age)
             val = (10 * w) + (6.25 * h) - (5 * a)
             return val + 5 if sex == "Homme" else val - 161
         except: return 1500
@@ -135,19 +100,9 @@ def main():
         if total_cal == 0: return 1, 0.0, 100
         level = int((total_cal / factor) ** 0.5)
         if level == 0: level = 1
-        cal_curr = factor * (level ** 2)
-        cal_next = factor * ((level + 1) ** 2)
+        cal_curr, cal_next = factor * (level ** 2), factor * ((level + 1) ** 2)
         pct = min(max((total_cal - cal_curr) / (cal_next - cal_curr), 0.0), 1.0)
         return level, pct, int(cal_next - total_cal)
-
-    def get_food_equivalent(calories):
-        if calories < 100: return "une Pomme 🍎"
-        if calories < 250: return "une Barre chocolatée 🍫"
-        if calories < 400: return "un Cheeseburger 🍔"
-        if calories < 600: return "un paquet de Frites 🍟"
-        if calories < 900: return "une Pizza entière 🍕"
-        if calories < 1500: return "un Menu Fast-Food XL 🥤"
-        return "un Festin de Roi 🍗"
 
     def check_achievements(df):
         badges = []
@@ -175,43 +130,31 @@ def main():
                     for i in range(len(dates_desc) - 1):
                         if (dates_desc[i] - dates_desc[i+1]).days == 1: user_streak += 1
                         else: break
-                else: user_streak = 0
-
         team_streak = 0
         if not df_all.empty:
-            today = date.today()
-            check_date = today
+            today = date.today(); check_date = today
             while True:
                 day_minus_1 = check_date - timedelta(days=1)
                 mask = (df_all['date'].dt.date == check_date) | (df_all['date'].dt.date == day_minus_1)
                 unique_active_users = df_all[mask]['user'].nunique()
                 if unique_active_users >= 3:
-                    team_streak += 1
-                    check_date -= timedelta(days=1)
+                    team_streak += 1; check_date -= timedelta(days=1)
                 else:
-                    if check_date == today and team_streak == 0:
-                        check_date -= timedelta(days=1)
-                        continue
+                    if check_date == today and team_streak == 0: check_date -= timedelta(days=1); continue
                     else: break
         return user_streak, team_streak
 
     def process_avatar(image_file):
         if image_file is None: return None
         try:
-            img = Image.open(image_file).convert('RGB')
-            img.thumbnail((150, 150))
-            buffered = io.BytesIO()
-            img.save(buffered, format="JPEG", quality=70)
+            img = Image.open(image_file).convert('RGB'); img.thumbnail((150, 150)); buffered = io.BytesIO(); img.save(buffered, format="JPEG", quality=70)
             return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
         except: return None
 
     def process_post_image(image_file):
         if image_file is None: return None
         try:
-            img = Image.open(image_file).convert('RGB')
-            img.thumbnail((400, 400)) # Taille moyenne pour feed
-            buffered = io.BytesIO()
-            img.save(buffered, format="JPEG", quality=60) # Compression
+            img = Image.open(image_file).convert('RGB'); img.thumbnail((400, 400)); buffered = io.BytesIO(); img.save(buffered, format="JPEG", quality=60)
             return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
         except: return None
 
@@ -220,35 +163,27 @@ def main():
 
     def get_data():
         try:
-            df_u = conn.read(worksheet="Profils", ttl=600)
-            df_a = conn.read(worksheet="Activites", ttl=600)
-            df_d = conn.read(worksheet="Defis", ttl=600)
-            try: df_p = conn.read(worksheet="Posts", ttl=600)
+            df_u = conn.read(worksheet="Profils", ttl=0)
+            df_a = conn.read(worksheet="Activites", ttl=0)
+            df_d = conn.read(worksheet="Defis", ttl=0)
+            try: df_p = conn.read(worksheet="Posts", ttl=0)
             except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
-            # --- CORRECTION ROBUSTE POUR LA FEUILLE FOOD ---
+            # --- CORRECTION ET BLINDAGE FOOD ---
             try:
                 df_f = conn.read(worksheet="Food", ttl=0)
-                # Nettoyage des noms de colonnes
-                df_f.columns = df_f.columns.str.strip()
+                df_f.columns = df_f.columns.str.strip() # Remove whitespaces
             except:
-                # Si erreur de lecture, on part d'un DF vide
-                df_f = pd.DataFrame()
+                df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
             
-            # BLINDAGE COLONNES FOOD
-            required_food_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
-            for col in required_food_cols:
-                if col not in df_f.columns:
-                    df_f[col] = "" # Création de la colonne manquante
+            required_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
+            for col in required_cols:
+                if col not in df_f.columns: df_f[col] = "" # Force create column if missing
             
-            # On ne garde que les bonnes colonnes pour éviter les soucis d'index
-            df_f = df_f[required_food_cols]
-            
+            df_f = df_f[required_cols] # Enforce column order
+
             if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
-            
-            # --- MISE A JOUR STRUCTURE ACTIVITES ---
-            if df_a.empty: 
-                df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+            if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
             else:
                 if 'distance' not in df_a.columns: df_a['distance'] = 0.0
                 if 'pas' not in df_a.columns: df_a['pas'] = 0
@@ -257,15 +192,10 @@ def main():
             if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
-            # Formatage des dates
-            df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce')
-            df_a = df_a.dropna(subset=['date'])
+            df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce'); df_a = df_a.dropna(subset=['date'])
             df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
+            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce'); df_f = df_f.dropna(subset=['date'])
             
-            # Formatage date Food
-            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce')
-            df_f = df_f.dropna(subset=['date'])
-
             return df_u, df_a, df_d, df_p, df_f
         except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
@@ -274,7 +204,6 @@ def main():
             df = conn.read(worksheet="Activites", ttl=0)
             if 'distance' not in df.columns: df['distance'] = 0.0
             if 'pas' not in df.columns: df['pas'] = 0
-            
             upd = pd.concat([df, new_row], ignore_index=True)
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
             conn.update(worksheet="Activites", data=upd)
@@ -284,51 +213,53 @@ def main():
     def save_post(image_b64, comment):
         try:
             df = conn.read(worksheet="Posts", ttl=0)
-            new = pd.DataFrame([{
-                "id": str(uuid.uuid4()), "user": st.session_state.user, 
-                "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                "image": image_b64, "comment": comment, "seen_by": st.session_state.user
-            }])
+            new = pd.DataFrame([{"id": str(uuid.uuid4()), "user": st.session_state.user, "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "image": image_b64, "comment": comment, "seen_by": st.session_state.user}])
             conn.update(worksheet="Posts", data=pd.concat([df, new], ignore_index=True))
             st.cache_data.clear(); return True
         except: return False
     
     def save_food(new_row):
         try:
-            # Lecture sécurisée
+            # BLINDAGE DE L'ENREGISTREMENT
             try:
                 df = conn.read(worksheet="Food", ttl=0)
                 df.columns = df.columns.str.strip()
             except:
-                df = pd.DataFrame()
+                df = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
 
-            # Vérification et création des colonnes si besoin
-            required_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
-            for col in required_cols:
+            # On s'assure que le DF de base a toutes les colonnes
+            required = ["date", "user", "type_repas", "calories_est", "aliments"]
+            for col in required:
                 if col not in df.columns:
                     df[col] = ""
             
-            # On aligne l'ordre des colonnes
-            df = df[required_cols]
-
+            # On s'assure que new_row a aussi toutes les colonnes (même vides)
+            for col in required:
+                if col not in new_row.columns:
+                    new_row[col] = ""
+            
+            # Nettoyage des NaN pour Google Sheets
+            df = df.fillna("")
+            new_row = new_row.fillna("")
+            
             upd = pd.concat([df, new_row], ignore_index=True)
+            # Conversion date string pour éviter les erreurs JSON
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+            
             conn.update(worksheet="Food", data=upd)
             st.cache_data.clear(); return True
-        except Exception as e: 
-            print(f"DEBUG SAVE FOOD: {e}") # Pour les logs serveur si besoin
+        except Exception as e:
+            print(f"SAVE ERROR: {e}")
             return False
 
     def clean_old_posts(df_p):
         try:
             if df_p.empty: return
-            now = datetime.now()
-            df_p['date'] = pd.to_datetime(df_p['date'])
+            now = datetime.now(); df_p['date'] = pd.to_datetime(df_p['date'])
             new_df = df_p[df_p['date'] >= (now - timedelta(days=7))]
             if len(new_df) < len(df_p):
                 new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
-                conn.update(worksheet="Posts", data=new_df)
-                st.cache_data.clear()
+                conn.update(worksheet="Posts", data=new_df); st.cache_data.clear()
         except: pass
 
     def mark_post_seen(post_id, current_user):
@@ -337,32 +268,24 @@ def main():
             idx = df[df['id'] == post_id].index[0]
             viewers = str(df.at[idx, 'seen_by']).split(',')
             if current_user not in viewers:
-                viewers.append(current_user)
-                df.at[idx, 'seen_by'] = ",".join(viewers)
-                conn.update(worksheet="Posts", data=df)
-                st.cache_data.clear()
+                viewers.append(current_user); df.at[idx, 'seen_by'] = ",".join(viewers)
+                conn.update(worksheet="Posts", data=df); st.cache_data.clear()
         except: pass
 
     def save_user(u, p, data):
         try:
             df = conn.read(worksheet="Profils", ttl=0)
             j = json.dumps(data)
-            if not df.empty and u in df['user'].values: 
-                df.loc[df['user'] == u, 'json_data'] = j; df.loc[df['user'] == u, 'pin'] = p
-            else: 
-                df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
-            conn.update(worksheet="Profils", data=df)
-            st.cache_data.clear(); return True
+            if not df.empty and u in df['user'].values: df.loc[df['user'] == u, 'json_data'] = j; df.loc[df['user'] == u, 'pin'] = p
+            else: df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
+            conn.update(worksheet="Profils", data=df); st.cache_data.clear(); return True
         except: return False
 
     def change_username(old_u, new_u):
         try:
             df_u = conn.read(worksheet="Profils", ttl=0)
             if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
-            
-            df_a = conn.read(worksheet="Activites", ttl=0)
-            df_d = conn.read(worksheet="Defis", ttl=0)
-            df_p = conn.read(worksheet="Posts", ttl=0)
+            df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0); df_p = conn.read(worksheet="Posts", ttl=0)
             try: df_f = conn.read(worksheet="Food", ttl=0)
             except: df_f = pd.DataFrame()
             
@@ -378,13 +301,9 @@ def main():
                 def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
                 df_d['participants'] = df_d['participants'].apply(upd_csv_d)
                 
-            conn.update(worksheet="Profils", data=df_u)
-            conn.update(worksheet="Activites", data=df_a)
-            conn.update(worksheet="Defis", data=df_d)
-            conn.update(worksheet="Posts", data=df_p)
+            conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d); conn.update(worksheet="Posts", data=df_p)
             if not df_f.empty: conn.update(worksheet="Food", data=df_f)
-            st.cache_data.clear()
-            return "OK"
+            st.cache_data.clear(); return "OK"
         except Exception as e: return str(e)
 
     def delete_current_user():
@@ -401,24 +320,15 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
-            new = pd.DataFrame([{
-                "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
-                "sport_cible": sport_cible, "createur": st.session_state.user, 
-                "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"
-            }])
-            conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True))
-            st.cache_data.clear(); return True
+            new = pd.DataFrame([{"id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), "sport_cible": sport_cible, "createur": st.session_state.user, "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"}])
+            conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True)); st.cache_data.clear(); return True
         except: return False
 
     def join_challenge(c_id):
         try:
-            df = conn.read(worksheet="Defis", ttl=0)
-            idx = df[df['id'] == c_id].index[0]
+            df = conn.read(worksheet="Defis", ttl=0); idx = df[df['id'] == c_id].index[0]
             parts = df.at[idx, 'participants'].split(',')
-            if st.session_state.user not in parts:
-                parts.append(st.session_state.user)
-                df.at[idx, 'participants'] = ",".join(parts)
-                conn.update(worksheet="Defis", data=df); st.cache_data.clear()
+            if st.session_state.user not in parts: parts.append(st.session_state.user); df.at[idx, 'participants'] = ",".join(parts); conn.update(worksheet="Defis", data=df); st.cache_data.clear()
             return True
         except: return False
 
@@ -430,9 +340,7 @@ def main():
 
     def get_user_badge(username, df_u):
         try:
-            row = df_u[df_u['user'] == username].iloc[0]
-            p_data = json.loads(row['json_data'])
-            avatar = p_data.get('avatar', "")
+            row = df_u[df_u['user'] == username].iloc[0]; p_data = json.loads(row['json_data']); avatar = p_data.get('avatar', "")
             if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(128,128,128,0.3);border-radius:20px;padding:2px 10px;background:rgba(128,128,128,0.2);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;'>{username.capitalize()}</span></span>"""
@@ -443,64 +351,21 @@ def main():
     clean_old_posts(df_p)
 
     current_theme = "Sombre"
+    # ANTI-DISCONNECTION FIX: Ne pas déconnecter l'user si l'API échoue temporairement
     if st.session_state.user:
         try:
             if not df_u.empty and 'user' in df_u.columns and st.session_state.user in df_u['user'].values:
                 u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
                 u_prof = json.loads(u_row['json_data'])
                 current_theme = u_prof.get('theme', 'Sombre')
-            else:
-                st.session_state.user = None
-                st.rerun()
-        except: pass
+        except: pass # On garde juste le thème par défaut, on ne déconnecte PAS.
 
-    # --- CSS DYNAMIQUE ---
+    # --- CSS ---
     if current_theme == "Sombre":
-        st.markdown(f"""
-        <style>
-        .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }}
-        .stMetricValue {{ font-size: 1.5rem !important; color: #FF4B4B !important; }}
-        div[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.95); }}
-        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }}
-        .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }}
-        .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
-        .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }}
-        .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
-        .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }}
-        .stat-card {{ background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; }}
-        .stat-val {{ font-size: 1.8em; font-weight: bold; color: #FF4B4B; }}
-        .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }}
-        .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }}
-        </style>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<style>.stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }} .stMetricValue {{ font-size: 1.5rem !important; color: #FF4B4B !important; }} div[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.95); }} .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; }} .glass {{ background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #333; }} .challenge-card {{ background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0)); border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; }} .boss-bar {{ width: 100%; background-color: #333; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #555; }} .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }} .celeb-box {{ background-color: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; }} .stat-card {{ background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; }} .stat-val {{ font-size: 1.8em; font-weight: bold; color: #FF4B4B; }} .stat-label {{ font-size: 0.9em; opacity: 0.8; margin-top: 5px; }} .post-card {{ background: rgba(0,0,0,0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #444; }} </style>""", unsafe_allow_html=True)
         plotly_layout_dark = True
     else:
-        st.markdown(f"""
-        <style>
-        .stApp {{ background-color: #f8f9fa; }}
-        .stMetricValue {{ font-size: 1.5rem !important; color: #d32f2f !important; }}
-        div[data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #ddd; }}
-        .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .glass {{ background: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); color: #333; }}
-        .challenge-card {{ background: #ffffff; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #333; }}
-        .boss-bar {{ width: 100%; background-color: #e0e0e0; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #ccc; }}
-        .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }}
-        .celeb-box {{ background-color: #fff9c4; border: 1px solid #fbc02d; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: #333; }}
-        .stat-card {{ background: #ffffff; border: 1px solid #ddd; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-        .stat-val {{ font-size: 1.8em; font-weight: bold; color: #d32f2f; }}
-        .stat-label {{ font-size: 0.9em; color: #555; margin-top: 5px; font-weight: 500; }}
-        .post-card {{ background: #ffffff; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: #333; }}
-        h1, h2, h3, p, div, span {{ color: #212529; }}
-        .stMarkdown {{ color: #212529; }}
-        div[data-baseweb="select"] > div, div[data-baseweb="base-input"], input {{ background-color: #ffffff !important; color: #000000 !important; border-color: #d3d3d3 !important; }}
-        .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input {{ color: #000000 !important; }}
-        div[data-baseweb="popover"], div[data-baseweb="menu"] {{ background-color: #ffffff !important; }}
-        div[data-baseweb="option"] {{ color: #000000 !important; }}
-        div[data-baseweb="select"] div {{ color: #000000 !important; }}
-        button {{ background-color: #ffffff !important; color: #000000 !important; border: 1px solid #d3d3d3 !important; }}
-        button[kind="primary"] {{ background-color: #FF4B4B !important; color: white !important; border: none !important; }}
-        </style>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<style>.stApp {{ background-color: #f8f9fa; }} .stMetricValue {{ font-size: 1.5rem !important; color: #d32f2f !important; }} div[data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #ddd; }} .quote-box {{ padding: 10px; background: linear-gradient(90deg, #FF4B4B, #FF9068); border-radius: 8px; color: white; text-align: center; font-weight: bold; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }} .glass {{ background: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); color: #333; }} .challenge-card {{ background: #ffffff; border-left: 5px solid #FF4B4B; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #333; }} .boss-bar {{ width: 100%; background-color: #e0e0e0; border-radius: 10px; overflow: hidden; height: 30px; margin-bottom: 10px; border: 1px solid #ccc; }} .boss-fill {{ height: 100%; background: linear-gradient(90deg, #FF4B4B, #FF0000); transition: width 0.5s; }} .celeb-box {{ background-color: #fff9c4; border: 1px solid #fbc02d; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; color: #333; }} .stat-card {{ background: #ffffff; border: 1px solid #ddd; border-radius: 10px; padding: 15px; text-align: center; flex: 1; min-width: 150px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }} .stat-val {{ font-size: 1.8em; font-weight: bold; color: #d32f2f; }} .stat-label {{ font-size: 0.9em; color: #555; margin-top: 5px; font-weight: 500; }} .post-card {{ background: #ffffff; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: #333; }} h1, h2, h3, p, div, span {{ color: #212529; }} .stMarkdown {{ color: #212529; }} div[data-baseweb="select"] > div, div[data-baseweb="base-input"], input {{ background-color: #ffffff !important; color: #000000 !important; border-color: #d3d3d3 !important; }} .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input {{ color: #000000 !important; }} div[data-baseweb="popover"], div[data-baseweb="menu"] {{ background-color: #ffffff !important; }} div[data-baseweb="option"] {{ color: #000000 !important; }} div[data-baseweb="select"] div {{ color: #000000 !important; }} button {{ background-color: #ffffff !important; color: #000000 !important; border: 1px solid #d3d3d3 !important; }} button[kind="primary"] {{ background-color: #FF4B4B !important; color: white !important; border: none !important; }} </style>""", unsafe_allow_html=True)
         plotly_layout_dark = False
 
     # --- 5. INTERFACE ---
@@ -509,13 +374,11 @@ def main():
         st.markdown("### L'aventure sportive commence ici.")
         st.info("👈 **C'est parti ! Ouvre le menu en haut à gauche pour te connecter ou t'inscrire.**")
         st.divider()
-        with st.expander("💌 Le mot du Développeur", expanded=True):
-            st.markdown("Salut la famille et les amis ! 👋 Ici, on se motive ensemble. Battez mes records ! 😉")
+        with st.expander("💌 Le mot du Développeur", expanded=True): st.markdown("Salut la famille et les amis ! 👋 Ici, on se motive ensemble. Battez mes records ! 😉")
         st.sidebar.title("🔥 Connexion")
         menu = st.sidebar.selectbox("Menu", ["Se connecter", "Créer un compte"], key="login_menu")
         u_input = st.sidebar.text_input("Pseudo", key="login_user").strip().lower()
         p_input = st.sidebar.text_input("PIN (4 chiffres)", type="password", key="login_pin")
-        
         if menu == "Se connecter":
             if st.sidebar.button("Se connecter", key="btn_login"):
                 if not df_u.empty and u_input in df_u['user'].values:
@@ -546,7 +409,6 @@ def main():
         w_curr = float(my_df.iloc[-1]['poids']) if not my_df.empty else float(prof.get('w_init', 70))
         total_cal = my_df['calories'].sum()
         streak_user, streak_team = calculate_advanced_streaks(df_a, user)
-        
         DNA_KEYS = ["Force", "Endurance", "Vitesse", "Agilité", "Souplesse", "Explosivité", "Mental", "Récupération", "Concentration"]
         dna = {k: 0 for k in DNA_KEYS}
         for _, r in my_df.iterrows():
@@ -562,44 +424,28 @@ def main():
             lvl, pct, rem = get_level_progress(total_cal)
             st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             kg_fat = total_cal / 7700
-            st.markdown("### 📊 Cumul Global")
-            k1, k2 = st.columns(2)
-            k1.metric("Total Calories Brûlées", f"{int(total_cal)} kcal")
-            k2.metric("Gras fondu (est.)", f"{kg_fat:.2f} kg", help="Estimation : 7700 kcal = 1 kg de graisse")
-            st.divider()
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
-            c2.metric("🔥 Série Perso", f"{streak_user} Jours")
-            c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
-            c4.metric("Trophées", f"{len(check_achievements(my_df))}")
+            st.markdown("### 📊 Cumul Global"); k1, k2 = st.columns(2)
+            k1.metric("Total Calories Brûlées", f"{int(total_cal)} kcal"); k2.metric("Gras fondu (est.)", f"{kg_fat:.2f} kg", help="Estimation : 7700 kcal = 1 kg de graisse")
+            st.divider(); c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal"); c2.metric("🔥 Série Perso", f"{streak_user} Jours"); c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min."); c4.metric("Trophées", f"{len(check_achievements(my_df))}")
             if not df_a.empty:
-                all_totals = df_a.groupby('user')['calories'].sum()
-                celebrations = []
+                all_totals = df_a.groupby('user')['calories'].sum(); celebrations = []
                 for u, cal in all_totals.items():
                     u_lvl, _, _ = get_level_progress(cal)
                     if u_lvl >= 5: celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est un vétéran de Niveau {u_lvl} !")
                     if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")
                 if celebrations: st.markdown(f"<div class='celeb-box'>{random.choice(celebrations)}</div>", unsafe_allow_html=True)
-            st.divider()
-            c_l, c_r = st.columns(2)
+            st.divider(); c_l, c_r = st.columns(2)
             with c_l:
                 st.subheader("🧬 ADN Sportif")
                 if sum(dna.values())>0:
-                    mx = max(dna.values())
-                    fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
-                    fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
-                    font_col = "white" if plotly_layout_dark else "black"
-                    fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=font_col), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
-                    st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
+                    mx = max(dna.values()); fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True); fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)'); font_col = "white" if plotly_layout_dark else "black"; fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=font_col), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300); st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
                 else: st.info("Pas assez de données")
             with c_r:
-                st.subheader("🌍 Voyage")
-                km = total_cal / 60
-                target_label = "Vers l'infini"; target_km = 99999
+                st.subheader("🌍 Voyage"); km = total_cal / 60; target_label = "Vers l'infini"; target_km = 99999
                 for dist, label in MILESTONES:
                     if km < dist: target_label = label; target_km = dist; break
-                st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
-                st.progress(min(km/target_km, 1.0))
+                st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True); st.progress(min(km/target_km, 1.0))
 
         with tabs[1]: # PARTAGE
             st.header("📸 Mur de Partage (7 jours)")
@@ -616,7 +462,7 @@ def main():
             if not df_p.empty:
                 df_p = df_p.sort_values(by="date", ascending=False)
                 for _, r in df_p.iterrows():
-                    viewers = str(r['seen_by']).split(',')
+                    viewers = str(r['seen_by']).split(','); 
                     if user not in viewers: mark_post_seen(r['id'], user) 
                     st.markdown(f"<div class='post-card'><div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>{get_user_badge(r['user'], df_u)}<span style='opacity:0.6; font-size:0.8em;'>{r['date']}</span></div><img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'><p style='font-size:1.1em;'>{r['comment']}</p><hr style='border-color:#555;'><div style='display:flex; flex-wrap:wrap; align-items:center;'><span style='margin-right:10px; opacity:0.6; font-size:0.9em;'>Vu par :</span>{''.join([get_user_badge(v, df_u) for v in viewers if v])}</div></div>", unsafe_allow_html=True)
             else: st.info("Aucun post récent. Soyez le premier !")
@@ -638,12 +484,10 @@ def main():
                 speed = SPEED_MAP.get(s, 1.0)
                 if speed > 0: m = (dist / speed) * 60
             elif input_type == "Pas":
-                steps = c1.number_input("Nombre de pas", 100, 100000, 5000, key="seance_steps")
-                m = steps / 100.0 
+                steps = c1.number_input("Nombre de pas", 100, 100000, 5000, key="seance_steps"); m = steps / 100.0 
             if input_type != "Durée": c2.success(f"⏱️ Équivalent : {int(m)} min")
             w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr), key="seance_weight")
-            intensity_factor = 1.0
-            intensite = c2.selectbox("Intensité", ["Légère (x0.8)", "Moyenne (x1.0)", "Élevée (x1.2)", "Maximale (x1.5)"], index=1, key="seance_intensity")
+            intensity_factor = 1.0; intensite = c2.selectbox("Intensité", ["Légère (x0.8)", "Moyenne (x1.0)", "Élevée (x1.2)", "Maximale (x1.5)"], index=1, key="seance_intensity")
             if "Légère" in intensite: intensity_factor = 0.8
             elif "Élevée" in intensite: intensity_factor = 1.2
             elif "Maximale" in intensite: intensity_factor = 1.5
@@ -654,10 +498,8 @@ def main():
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
                 new_row = pd.DataFrame([{ "date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w, "distance": dist, "pas": steps }])
-                if save_activity(new_row):
-                    st.success(f"✅ +{int(total_kcal)} kcal"); time.sleep(1); st.rerun()
-            st.divider()
-            st.subheader("📜 Historique de vos séances")
+                if save_activity(new_row): st.success(f"✅ +{int(total_kcal)} kcal"); time.sleep(1); st.rerun()
+            st.divider(); st.subheader("📜 Historique de vos séances")
             if not my_df.empty:
                 df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
                 col_conf = { "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False), "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"), "pas": st.column_config.NumberColumn("Pas", format="%d"), "minutes": st.column_config.NumberColumn("Min", format="%d") }
@@ -677,12 +519,10 @@ def main():
             c1, c2 = st.columns(2)
             f_date = c1.date_input("Date", date.today(), key="food_date")
             f_type = c2.selectbox("Type de repas", ["Petit-Déjeuner", "Déjeuner", "Dîner", "Collation"], key="food_type")
-            bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
-            avg_meal = int(bmr_user / 3)
+            bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']); avg_meal = int(bmr_user / 3)
             f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"], value="Normal", key="food_feeling")
             cal_map = { "Très Léger": int(avg_meal * 0.5), "Léger": int(avg_meal * 0.8), "Normal": int(avg_meal * 1.0), "Copieux": int(avg_meal * 1.5), "Festin": int(avg_meal * 2.5) }
-            est_cal = cal_map[f_feeling]
-            st.markdown(f"**Estimation auto : ~{est_cal} kcal**")
+            est_cal = cal_map[f_feeling]; st.markdown(f"**Estimation auto : ~{est_cal} kcal**")
             f_items = st.text_area("Qu'avez-vous mangé ? (Ex: Pâtes carbo, Pomme)", height=80, key="food_items")
             if st.button("Ajouter ce repas", key="btn_save_food"):
                 new_food = pd.DataFrame([{ "date": f_date.strftime('%Y-%m-%d %H:%M:%S'), "user": user, "type_repas": f_type, "calories_est": est_cal, "aliments": f_items }])
@@ -692,30 +532,23 @@ def main():
                 my_food = df_f[df_f['user'] == user].sort_values(by="date", ascending=False)
                 if not my_food.empty:
                     for _, r in my_food.head(5).iterrows():
-                        st.markdown(f"**{str(r['date']).split(' ')[0]} - {r['type_repas']}** ({r['calories_est']} kcal)")
-                        st.caption(f"{r['aliments']}"); st.divider()
+                        st.markdown(f"**{str(r['date']).split(' ')[0]} - {r['type_repas']}** ({r['calories_est']} kcal)"); st.caption(f"{r['aliments']}"); st.divider()
 
         with tabs[4]: # BOSS
-            curr_month_num = datetime.now().month
-            boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
-            st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
-            df_month = df_a[df_a['date'].dt.strftime("%Y-%m") == datetime.now().strftime("%Y-%m")]
+            curr_month_num = datetime.now().month; boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
+            st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}"); df_month = df_a[df_a['date'].dt.strftime("%Y-%m") == datetime.now().strftime("%Y-%m")]
             dmg = df_month['calories'].sum(); pct_hp = max(0, (boss_max_hp - dmg) / boss_max_hp)
-            c_img, c_stat = st.columns([1, 2])
-            with c_img: st.image(boss_img, use_container_width=True)
-            with c_stat:
-                col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
-                st.markdown(f"""<div style="margin-bottom:5px;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
-                if pct_hp <= 0: st.balloons(); st.success("🏆 LE BOSS EST VAINCU !")
-                else: st.info(f"Il reste {int(pct_hp*100)}% de vie.")
-                st.markdown("### ⚔️ Meilleurs Attaquants")
-                if not df_month.empty:
-                    for i, (u, val) in enumerate(df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5).items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
+            c_img, c_stat = st.columns([1, 2]); c_img.image(boss_img, use_container_width=True)
+            col = "#4CAF50" if pct_hp > 0.5 else ("#FF9800" if pct_hp > 0.2 else "#F44336")
+            c_stat.markdown(f"""<div style="margin-bottom:5px;font-weight:bold;">PV Restants : {int(boss_max_hp - dmg)} / {boss_max_hp}</div><div class="boss-bar"><div class="boss-fill" style="width: {pct_hp*100}%; background-color: {col};"></div></div>""", unsafe_allow_html=True)
+            if pct_hp <= 0: c_stat.balloons(); c_stat.success("🏆 LE BOSS EST VAINCU !")
+            else: c_stat.info(f"Il reste {int(pct_hp*100)}% de vie.")
+            c_stat.markdown("### ⚔️ Meilleurs Attaquants")
+            if not df_month.empty:
+                for i, (u, val) in enumerate(df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5).items()): c_stat.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
 
         with tabs[5]: # DEFIS
-            st.header("⚔️ Salle des Défis")
-            st.subheader("🏆 Vos Victoires")
-            wins = 0
+            st.header("⚔️ Salle des Défis"); st.subheader("🏆 Vos Victoires"); wins = 0
             if not df_d.empty and not df_a.empty:
                 completed_challenges = df_d[(df_d['date_fin'] < date.today().strftime('%Y-%m-%d'))]
                 for _, ch in completed_challenges.iterrows():
@@ -728,8 +561,7 @@ def main():
                         elif "Distance" in ch['type']: val = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).sum()
                         if val >= float(ch['objectif']): wins += 1
             if wins > 0: st.markdown(f"<div class='celeb-box' style='background:#FFD700; color:black;'>🥇 Vous avez remporté <b>{wins}</b> défis !</div>", unsafe_allow_html=True)
-            else: st.caption("Gagnez des défis pour voir vos trophées ici !")
-            st.divider()
+            else: st.caption("Gagnez des défis pour voir vos trophées ici !"); st.divider()
             with st.expander("➕ Lancer un nouveau défi"):
                 with st.form("new_def"):
                     dt = st.text_input("Nom", key="defi_name"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"], key="defi_type"); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST, key="defi_sport"); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0, key="defi_obj"); fin = st.date_input("Fin", key="defi_date")
@@ -741,8 +573,7 @@ def main():
                     parts = r['participants'].split(','); unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
                     c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
                     if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
-                    prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
-                    prog = prog.reindex(parts, fill_value=0)
+                    prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum()); prog = prog.reindex(parts, fill_value=0)
                     st.markdown(f"<div class='challenge-card'><h3>🏆 {r['titre']}</h3><p>Cible : <b>{int(r['objectif'])} {unit}</b> avant le {r['date_fin']}</p><p style='font-size:0.9em; opacity:0.7'>Créé par {get_user_badge(r['createur'], df_u)}</p></div>", unsafe_allow_html=True)
                     c_act, c_list = st.columns([1, 2])
                     with c_act:
@@ -752,15 +583,12 @@ def main():
                         if r['createur'] == user: 
                             if st.button("🗑️ Supprimer", key=f"del_{r['id']}"): delete_challenge(r['id']); st.rerun()
                     with c_list:
-                        for u, val in prog.sort_values(ascending=False).items():
-                            pct = min(val/float(r['objectif']), 1.0); st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit}", unsafe_allow_html=True); st.progress(pct)
+                        for u, val in prog.sort_values(ascending=False).items(): pct = min(val/float(r['objectif']), 1.0); st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit}", unsafe_allow_html=True); st.progress(pct)
                     st.divider()
 
         with tabs[6]: # STATS
             if not my_df.empty:
-                st.subheader("🏆 Records")
-                max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
-                tot_sess = len(my_df)
+                st.subheader("🏆 Records"); max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"; tot_sess = len(my_df)
                 st.markdown(f"""<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;"><div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div><div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div><div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div><div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
                 with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
                 filter_option = st.selectbox("Période", ["Semaine", "Mois", "3 Mois", "Année", "Tout"], key="stats_filter")
@@ -776,10 +604,8 @@ def main():
                 fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
                 fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
                 if not df_chart.empty:
-                    my_df = my_df.sort_values(by='date')
-                    initial_w = float(prof.get('w_init', 70.0))
-                    my_df['cum_cal_global'] = my_df['calories'].cumsum()
-                    my_df['theo_weight'] = initial_w - (my_df['cum_cal_global'] / 7700)
+                    my_df = my_df.sort_values(by='date'); initial_w = float(prof.get('w_init', 70.0))
+                    my_df['cum_cal_global'] = my_df['calories'].cumsum(); my_df['theo_weight'] = initial_w - (my_df['cum_cal_global'] / 7700)
                     df_chart_theo = my_df.copy()
                     if start_date: df_chart_theo = df_chart_theo[df_chart_theo['date'] >= start_date]
                     fig_w.add_trace(go.Scatter(x=df_chart_theo['date'], y=df_chart_theo['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
@@ -787,16 +613,13 @@ def main():
                     if (last_real - last_theo) > 1.0: st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
                 max_val = df_chart['poids'].max() if not df_chart.empty else 100
                 fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
-                plotly_font_color = "white" if plotly_layout_dark else "black"
-                plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
+                plotly_font_color = "white" if plotly_layout_dark else "black"; plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
                 fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
-                df_bar_daily = df_chart.copy()
-                df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
+                df_bar_daily = df_chart.copy(); df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
-                
                 df_food_daily = pd.DataFrame()
                 if not df_f.empty:
                     df_f_user = df_f[df_f['user'] == user].copy()
@@ -807,9 +630,7 @@ def main():
                 fig_bar = go.Figure()
                 fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=[bmr_daily] * len(df_sport), name='Métabolisme (BMR)', marker_color='#C0C0C0'))
                 fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=df_sport['calories'], name='Sport', marker_color='#00BFFF'))
-                if not df_food_daily.empty:
-                     fig_bar.add_trace(go.Scatter(x=df_food_daily['date_day'], y=df_food_daily['calories_est'], name='Apport Nourriture', mode='lines+markers', line=dict(color='#FF4500', width=3)))
-
+                if not df_food_daily.empty: fig_bar.add_trace(go.Scatter(x=df_food_daily['date_day'], y=df_food_daily['calories_est'], name='Apport Nourriture', mode='lines+markers', line=dict(color='#FF4500', width=3)))
                 fig_bar.update_layout(barmode='stack', title="Bilan Energétique (Dépense vs Apport)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, bargap=0.1, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 

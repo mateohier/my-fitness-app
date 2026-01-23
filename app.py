@@ -16,10 +16,12 @@ from PIL import Image
 import io
 import base64
 
-# --- 1. CONFIGURATION (En dehors du main) ---
+# --- 1. CONFIGURATION & CONSTANTES (Doit rester en dehors du main) ---
 st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
-BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
+
+# URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
+BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 def main():
     # --- CALENDRIER DES BOSS ---
@@ -120,14 +122,13 @@ def main():
         except: return 25
 
     def calculate_bmr(weight, height, age, sex):
-        # Conversion forcée pour éviter les erreurs de type string
         try:
             w = float(weight)
             h = float(height)
             a = int(age)
             val = (10 * w) + (6.25 * h) - (5 * a)
             return val + 5 if sex == "Homme" else val - 161
-        except: return 1500 # Valeur par défaut en cas d'erreur
+        except: return 1500
 
     def get_level_progress(total_cal):
         factor = 150 
@@ -205,6 +206,7 @@ def main():
         except: return None
 
     def process_post_image(image_file):
+        """Pour les posts, on garde un peu plus de qualité mais compressé"""
         if image_file is None: return None
         try:
             img = Image.open(image_file).convert('RGB')
@@ -232,7 +234,6 @@ def main():
                 expected_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
                 # Si le dataframe est vide ou n'a pas les bonnes colonnes
                 if df_f.empty or not set(expected_cols).issubset(df_f.columns):
-                    # On retourne un DF vide mais avec les bonnes colonnes pour éviter le crash
                     df_f = pd.DataFrame(columns=expected_cols)
             except:
                 df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
@@ -303,6 +304,7 @@ def main():
         except: return False
 
     def clean_old_posts(df_p):
+        """Supprime les posts > 7 jours"""
         try:
             if df_p.empty: return
             now = datetime.now()
@@ -339,6 +341,7 @@ def main():
         except: return False
 
     def change_username(old_u, new_u):
+        """Change le nom d'utilisateur partout (Cascade)"""
         try:
             df_u = conn.read(worksheet="Profils", ttl=0)
             if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
@@ -428,6 +431,7 @@ def main():
             if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         
+        # Adaptation couleur badge selon thème (on garde un fond semi-transparent générique)
         return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(128,128,128,0.3);border-radius:20px;padding:2px 10px;background:rgba(128,128,128,0.2);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;'>{username.capitalize()}</span></span>"""
 
     # --- 4. LOGIQUE & THEME ---
@@ -452,6 +456,7 @@ def main():
 
     # --- CSS DYNAMIQUE ---
     if current_theme == "Sombre":
+        # CSS ORIGINAL (Monde Sombre)
         st.markdown(f"""
         <style>
         .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("{BACKGROUND_URL}"); background-size: cover; background-attachment: fixed; }}
@@ -472,6 +477,7 @@ def main():
         plotly_layout_dark = True
         
     else:
+        # CSS MODE CLAIR (Haute visibilité / Clean)
         st.markdown(f"""
         <style>
         .stApp {{ background-color: #f8f9fa; }}
@@ -489,13 +495,41 @@ def main():
         .post-card {{ background: #ffffff; border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: #333; }}
         h1, h2, h3, p, div, span {{ color: #212529; }}
         .stMarkdown {{ color: #212529; }}
-        div[data-baseweb="select"] > div, div[data-baseweb="base-input"], input {{ background-color: #ffffff !important; color: #000000 !important; border-color: #d3d3d3 !important; }}
-        .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input {{ color: #000000 !important; }}
-        div[data-baseweb="popover"], div[data-baseweb="menu"] {{ background-color: #ffffff !important; }}
-        div[data-baseweb="option"] {{ color: #000000 !important; }}
-        div[data-baseweb="select"] div {{ color: #000000 !important; }}
-        button {{ background-color: #ffffff !important; color: #000000 !important; border: 1px solid #d3d3d3 !important; }}
-        button[kind="primary"] {{ background-color: #FF4B4B !important; color: white !important; border: none !important; }}
+        
+        /* FORCER LE FOND BLANC ET TEXTE NOIR DANS LES LISTES DÉROULANTES ET INPUTS */
+        div[data-baseweb="select"] > div, div[data-baseweb="base-input"], input {{
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-color: #d3d3d3 !important;
+        }}
+        /* Couleur du texte saisi */
+        .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input {{
+            color: #000000 !important;
+        }}
+        /* Fond blanc pour le menu déroulant et texte noir pour les options */
+        div[data-baseweb="popover"], div[data-baseweb="menu"] {{
+            background-color: #ffffff !important;
+        }}
+        div[data-baseweb="option"] {{
+            color: #000000 !important;
+        }}
+        /* Texte de la sélection actuelle */
+        div[data-baseweb="select"] div {{
+            color: #000000 !important;
+        }}
+
+        /* Boutons standards (comme Supprimer) en texte sombre s'ils sont clairs */
+        button {{
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #d3d3d3 !important;
+        }}
+        /* Exception pour les boutons primaires (souvent rouges/blancs) */
+        button[kind="primary"] {{
+            background-color: #FF4B4B !important;
+            color: white !important;
+            border: none !important;
+        }}
         </style>
         """, unsafe_allow_html=True)
         plotly_layout_dark = False
@@ -522,11 +556,11 @@ def main():
                 else: st.sidebar.error("Utilisateur inconnu")
         elif menu == "Créer un compte":
             st.sidebar.markdown("### Profil")
-            dob = st.sidebar.date_input("Naissance", value=date(2000,1,1), min_value=date(1900,1,1), max_value=date.today())
+            dob = st.sidebar.date_input("Naissance", value=date(2000,1,1), min_value=date(1900,1,1), max_value=date.today(), key="signup_dob")
             sex = st.sidebar.selectbox("Sexe", ["Homme", "Femme"])
             h = st.sidebar.number_input("Taille (cm)", 100, 250, 175)
             act = st.sidebar.selectbox("Activité", ACTIVITY_OPTS)
-            w_init = st.sidebar.number_input("Poids actuel (kg)", 30.0, 200.0, 70.0)
+            w_init = st.sidebar.number_input("Poids actuel (kg)", 30.0, 200.0, 70.0, key="signup_weight")
             w_obj = st.sidebar.number_input("Objectif (kg)", 30.0, 200.0, 65.0)
             if st.sidebar.button("S'inscrire"):
                 if not df_u.empty and u_input in df_u['user'].values: st.sidebar.error("Pseudo pris")
@@ -560,6 +594,7 @@ def main():
             lvl, pct, rem = get_level_progress(total_cal)
             st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
+            # --- TOTAL & PERTE DE GRAS ---
             kg_fat = total_cal / 7700
             st.markdown("### 📊 Cumul Global")
             k1, k2 = st.columns(2)
@@ -589,6 +624,8 @@ def main():
                     mx = max(dna.values())
                     fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
                     fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
+                    
+                    # Plotly layout customization based on theme
                     font_col = "white" if plotly_layout_dark else "black"
                     fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=font_col), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
                     st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
@@ -596,6 +633,8 @@ def main():
             with c_r:
                 st.subheader("🌍 Voyage")
                 km = total_cal / 60
+                
+                # --- LOGIQUE DES PALIERS ---
                 target_label = "Vers l'infini"
                 target_km = 99999
                 for dist, label in MILESTONES:
@@ -603,10 +642,11 @@ def main():
                         target_label = label
                         target_km = dist
                         break
+                
                 st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
                 st.progress(min(km/target_km, 1.0))
 
-        with tabs[1]: # PARTAGE
+        with tabs[1]: # PARTAGE (FEED)
             st.header("📸 Mur de Partage (7 jours)")
             with st.expander("📷 Poster une photo"):
                 with st.form("post_form"):
@@ -617,12 +657,14 @@ def main():
                             b64_img = process_post_image(p_img)
                             if b64_img: save_post(b64_img, p_com); st.success("Publié !"); st.rerun()
                         else: st.error("Image requise.")
+            
             st.divider()
             if not df_p.empty:
                 df_p = df_p.sort_values(by="date", ascending=False)
                 for _, r in df_p.iterrows():
                     viewers = str(r['seen_by']).split(',')
                     if user not in viewers: mark_post_seen(r['id'], user) 
+                    
                     st.markdown(f"""
                     <div class='post-card'>
                         <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>
@@ -642,15 +684,26 @@ def main():
 
         with tabs[2]: # SEANCE
             st.subheader("Ajouter une séance")
+            
             c1, c2 = st.columns(2)
-            d = c1.date_input("Date", date.today())
-            t = c2.time_input("Heure", datetime.now().replace(second=0, microsecond=0).time()) 
+            d = c1.date_input("Date", date.today(), key="date_seance")
+            t = c2.time_input("Heure", datetime.now().replace(second=0, microsecond=0).time()) # Correction: plus de datetime.now().time() direct
             s = c1.selectbox("Sport", SPORTS_LIST)
-            m = 0.0; dist = 0.0; steps = 0; input_type = "Durée"
-            if s in ["Course", "Natation","Vélo"]: input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
-            elif s == "Marche": input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
-            else: c2.info("⏱️ Objectif : Durée")
-            if input_type == "Durée": m = c1.number_input("Durée (min)", 1, 300, 45)
+            
+            m = 0.0
+            dist = 0.0
+            steps = 0
+            input_type = "Durée" 
+            
+            if s in ["Course", "Natation","Vélo"]:
+                input_type = c2.radio("Type d'objectif", ["Durée", "Distance"], horizontal=True)
+            elif s == "Marche":
+                input_type = c2.radio("Type d'objectif", ["Durée", "Pas","Distance"], horizontal=True)
+            else:
+                c2.info("⏱️ Objectif : Durée")
+
+            if input_type == "Durée":
+                m = c1.number_input("Durée (min)", 1, 300, 45)
             elif input_type == "Distance":
                 default_dist = 5.0 if s == "Course" else 1.0
                 dist = c1.number_input("Distance (km)", 0.1, 200.0, default_dist)
@@ -659,60 +712,119 @@ def main():
             elif input_type == "Pas":
                 steps = c1.number_input("Nombre de pas", 100, 100000, 5000)
                 m = steps / 100.0 
-            if input_type != "Durée": c2.success(f"⏱️ Équivalent : {int(m)} min")
-            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr))
+
+            if input_type != "Durée":
+                c2.success(f"⏱️ Équivalent : {int(m)} min")
+
+            w = st.number_input("Poids du jour", 0.0, 200.0, float(w_curr), key="session_weight")
+            
+            # Ajout facteur intensité
             intensity_factor = 1.0
             intensite = c2.selectbox("Intensité", ["Légère (x0.8)", "Moyenne (x1.0)", "Élevée (x1.2)", "Maximale (x1.5)"], index=1)
             if "Légère" in intensite: intensity_factor = 0.8
             elif "Élevée" in intensite: intensity_factor = 1.2
             elif "Maximale" in intensite: intensity_factor = 1.5
+
             if st.button("Sauvegarder la séance", type="primary"):
+                # CORRECTION: S'assurer que d et t sont compatibles
                 if isinstance(t, datetime): t = t.time()
                 dt = datetime.combine(d, t)
+                
                 base_kcal = (calculate_bmr(w, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60) * intensity_factor
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
-                new_row = pd.DataFrame([{ "date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "poids": w, "distance": dist, "pas": steps }])
+                
+                new_row = pd.DataFrame([{
+                    "date": dt, "user": user, "sport": s, 
+                    "minutes": m, "calories": int(total_kcal), "poids": w,
+                    "distance": dist, "pas": steps 
+                }])
+                
                 if save_activity(new_row):
-                    st.success(f"✅ +{int(total_kcal)} kcal"); st.caption(f"Distance : {dist} km"); st.caption(f"Pas : {steps}"); st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}"); st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100); time.sleep(2); st.rerun()
+                    st.success(f"✅ +{int(total_kcal)} kcal")
+                    if dist > 0: st.caption(f"Distance : {dist} km")
+                    if steps > 0: st.caption(f"Pas : {steps}")
+                    st.caption(f"Effort: {int(base_kcal)} + Afterburn: {int(epoc_bonus)}")
+                    st_lottie(load_lottieurl(LOTTIE_SUCCESS), height=100)
+                    time.sleep(2); st.rerun()
+            
             st.divider()
             st.subheader("📜 Historique de vos séances")
             if not my_df.empty:
                 df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
-                col_conf = { "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False), "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"), "pas": st.column_config.NumberColumn("Pas", format="%d"), "minutes": st.column_config.NumberColumn("Min", format="%d") }
+                
+                col_conf = {
+                    "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
+                    "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"),
+                    "pas": st.column_config.NumberColumn("Pas", format="%d"),
+                    "minutes": st.column_config.NumberColumn("Min", format="%d")
+                }
+                
                 edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config=col_conf)
                 if st.button("💾 Sauvegarder changements"):
                     to_keep = edi[edi['Supprimer'] == False].drop(columns=['Supprimer'])
                     to_keep['date'] = pd.to_datetime(to_keep['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
                     to_keep['poids'] = pd.to_numeric(to_keep['poids']); to_keep['calories'] = pd.to_numeric(to_keep['calories'])
+                    
                     if 'distance' in to_keep.columns: to_keep['distance'] = pd.to_numeric(to_keep['distance'])
                     if 'pas' in to_keep.columns: to_keep['pas'] = pd.to_numeric(to_keep['pas'])
+
                     conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                     st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
         with tabs[3]: # BOUFFE
             st.subheader("🍎 Journal Alimentaire")
             st.info("💡 Notez ce que vous mangez pour ajuster votre équilibre !")
+            
+            # --- MODIFICATION ICI : REMPLACEMENT DU FORMULAIRE PAR DES WIDGETS DIRECTS ---
+            # Pas de st.form ici pour permettre la mise à jour dynamique
             c1, c2 = st.columns(2)
-            f_date = c1.date_input("Date", date.today())
+            f_date = c1.date_input("Date", date.today(), key="date_food")
             f_type = c2.selectbox("Type de repas", ["Petit-Déjeuner", "Déjeuner", "Dîner", "Collation"])
+            
+            # Ressenti Calorique pour estimation rapide
+            # BMR / 3 environ pour un repas standard
             bmr_user = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
             avg_meal = int(bmr_user / 3)
-            f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"], value="Normal")
-            cal_map = { "Très Léger": int(avg_meal * 0.5), "Léger": int(avg_meal * 0.8), "Normal": int(avg_meal * 1.0), "Copieux": int(avg_meal * 1.5), "Festin": int(avg_meal * 2.5) }
+            
+            f_feeling = st.select_slider("Ressenti du repas (Estimation Calorique)", 
+                options=["Très Léger", "Léger", "Normal", "Copieux", "Festin"],
+                value="Normal"
+            )
+            
+            cal_map = {
+                "Très Léger": int(avg_meal * 0.5),
+                "Léger": int(avg_meal * 0.8),
+                "Normal": int(avg_meal * 1.0),
+                "Copieux": int(avg_meal * 1.5),
+                "Festin": int(avg_meal * 2.5)
+            }
             est_cal = cal_map[f_feeling]
+            
+            # Affichage dynamique immédiat (hors form)
             st.markdown(f"**Estimation auto : ~{est_cal} kcal**")
+            
             f_items = st.text_area("Qu'avez-vous mangé ? (Ex: Pâtes carbo, Pomme)", height=80)
+            
             if st.button("Ajouter ce repas"):
-                new_food = pd.DataFrame([{ "date": f_date.strftime('%Y-%m-%d %H:%M:%S'), "user": user, "type_repas": f_type, "calories_est": est_cal, "aliments": f_items }])
-                if save_food(new_food): st.success("Repas ajouté !"); time.sleep(1); st.rerun()
+                new_food = pd.DataFrame([{
+                    "date": f_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    "user": user,
+                    "type_repas": f_type,
+                    "calories_est": est_cal,
+                    "aliments": f_items
+                }])
+                if save_food(new_food):
+                    st.success("Repas ajouté !"); time.sleep(1); st.rerun()
+            
             st.divider()
             if not df_f.empty:
                 my_food = df_f[df_f['user'] == user].sort_values(by="date", ascending=False)
                 if not my_food.empty:
                     for _, r in my_food.head(5).iterrows():
                         st.markdown(f"**{str(r['date']).split(' ')[0]} - {r['type_repas']}** ({r['calories_est']} kcal)")
-                        st.caption(f"{r['aliments']}"); st.divider()
+                        st.caption(f"{r['aliments']}")
+                        st.divider()
 
         with tabs[4]: # BOSS
             curr_month_num = datetime.now().month
@@ -733,25 +845,40 @@ def main():
 
         with tabs[5]: # DEFIS
             st.header("⚔️ Salle des Défis")
+            
+            # --- SECTION VICTOIRES ---
             st.subheader("🏆 Vos Victoires")
             wins = 0
             if not df_d.empty and not df_a.empty:
-                completed_challenges = df_d[(df_d['date_fin'] < date.today().strftime('%Y-%m-%d'))]
+                completed_challenges = df_d[(df_d['date_fin'] < date.today().strftime('%Y-%m-%d'))] # Défis terminés
                 for _, ch in completed_challenges.iterrows():
                     if user in str(ch['participants']):
+                        # Recalculer si l'objectif a été atteint
                         c_df = df_a[(df_a['date'] <= ch['date_fin']) & (df_a['user'] == user)]
+                        # Filtrer par date de début implicite (on suppose que le défi commence à sa création, mais ici on prend tout jusqu'à la fin pour simplifier ou faudrait une date de début dans la db. On va supposer que c'est bon si le total est atteint à la fin)
+                        # Pour être plus précis, il faudrait une date de début. Ici on regarde le cumul total à la date de fin. 
+                        # Si on veut être juste, on regarde juste si le total atteint l'obj.
+                        
                         if ch['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == ch['sport_cible']]
+                        
                         val = 0
                         if "Calories" in ch['type']: val = c_df['calories'].sum()
                         elif "Durée" in ch['type']: val = c_df['minutes'].sum()
                         elif "Distance" in ch['type']: val = c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).sum()
-                        if val >= float(ch['objectif']): wins += 1
-            if wins > 0: st.markdown(f"<div class='celeb-box' style='background:#FFD700; color:black;'>🥇 Vous avez remporté <b>{wins}</b> défis !</div>", unsafe_allow_html=True)
-            else: st.caption("Gagnez des défis pour voir vos trophées ici !")
+                        
+                        if val >= float(ch['objectif']):
+                            wins += 1
+            
+            if wins > 0:
+                st.markdown(f"<div class='celeb-box' style='background:#FFD700; color:black;'>🥇 Vous avez remporté <b>{wins}</b> défis !</div>", unsafe_allow_html=True)
+            else:
+                st.caption("Gagnez des défis pour voir vos trophées ici !")
+
             st.divider()
+            
             with st.expander("➕ Lancer un nouveau défi"):
                 with st.form("new_def"):
-                    dt = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin")
+                    dt = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin", key="date_defi")
                     if st.form_submit_button("Créer"): create_challenge(dt, type_def, obj, sport_target, fin); st.success("Lancé !"); time.sleep(1); st.rerun()
             st.subheader("Défis en cours")
             if not df_d.empty:
@@ -780,57 +907,140 @@ def main():
                 st.subheader("🏆 Records")
                 max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
                 tot_sess = len(my_df)
-                st.markdown(f"""<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;"><div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div><div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div><div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div><div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div>
+                    <div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div>
+                    <div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div>
+                    <div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div>
+                </div>
+                """, unsafe_allow_html=True)
+                
                 with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
+                
+                # --- FILTRE TEMPOREL ---
                 filter_option = st.selectbox("Période", ["Semaine", "Mois", "3 Mois", "Année", "Tout"])
-                today = datetime.now(); start_date = None
+                
+                today = datetime.now()
+                start_date = None
                 if filter_option == "Semaine": start_date = today - timedelta(days=7)
                 elif filter_option == "Mois": start_date = today - timedelta(days=30)
                 elif filter_option == "3 Mois": start_date = today - timedelta(days=90)
                 elif filter_option == "Année": start_date = today - timedelta(days=365)
+                
                 df_chart = my_df.copy()
-                if start_date: df_chart = df_chart[df_chart['date'] >= start_date]
+                if start_date:
+                    df_chart = df_chart[df_chart['date'] >= start_date]
+                
                 c1, c2 = st.columns(2)
+                
+                # --- GRAPHIQUE POIDS ---
                 target_w = float(prof.get('w_obj', 65.0))
                 fig_w = px.line(df_chart, x='date', y='poids', title="Évolution du Poids", markers=True)
                 fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
+                
+                # --- CALCUL DU POIDS THEORIQUE & ALERTE ---
                 if not df_chart.empty:
                     my_df = my_df.sort_values(by='date')
                     initial_w = float(prof.get('w_init', 70.0))
                     my_df['cum_cal_global'] = my_df['calories'].cumsum()
                     my_df['theo_weight'] = initial_w - (my_df['cum_cal_global'] / 7700)
+                    
+                    # On filtre seulement pour l'affichage, mais le calcul est fait sur l'historique complet
                     df_chart_theo = my_df.copy()
-                    if start_date: df_chart_theo = df_chart_theo[df_chart_theo['date'] >= start_date]
+                    if start_date:
+                        df_chart_theo = df_chart_theo[df_chart_theo['date'] >= start_date]
+                        
                     fig_w.add_trace(go.Scatter(x=df_chart_theo['date'], y=df_chart_theo['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
-                    last_theo = df_chart_theo['theo_weight'].iloc[-1]; last_real = df_chart['poids'].iloc[-1]
-                    if (last_real - last_theo) > 1.0: st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
+                    
+                    # --- ALERTE ---
+                    last_theo = df_chart_theo['theo_weight'].iloc[-1]
+                    last_real = df_chart['poids'].iloc[-1]
+                    if (last_real - last_theo) > 1.0: # Seuil de 1kg
+                        st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
+
+                # AXE Y DYNAMIQUE
                 max_val = df_chart['poids'].max() if not df_chart.empty else 100
                 fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
+                
+                # CONFIGURATION COULEURS PLOTLY SELON THEME
                 plotly_font_color = "white" if plotly_layout_dark else "black"
                 plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
-                fig_w.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
+                
+                fig_w.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)', 
+                    font_color=plotly_font_color,
+                    xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color))
+                )
+                
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                # Stacked Bar Chart Logic
+                # --- GRAPHIQUE CALORIES + BMR (STACKED) ---
+                # Graphique en Barres Empilées (BMR + Sport + Food)
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
+                
+                # Préparation des données par jour (Sport)
                 df_bar_daily = df_chart.copy()
                 df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
-                
+
+                # Préparation des données par jour (Bouffe)
                 df_food_daily = pd.DataFrame()
                 if not df_f.empty:
                     df_f_user = df_f[df_f['user'] == user].copy()
-                    if start_date: df_f_user = df_f_user[df_f_user['date'] >= start_date]
+                    if start_date:
+                         df_f_user = df_f_user[df_f_user['date'] >= start_date]
                     df_f_user['date_day'] = df_f_user['date'].dt.date
                     df_food_daily = df_f_user.groupby('date_day')['calories_est'].sum().reset_index()
 
+                # Merge pour aligner les dates (Sport + BMR vs Food)
+                # On utilise df_sport comme base des dates, mais idéalement on prendrait un range de dates
+                all_dates = df_sport['date_day'].unique() # Simplification
+                
                 fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=[bmr_daily] * len(df_sport), name='Métabolisme (BMR)', marker_color='#C0C0C0'))
-                fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=df_sport['calories'], name='Sport', marker_color='#00BFFF'))
-                if not df_food_daily.empty:
-                     fig_bar.add_trace(go.Scatter(x=df_food_daily['date_day'], y=df_food_daily['calories_est'], name='Apport Nourriture', mode='lines+markers', line=dict(color='#FF4500', width=3)))
 
-                fig_bar.update_layout(barmode='stack', title="Bilan Energétique (Dépense vs Apport)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=plotly_font_color, bargap=0.1, xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)), legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color)))
+                # Trace 1: BMR (Fond) - Blanc Foncé (Gris argenté)
+                fig_bar.add_trace(go.Bar(
+                    x=df_sport['date_day'],
+                    y=[bmr_daily] * len(df_sport),
+                    name='Métabolisme (BMR)',
+                    marker_color='#C0C0C0' # Blanc foncé / Gris Argenté
+                ))
+
+                # Trace 2: Sport (Dessus) - Bleu Clair
+                fig_bar.add_trace(go.Bar(
+                    x=df_sport['date_day'],
+                    y=df_sport['calories'],
+                    name='Sport',
+                    marker_color='#00BFFF' # Deep Sky Blue
+                ))
+                
+                # Trace 3: Bouffe (Comparaison) - Orange (Ligne ou Points pour ne pas empiler ?)
+                if not df_food_daily.empty:
+                     fig_bar.add_trace(go.Scatter(
+                        x=df_food_daily['date_day'],
+                        y=df_food_daily['calories_est'],
+                        name='Apport Nourriture',
+                        mode='lines+markers',
+                        line=dict(color='#FF4500', width=3) # Orange Red
+                    ))
+
+                fig_bar.update_layout(
+                    barmode='stack', # Empilement pour BMR + Sport
+                    title="Bilan Energétique (Dépense vs Apport)",
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)', 
+                    font_color=plotly_font_color,
+                    bargap=0.1, 
+                    xaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=plotly_font_color), title_font=dict(color=plotly_font_color)),
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, font=dict(color=plotly_font_color))
+                )
+                
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
         with tabs[7]: # CLASSEMENT
@@ -853,19 +1063,38 @@ def main():
                 new_pseudo = c1.text_input("Pseudo (Nom d'utilisateur)", value=user)
                 nd = c2.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c1.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
                 nh = c2.number_input("Taille",100,250,int(prof.get('h',175))); nw = c1.number_input("Obj Poids",40.0,150.0,float(prof.get('w_obj',65.0)))
+                # Ajout de l'input Poids de départ
                 ni = c1.number_input("Poids de départ (kg)", 30.0, 200.0, float(prof.get('w_init', 70.0)))
+                
                 na = c2.selectbox("Activité",ACTIVITY_OPTS)
+                
+                # THEME SELECTOR
                 current_theme_idx = 0 if prof.get('theme', 'Sombre') == "Sombre" else 1
                 nt = c1.selectbox("Thème (Apparence)", ["Sombre", "Clair"], index=current_theme_idx)
+                
                 n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
                 if st.form_submit_button("Sauvegarder"):
                     if new_pseudo != user:
                         res = change_username(user, new_pseudo)
-                        if res == "OK": st.session_state.user = new_pseudo; user = new_pseudo; st.success("Pseudo changé !")
-                        else: st.error(f"Erreur changement pseudo: {res}")
+                        if res == "OK":
+                            st.session_state.user = new_pseudo
+                            user = new_pseudo
+                            st.success("Pseudo changé !")
+                        else:
+                            st.error(f"Erreur changement pseudo: {res}")
+                    
                     fav = prof.get('avatar', ""); 
                     if n_av: fav = process_avatar(n_av)
-                    prof.update({'dob':str(nd),'sex':ns,'h':int(nh),'w_obj':float(nw),'w_init': float(ni),'act':na,'avatar':fav, 'theme': nt})
+                    prof.update({
+                        'dob':str(nd),
+                        'sex':ns,
+                        'h':int(nh),
+                        'w_obj':float(nw),
+                        'w_init': float(ni), # Sauvegarde du nouveau poids initial
+                        'act':na,
+                        'avatar':fav, 
+                        'theme': nt
+                    })
                     ps = row['pin']; 
                     if np and len(np)==4: ps = hash_pin(np)
                     save_user(user, ps, prof); st.success("Mis à jour !"); st.rerun()
@@ -873,6 +1102,7 @@ def main():
             if st.button("Supprimer mon compte"): 
                 if delete_current_user(): st.session_state.user = None; st.rerun()
 
+# --- BLOC D'EXÉCUTION PRINCIPAL AVEC GESTION D'ERREUR ---
 if __name__ == "__main__":
     try:
         main()

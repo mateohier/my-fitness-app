@@ -566,7 +566,7 @@ def main():
             lvl, pct, rem = get_level_progress(total_cal)
             st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
-            # --- CALCUL DU DÉFICIT COMPLEXE (AJOUTÉ) ---
+            # --- CALCUL DU DÉFICIT COMPLEXE (Tab 0) ---
             total_fat_loss_real = 0.0
             if not my_df.empty or not my_food.empty:
                 # 1. On détermine la date de début
@@ -979,30 +979,55 @@ def main():
                 
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                df_chart = my_df.copy()
-                if start_date: df_chart = df_chart[df_chart['date'] >= start_date]
-                bmr_daily = int(user_bmr)
-                df_bar_daily = df_chart.copy(); df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
-                df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
+                # --- CORRECTION GRAPHIQUE BMR/SPORT/BOUFFE (Tab 7) ---
+                if start_date: s_d = start_date.date()
+                else:
+                    d1 = my_df['date'].min() if not my_df.empty else datetime.now()
+                    d2 = my_food['date'].min() if not my_food.empty else datetime.now()
+                    s_d = min(d1, d2).date()
                 
-                df_food_stat = my_food.copy()
-                if not df_food_stat.empty:
-                    df_food_stat['date_day'] = df_food_stat['date'].dt.date
-                    if start_date: df_food_stat = df_food_stat[df_food_stat['date'] >= start_date]
-                    df_food_agg = df_food_stat.groupby('date_day')['calorie_est'].sum().reset_index()
-                else: df_food_agg = pd.DataFrame(columns=['date_day', 'calorie_est'])
+                e_d = date.today()
+                
+                # Création du calendrier complet (Master)
+                full_dates = pd.date_range(start=s_d, end=e_d)
+                df_master = pd.DataFrame({'date_day': full_dates.date})
 
-                fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=[bmr_daily] * len(df_sport), name='Métabolisme (BMR)', marker_color='#C0C0C0'))
-                fig_bar.add_trace(go.Bar(x=df_sport['date_day'], y=df_sport['calories'], name='Sport', marker_color='#00BFFF'))
-                if not df_food_agg.empty: fig_bar.add_trace(go.Scatter(x=df_food_agg['date_day'], y=df_food_agg['calorie_est'], mode='lines+markers', name='Apport Bouffe', line=dict(color='red', width=3)))
+                df_sport_agg = pd.DataFrame(columns=['date_day', 'calories'])
+                if not my_df.empty:
+                    temp_sport = my_df.copy(); temp_sport['date_day'] = temp_sport['date'].dt.date
+                    df_sport_agg = temp_sport.groupby('date_day')['calories'].sum().reset_index()
                 
-                fig_bar.update_layout(barmode='stack', title="Dépense Totale (BMR+Sport) vs Apport (Rouge)", 
-                                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                                      font_color=("white" if current_theme=="Sombre" else "black"), bargap=0.1,
-                                      xaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")), 
-                                      yaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")),
-                                      legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
+                df_food_agg = pd.DataFrame(columns=['date_day', 'calorie_est'])
+                if not my_food.empty:
+                    temp_food = my_food.copy(); temp_food['date_day'] = temp_food['date'].dt.date
+                    df_food_agg = temp_food.groupby('date_day')['calorie_est'].sum().reset_index()
+
+                # Fusionner tout sur le calendrier maître
+                df_master = df_master.merge(df_sport_agg, on='date_day', how='left')
+                df_master = df_master.merge(df_food_agg, on='date_day', how='left')
+                df_master = df_master.fillna(0)
+
+                bmr_daily = int(user_bmr)
+                
+                fig_bar = go.Figure()
+                # BMR (Gris)
+                fig_bar.add_trace(go.Bar(x=df_master['date_day'], y=[bmr_daily] * len(df_master), name='Métabolisme (BMR)', marker_color='#C0C0C0'))
+                # Sport (Bleu)
+                fig_bar.add_trace(go.Bar(x=df_master['date_day'], y=df_master['calories'], name='Sport', marker_color='#00BFFF'))
+                # Bouffe (Ligne Rouge)
+                fig_bar.add_trace(go.Scatter(x=df_master['date_day'], y=df_master['calorie_est'], mode='lines+markers', name='Apport Bouffe', line=dict(color='red', width=3)))
+                
+                fig_bar.update_layout(
+                    barmode='stack', 
+                    title="Dépense Totale (BMR+Sport) vs Apport (Rouge)", 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)', 
+                    font_color=("white" if current_theme=="Sombre" else "black"), 
+                    bargap=0.1,
+                    xaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")), 
+                    yaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")),
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                )
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
         with tabs[8]: # CLASSEMENT

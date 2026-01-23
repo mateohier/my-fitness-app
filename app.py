@@ -832,8 +832,6 @@ def main():
                 
                 # GRAPHIQUE POIDS (Source: BALANCE) 
 
-[Image of weight tracking chart]
-
                 c1, c2 = st.columns(2)
                 
                 df_w_chart = my_bal.copy()
@@ -947,3 +945,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+

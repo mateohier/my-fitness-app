@@ -622,7 +622,6 @@ def main():
             st.divider()
             st.subheader("Historique et Modification")
             if not my_bal.empty:
-                # Préparation de l'éditeur
                 df_bal_edit = my_bal.copy().sort_values(by='date', ascending=False)
                 df_bal_edit.insert(0, "Supprimer", False)
                 
@@ -635,16 +634,10 @@ def main():
                 edi_bal = st.data_editor(df_bal_edit, column_config=col_conf_bal, use_container_width=True, num_rows="dynamic", hide_index=True)
                 
                 if st.button("💾 Sauvegarder modifications balance"):
-                    # Filtrer les lignes à garder
                     to_keep_bal = edi_bal[edi_bal['Supprimer'] == False].drop(columns=['Supprimer'])
-                    # Formater les dates pour GSheets
                     to_keep_bal['date'] = pd.to_datetime(to_keep_bal['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
                     to_keep_bal['poids'] = pd.to_numeric(to_keep_bal['poids'])
-                    
-                    # Récupérer les données des autres utilisateurs pour ne pas les écraser
                     other_users_bal = df_bal[df_bal['user'] != user]
-                    
-                    # Concaténer et sauvegarder
                     final_bal = pd.concat([other_users_bal, to_keep_bal], ignore_index=True)
                     conn.update(worksheet="Balance", data=final_bal)
                     st.cache_data.clear()
@@ -655,7 +648,8 @@ def main():
         
         with tabs[2]: # BOUFFE
             st.header("🍔 Suivi Alimentaire (Est.)")
-            st.caption("Une méthode simple basée sur le ressenti, pas de calcul savant !")
+            st.caption("Une méthode simple basée sur le ressenti.")
+            
             c_f1, c_f2 = st.columns([1, 2])
             with c_f1:
                 with st.form("food_form"):
@@ -674,6 +668,13 @@ def main():
                         dt_food = datetime.combine(f_date, f_time)
                         new_food = pd.DataFrame([{"date": dt_food, "user": user, "type_repas": est_label, "calorie_est": est_cal}])
                         if save_food(new_food): st.success(f"Repas ajouté : {est_label}"); time.sleep(1); st.rerun()
+                
+                st.markdown("---")
+                if st.button("🚫 Enregistrer un JEÛNE (0 kcal)"):
+                    dt_food = datetime.combine(date.today(), datetime.now().time())
+                    new_food = pd.DataFrame([{"date": dt_food, "user": user, "type_repas": "🚫 JEÛNE TOTAL", "calorie_est": 0}])
+                    if save_food(new_food): st.success("Jeûne enregistré ! Le déficit sera maximal."); time.sleep(1); st.rerun()
+
             with c_f2:
                 st.subheader("Résumé Récent")
                 if not my_food.empty:
@@ -721,11 +722,10 @@ def main():
                     st.markdown(f"""<div class='post-card'><div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>{get_user_badge(r['user'], df_u)}<span style='opacity:0.6; font-size:0.8em;'>{r['date']}</span></div><img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'><p style='font-size:1.1em;'>{r['comment']}</p><hr style='border-color:#555;'><div style='display:flex; flex-wrap:wrap; align-items:center;'><span style='margin-right:10px; opacity:0.6; font-size:0.9em;'>Vu par :</span>{''.join([get_user_badge(v, df_u) for v in viewers if v])}</div></div>""", unsafe_allow_html=True)
             else: st.info("Aucun post récent. Soyez le premier !")
 
-        with tabs[4]: # SEANCE (MODIFIÉ: Plus d'heure manuelle, plus de poids)
+        with tabs[4]: # SEANCE
             st.subheader("Ajouter une séance")
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
-            # Heure automatique à l'enregistrement, plus de saisie manuelle ici
             
             s = c1.selectbox("Sport", SPORTS_LIST)
             m = 0.0; dist = 0.0; steps = 0; input_type = "Durée" 
@@ -741,24 +741,17 @@ def main():
             elif input_type == "Pas": steps = c1.number_input("Nombre de pas", 100, 100000, 5000); m = steps / 100.0 
             if input_type != "Durée": c2.success(f"⏱️ Équivalent : {int(m)} min")
             
-            # Poids supprimé de cet onglet (voir onglet Balance)
-            
             intensity_factor = 1.0; intensite = c2.selectbox("Intensité", ["Légère (x0.8)", "Moyenne (x1.0)", "Élevée (x1.2)", "Maximale (x1.5)"], index=1)
             if "Légère" in intensite: intensity_factor = 0.8
             elif "Élevée" in intensite: intensity_factor = 1.2
             elif "Maximale" in intensite: intensity_factor = 1.5
             
             if st.button("Sauvegarder la séance", type="primary"):
-                # Utilisation de l'heure actuelle
                 t = datetime.now().time()
                 dt = datetime.combine(d, t)
-                
-                # Calcul calories (basé sur le dernier poids connu w_curr)
                 base_kcal = (calculate_bmr(w_curr, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60) * intensity_factor
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
                 total_kcal = base_kcal + epoc_bonus
-                
-                # On ne sauvegarde plus le poids dans Activites
                 new_row = pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "distance": dist, "pas": steps}])
                 
                 if save_activity(new_row):
@@ -771,7 +764,6 @@ def main():
             st.divider(); st.subheader("📜 Historique de vos séances")
             if not my_df.empty:
                 df_display = my_df.copy(); df_display.insert(0, "Supprimer", False)
-                # Poids retiré de la config colonne si non présent
                 col_conf = {"Supprimer": st.column_config.CheckboxColumn("🗑️", default=False), "distance": st.column_config.NumberColumn("Dist (km)", format="%.2f"), "pas": st.column_config.NumberColumn("Pas", format="%d"), "minutes": st.column_config.NumberColumn("Min", format="%d")}
                 edi = st.data_editor(df_display, use_container_width=True, num_rows="dynamic", column_config=col_conf)
                 if st.button("💾 Sauvegarder changements"):
@@ -856,7 +848,6 @@ def main():
                 elif filter_option == "3 Mois": start_date = today - timedelta(days=90)
                 elif filter_option == "Année": start_date = today - timedelta(days=365)
                 
-                # --- GRAPHIQUE ÉVOLUTION DU POIDS ---
                 c1, c2 = st.columns(2)
                 
                 # 1. Données réelles (Balance)
@@ -864,42 +855,60 @@ def main():
                 if start_date: df_w_chart = df_w_chart[df_w_chart['date'] >= start_date]
                 
                 target_w = float(prof.get('w_obj', 65.0))
-                initial_w_profile = float(prof.get('w_init', 70.0)) # Récupération poids départ profil
+                initial_w_profile = float(prof.get('w_init', 70.0))
                 
                 fig_w = go.Figure()
                 
-                # Trace Réelle (Points bleus)
                 if not df_w_chart.empty:
                     fig_w.add_trace(go.Scatter(x=df_w_chart['date'], y=df_w_chart['poids'], mode='lines+markers', name='Poids Réel (Balance)', line=dict(color='#00BFFF', width=3)))
                 
-                # Trace Objectif (Ligne verte)
                 fig_w.add_hline(y=target_w, line_dash="dash", line_color="#00CC96", annotation_text=f"Obj: {target_w} kg", annotation_position="top right")
 
-                # 2. Données Théoriques (Calculées sur TOUT l'historique d'activités)
-                # On reprend toutes les activités, on les trie
-                df_theo = my_df.copy().sort_values(by='date')
-                # Calcul cumulatif total
-                df_theo['cum_cal'] = df_theo['calories'].cumsum()
-                # Poids théorique = Poids Départ (Profil) - (Total Calories / 7700)
-                df_theo['theo_weight'] = initial_w_profile - (df_theo['cum_cal'] / 7700)
+                # 2. Données Théoriques
+                first_sport = my_df['date'].min()
+                first_food = my_food['date'].min() if not my_food.empty else first_sport
+                global_start = min(first_sport, first_food).date()
+                all_days = pd.date_range(start=global_start, end=date.today())
                 
-                # On filtre pour l'affichage selon la période choisie
-                if start_date: df_theo_display = df_theo[df_theo['date'] >= start_date]
-                else: df_theo_display = df_theo
+                df_calc = pd.DataFrame({'day': all_days})
+                
+                sport_daily = my_df.copy(); sport_daily['day'] = sport_daily['date'].dt.date
+                sport_sum = sport_daily.groupby('day')['calories'].sum().reset_index()
+                
+                food_sum = pd.DataFrame(columns=['day', 'calorie_est', 'is_logged'])
+                if not my_food.empty:
+                    food_daily = my_food.copy(); food_daily['day'] = food_daily['date'].dt.date
+                    food_sum = food_daily.groupby('day')['calorie_est'].sum().reset_index()
+                    food_sum['is_logged'] = 1 
+                
+                df_calc = df_calc.merge(sport_sum, on='day', how='left').fillna(0)
+                df_calc = df_calc.merge(food_sum, on='day', how='left').fillna(0)
+                
+                user_bmr = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
+                
+                def calc_deficit(row):
+                    if row['is_logged'] == 1:
+                        return (user_bmr + row['calories']) - row['calorie_est']
+                    else:
+                        return row['calories']
+                
+                df_calc['daily_deficit'] = df_calc.apply(calc_deficit, axis=1)
+                df_calc['cum_deficit'] = df_calc['daily_deficit'].cumsum()
+                df_calc['theo_weight'] = initial_w_profile - (df_calc['cum_deficit'] / 7700)
+                
+                if start_date: df_theo_display = df_calc[df_calc['day'] >= start_date.date()]
+                else: df_theo_display = df_calc
 
                 if not df_theo_display.empty:
-                    fig_w.add_trace(go.Scatter(x=df_theo_display['date'], y=df_theo_display['theo_weight'], mode='lines', name='Théorique (selon Activité)', line=dict(dash='dot', color='#FFA500')))
+                    fig_w.add_trace(go.Scatter(x=df_theo_display['day'], y=df_theo_display['theo_weight'], mode='lines', name='Théorique (Bilan Cal.)', line=dict(dash='dot', color='#FFA500')))
                     
-                    # Alerte écart (si on a des données réelles récentes)
                     if not df_w_chart.empty:
                         last_real = df_w_chart.sort_values('date').iloc[-1]['poids']
-                        # On cherche le poids théorique le plus proche en date
-                        last_theo = df_theo.iloc[-1]['theo_weight']
+                        last_theo = df_calc.iloc[-1]['theo_weight']
                         diff = last_real - last_theo
-                        if diff > 1.0: 
-                             st.warning(f"⚠️ **Écart de +{diff:.1f} kg** entre la balance et la théorie.\nLa théorie part de votre poids initial ({initial_w_profile} kg) et soustrait les calories brûlées.")
+                        if abs(diff) > 2.0: 
+                             st.info(f"ℹ️ **Écart de {diff:.1f} kg** entre réalité et théorie.")
 
-                # Ajustement échelle Y
                 vals = []
                 if not df_w_chart.empty: vals.extend(df_w_chart['poids'].tolist())
                 if not df_theo_display.empty: vals.extend(df_theo_display['theo_weight'].tolist())
@@ -907,7 +916,6 @@ def main():
                     min_y, max_y = min(vals), max(vals)
                     fig_w.update_yaxes(range=[min_y - 2, max_y + 2])
 
-                # Layout
                 fig_w.update_layout(title="Évolution du Poids (Réel vs Théorique)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                                     font_color=("white" if current_theme=="Sombre" else "black"),
                                     xaxis=dict(showgrid=True, gridcolor=("rgba(255,255,255,0.2)" if current_theme=="Sombre" else "#e0e0e0")), 
@@ -916,10 +924,9 @@ def main():
                 
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
-                # --- GRAPHIQUE CALORIES VS BOUFFE ---
                 df_chart = my_df.copy()
                 if start_date: df_chart = df_chart[df_chart['date'] >= start_date]
-                bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
+                bmr_daily = int(user_bmr)
                 df_bar_daily = df_chart.copy(); df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
                 

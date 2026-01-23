@@ -562,51 +562,47 @@ def main():
         with tabs[0]: # DASHBOARD
             st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
             st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
-            
-            # --- CALCUL AVANCÉ DU GRAS FONDU (Déficit réel) ---
-            # 1. On récupère toutes les calories brûlées (Sport)
-            total_sport_burn = my_df['calories'].sum()
-            
-            # 2. On récupère toutes les calories mangées
-            total_food_intake = my_food['calorie_est'].sum() if not my_food.empty else 0
-            
-            # 3. On calcule le BMR cumulé depuis le premier jour d'utilisation
-            # (On approxime en prenant la date de la première activité ou repas)
-            first_date = date.today()
-            if not my_df.empty: first_date = min(first_date, my_df['date'].min().date())
-            if not my_food.empty: first_date = min(first_date, my_food['date'].min().date())
-            
-            days_active = (date.today() - first_date).days + 1
-            user_bmr = calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex'])
-            total_bmr_burn = user_bmr * days_active
-            
-            # 4. Le vrai bilan
-            # Déficit = (Métabolisme de base + Sport) - Miam miam
-            total_deficit = (total_bmr_burn + total_sport_burn) - total_food_intake
-            
-            # Si l'utilisateur n'a jamais rien saisi en bouffe, on évite d'afficher un chiffre aberrant
-            # On revient au calcul simple (Sport uniquement) par sécurité
-            if total_food_intake == 0:
-                kg_fat = total_sport_burn / 7700
-                label_fat = "Gras fondu (Sport uniquement)"
-            else:
-                kg_fat = total_deficit / 7700
-                label_fat = "Bilan Gras (Déficit réel)"
-
-            # --- FIN CALCUL ---
-
-            lvl, pct, rem = get_level_progress(total_cal) # total_cal reste basé sur le sport pour le niveau (gamification)
+            lvl, pct, rem = get_level_progress(total_cal)
             st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
-            
+            kg_fat = total_cal / 7700
             st.markdown("### 📊 Cumul Global")
             k1, k2 = st.columns(2)
-            k1.metric("Total Calories Brûlées (Sport)", f"{int(total_cal)} kcal")
-            
-            # Affichage conditionnel (Perte ou Prise)
-            if kg_fat >= 0:
-                k2.metric(label_fat, f"-{abs(kg_fat):.2f} kg", delta_color="normal") # Vert par défaut
-            else:
-                k2.metric(label_fat, f"+{abs(kg_fat):.2f} kg", delta="-Prise", delta_color="inverse") # Rouge car prise de gras
+            k1.metric("Total Calories Brûlées", f"{int(total_cal)} kcal")
+            k2.metric("Gras fondu (est.)", f"{kg_fat:.2f} kg", help="Estimation : 7700 kcal = 1 kg de graisse")
+            st.divider()
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
+            c2.metric("🔥 Série Perso", f"{streak_user} Jours")
+            c3.metric("🛡️ Série Équipe", f"{streak_team} Jours", "3 actifs min.")
+            c4.metric("Trophées", f"{len(check_achievements(my_df))}")
+            if not df_a.empty:
+                all_totals = df_a.groupby('user')['calories'].sum()
+                celebrations = []
+                for u, cal in all_totals.items():
+                    u_lvl, _, _ = get_level_progress(cal)
+                    if u_lvl >= 5: celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est un vétéran de Niveau {u_lvl} !")
+                    if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")
+                if celebrations: st.markdown(f"<div class='celeb-box'>{random.choice(celebrations)}</div>", unsafe_allow_html=True)
+            st.divider()
+            c_l, c_r = st.columns(2)
+            with c_l:
+                st.subheader("🧬 ADN Sportif")
+                if sum(dna.values())>0:
+                    mx = max(dna.values())
+                    fig = px.line_polar(pd.DataFrame({'K':dna.keys(), 'V':[v/mx*100 for v in dna.values()]}), r='V', theta='K', line_close=True)
+                    fig.update_traces(fill='toself', line_color='rgba(255, 75, 75, 0.7)')
+                    font_col = "white" if plotly_layout_dark else "black"
+                    fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0)'), font=dict(size=10, color=font_col), paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=80, r=80, t=20, b=20), height=300)
+                    st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
+                else: st.info("Pas assez de données")
+            with c_r:
+                st.subheader("🌍 Voyage")
+                km = total_cal / 60
+                target_label = "Vers l'infini"; target_km = 99999
+                for dist, label in MILESTONES:
+                    if km < dist: target_label = label; target_km = dist; break
+                st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
+                st.progress(min(km/target_km, 1.0))
 
         with tabs[1]: # BALANCE
             st.header("⚖️ Suivi du Poids")
@@ -1013,4 +1009,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-

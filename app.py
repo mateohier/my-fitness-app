@@ -221,8 +221,18 @@ def main():
             df_d = conn.read(worksheet="Defis", ttl=600)
             try: df_p = conn.read(worksheet="Posts", ttl=600)
             except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
-            try: df_f = conn.read(worksheet="Food", ttl=600)
-            except: df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
+            
+            # --- CORRECTION ROBUSTE POUR LA FEUILLE FOOD ---
+            try:
+                df_f = conn.read(worksheet="Food", ttl=600)
+                # Vérifier si les colonnes nécessaires existent
+                expected_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
+                # Si le dataframe est vide ou n'a pas les bonnes colonnes, on le réinitialise
+                if df_f.empty or not set(expected_cols).issubset(df_f.columns):
+                    df_f = pd.DataFrame(columns=expected_cols)
+            except:
+                # Si la lecture échoue (feuille inexistante), on crée un DF vide
+                df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
             
             if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
             
@@ -236,13 +246,15 @@ def main():
                 
             if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
-            if df_f.empty: df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
-                
+            
+            # Formatage des dates
             df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce')
             df_a = df_a.dropna(subset=['date'])
             df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
-            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce')
-            df_f = df_f.dropna(subset=['date']) # Security fix for empty dates in Food
+            
+            if not df_f.empty and 'date' in df_f.columns:
+                df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce')
+                df_f = df_f.dropna(subset=['date'])
             
             return df_u, df_a, df_d, df_p, df_f
         except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -275,8 +287,10 @@ def main():
         try:
             try:
                 df = conn.read(worksheet="Food", ttl=0)
+                # Vérif structure au cas où
+                if df.empty and 'user' not in df.columns:
+                     df = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
             except:
-                # Si l'onglet n'existe pas, on le crée virtuellement
                 df = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
             
             upd = pd.concat([df, new_row], ignore_index=True)
@@ -425,21 +439,12 @@ def main():
 
     # Détermination du thème
     current_theme = "Sombre" # Default
-    
-    # SECURITE ANTI-CRASH: Vérification de l'utilisateur
     if st.session_state.user:
         try:
-            if not df_u.empty and 'user' in df_u.columns and st.session_state.user in df_u['user'].values:
-                u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
-                u_prof = json.loads(u_row['json_data'])
-                current_theme = u_prof.get('theme', 'Sombre')
-            else:
-                # Si l'utilisateur n'est pas trouvé dans la DB (problème lecture), on déconnecte pour éviter le crash
-                st.session_state.user = None
-                st.rerun()
-        except: 
-            st.session_state.user = None
-            st.rerun()
+            u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
+            u_prof = json.loads(u_row['json_data'])
+            current_theme = u_prof.get('theme', 'Sombre')
+        except: pass
 
     # --- CSS DYNAMIQUE ---
     if current_theme == "Sombre":

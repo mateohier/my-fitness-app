@@ -93,7 +93,7 @@ def main():
 
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
 
-    # --- AJOUT: MAPPING BOUFFE ---
+    # --- MAPPING BOUFFE ---
     # Niveaux de 1 à 7 pour le curseur
     FOOD_LEVELS = {
         1: 200,   # Très léger / Snack
@@ -243,7 +243,7 @@ def main():
             try: df_p = conn.read(worksheet="Posts", ttl=600)
             except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             
-            # --- AJOUT: LECTURE BOUFFE ---
+            # --- LECTURE BOUFFE ---
             try: df_b = conn.read(worksheet="Bouffe", ttl=600)
             except: df_b = pd.DataFrame(columns=["date", "user", "type_repas", "calorie_est"])
             
@@ -281,7 +281,7 @@ def main():
             st.cache_data.clear(); return True
         except: return False
 
-    # --- AJOUT: FONCTION SAVE FOOD ---
+    # --- FONCTION SAVE FOOD (AJOUT SIMPLE) ---
     def save_food(new_row):
         try:
             df = conn.read(worksheet="Bouffe", ttl=0)
@@ -646,7 +646,7 @@ def main():
                 st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
                 st.progress(min(km/target_km, 1.0))
         
-        # --- ONGLET BOUFFE (NOUVEAU) ---
+        # --- ONGLET BOUFFE (MODIFIÉ) ---
         with tabs[1]: 
             st.header("🍔 Suivi Alimentaire (Est.)")
             st.caption("Une méthode simple basée sur le ressenti, pas de calcul savant !")
@@ -678,7 +678,7 @@ def main():
                             time.sleep(1); st.rerun()
 
             with c_f2:
-                st.subheader("Historique récent")
+                st.subheader("Résumé Récent")
                 if not my_food.empty:
                     my_food['date'] = pd.to_datetime(my_food['date'])
                     my_food = my_food.sort_values(by='date', ascending=False)
@@ -700,16 +700,51 @@ def main():
                         yaxis=dict(showgrid=True, gridcolor=plotly_grid_color, tickfont=dict(color=font_col))
                     )
                     st.plotly_chart(fig_food, use_container_width=True)
-                    
-                    # Liste
-                    for _, r in my_food.head(5).iterrows():
-                        st.markdown(f"""
-                        <div class='glass' style='padding:10px; margin-bottom:5px; border-left: 4px solid #FFA500;'>
-                            <b>{r['date'].strftime('%d/%m %H:%M')}</b> - {r['type_repas']} <span style='float:right; font-weight:bold; color:#FFA500;'>{r['calorie_est']} kcal</span>
-                        </div>
-                        """, unsafe_allow_html=True)
                 else:
                     st.info("Aucun repas enregistré pour le moment.")
+            
+            # --- SECTION MODIFICATION / SUPPRESSION ---
+            st.divider()
+            st.subheader("📜 Historique et Modification")
+            if not my_food.empty:
+                # Création copie pour édition
+                df_food_edit = my_food.copy()
+                df_food_edit.insert(0, "Supprimer", False) # Ajout colonne suppression
+
+                # Config colonnes
+                col_conf_food = {
+                    "Supprimer": st.column_config.CheckboxColumn("🗑️", default=False),
+                    "date": st.column_config.DatetimeColumn("Date", format="D MMM HH:mm"),
+                    "type_repas": st.column_config.TextColumn("Repas"),
+                    "calorie_est": st.column_config.NumberColumn("Kcal", min_value=0, max_value=5000)
+                }
+
+                # Affichage éditeur
+                edi_food = st.data_editor(
+                    df_food_edit,
+                    column_config=col_conf_food,
+                    use_container_width=True,
+                    num_rows="dynamic",
+                    hide_index=True
+                )
+
+                # Bouton sauvegarde
+                if st.button("💾 Sauvegarder modifications repas"):
+                    # Filtre les lignes à garder
+                    to_keep_food = edi_food[edi_food['Supprimer'] == False].drop(columns=['Supprimer'])
+                    
+                    # Formatage date
+                    to_keep_food['date'] = pd.to_datetime(to_keep_food['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Mise à jour GSheet (on garde les données des autres users et on ajoute les nôtres modifiées)
+                    other_users_data = df_b[df_b['user'] != user]
+                    final_df = pd.concat([other_users_data, to_keep_food], ignore_index=True)
+                    
+                    conn.update(worksheet="Bouffe", data=final_df)
+                    st.cache_data.clear()
+                    st.success("Historique repas mis à jour !")
+                    time.sleep(1)
+                    st.rerun()
 
         with tabs[2]: # PARTAGE (FEED)
             st.header("📸 Mur de Partage (7 jours)")

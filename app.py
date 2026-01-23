@@ -122,13 +122,14 @@ def main():
         except: return 25
 
     def calculate_bmr(weight, height, age, sex):
+        # Conversion forcée pour éviter les erreurs de type string
         try:
             w = float(weight)
             h = float(height)
             a = int(age)
             val = (10 * w) + (6.25 * h) - (5 * a)
             return val + 5 if sex == "Homme" else val - 161
-        except: return 1500
+        except: return 1500 # Valeur par défaut en cas d'erreur
 
     def get_level_progress(total_cal):
         factor = 150 
@@ -445,13 +446,11 @@ def main():
     current_theme = "Sombre" # Default
     if st.session_state.user:
         try:
+            # CORRECTION : Ne plus deconnecter l'user si erreur de lecture, garder le thème par défaut
             if not df_u.empty and 'user' in df_u.columns and st.session_state.user in df_u['user'].values:
                 u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
                 u_prof = json.loads(u_row['json_data'])
                 current_theme = u_prof.get('theme', 'Sombre')
-            else:
-                st.session_state.user = None
-                st.rerun()
         except: pass
 
     # --- CSS DYNAMIQUE ---

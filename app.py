@@ -16,10 +16,12 @@ from PIL import Image
 import io
 import base64
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION & CONSTANTES (Doit rester en dehors du main) ---
 st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
-BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
+
+# URLs
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
+BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 def main():
     # --- CALENDRIER DES BOSS ---
@@ -67,10 +69,41 @@ def main():
         "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
-    SPEED_MAP = {"Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0, "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0, "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0, "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0, "Handball": 6.0, "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0, "Sport de chambre": 0.0}
-    EPOC_MAP = {"Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12, "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07, "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04, "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06, "Handball": 0.07, "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03, "Sport de chambre": 0.04}
+
+    SPEED_MAP = {
+        "Course": 10.0, "Vélo": 20.0, "Natation": 2.5, "Marche": 5.0, 
+        "Randonnée": 4.0, "Ski": 15.0, "Football": 7.0, "Tennis": 3.0,
+        "Musculation": 0.0, "Crossfit": 0.0, "Yoga": 0.0, "Pilates": 0.0,
+        "Boxe": 0.0, "Danse": 0.0, "Escalade": 0.1, "Basket": 4.0,
+        "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
+        "Handball": 6.0,
+        "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
+        "Sport de chambre": 0.0
+    }
+
+    EPOC_MAP = {
+        "Crossfit": 0.15, "Musculation": 0.10, "Boxe": 0.12, "Rugby": 0.12, "Judo": 0.12, "Karaté": 0.12,
+        "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
+        "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
+        "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
+        "Handball": 0.07,
+        "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
+        "Sport de chambre": 0.04
+    }
+
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
-    MILESTONES = [(42, "Marathon 🏃"), (344, "Paris ➡ Londres 🇬🇧"), (1000, "Traversée de la France (Nord-Sud) 🇫🇷"), (1332, "Tour de l'Islande 🇮🇸"), (2480, "Paris ➡ Moscou 🇷🇺"), (3940, "Route 66 (USA) 🇺🇸"), (4500, "New York ➡ Los Angeles 🗽"), (5836, "Paris ➡ New York ✈️")]
+
+    # --- PALIERS DE VOYAGE (KM) ---
+    MILESTONES = [
+        (42, "Marathon 🏃"),
+        (344, "Paris ➡ Londres 🇬🇧"),
+        (1000, "Traversée de la France (Nord-Sud) 🇫🇷"),
+        (1332, "Tour de l'Islande 🇮🇸"),
+        (2480, "Paris ➡ Moscou 🇷🇺"),
+        (3940, "Route 66 (USA) 🇺🇸"),
+        (4500, "New York ➡ Los Angeles 🗽"),
+        (5836, "Paris ➡ New York ✈️")
+    ]
 
     # --- 2. UTILITAIRES ---
     def hash_pin(pin): return hashlib.sha256(str(pin).encode()).hexdigest()
@@ -103,6 +136,15 @@ def main():
         cal_curr, cal_next = factor * (level ** 2), factor * ((level + 1) ** 2)
         pct = min(max((total_cal - cal_curr) / (cal_next - cal_curr), 0.0), 1.0)
         return level, pct, int(cal_next - total_cal)
+
+    def get_food_equivalent(calories):
+        if calories < 100: return "une Pomme 🍎"
+        if calories < 250: return "une Barre chocolatée 🍫"
+        if calories < 400: return "un Cheeseburger 🍔"
+        if calories < 600: return "un paquet de Frites 🍟"
+        if calories < 900: return "une Pizza entière 🍕"
+        if calories < 1500: return "un Menu Fast-Food XL 🥤"
+        return "un Festin de Roi 🍗"
 
     def check_achievements(df):
         badges = []
@@ -158,45 +200,50 @@ def main():
             return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
         except: return None
 
-    # --- 3. GESTION DONNÉES BLINDÉE ---
+    # --- 3. GESTION DONNÉES ---
     conn = st.connection("gsheets", type=GSheetsConnection)
 
-    def secure_read(worksheet, cols):
-        """Lit une feuille et s'assure que toutes les colonnes existent."""
-        try:
-            df = conn.read(worksheet=worksheet, ttl=0)
-            df.columns = df.columns.str.strip() # Enlever espaces
-        except:
-            df = pd.DataFrame(columns=cols)
-        
-        # Ajout des colonnes manquantes
-        for c in cols:
-            if c not in df.columns:
-                df[c] = ""
-        
-        return df[cols]
-
     def get_data():
-        df_u = secure_read("Profils", ["user", "pin", "json_data"])
-        df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
-        df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
-        df_p = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
-        df_f = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
-        
-        # Typage dates
-        df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce'); df_a = df_a.dropna(subset=['date'])
-        df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
-        df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce'); df_f = df_f.dropna(subset=['date'])
-        
-        return df_u, df_a, df_d, df_p, df_f
+        try:
+            df_u = conn.read(worksheet="Profils", ttl=0)
+            df_a = conn.read(worksheet="Activites", ttl=0)
+            df_d = conn.read(worksheet="Defis", ttl=0)
+            try: df_p = conn.read(worksheet="Posts", ttl=0)
+            except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
+            try:
+                df_f = conn.read(worksheet="Food", ttl=0)
+                df_f.columns = df_f.columns.str.strip() # Remove whitespaces
+            except:
+                df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
+            
+            required_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
+            for col in required_cols:
+                if col not in df_f.columns: df_f[col] = "" # Force create column if missing
+            
+            df_f = df_f[required_cols]
+
+            if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
+            if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+            else:
+                if 'distance' not in df_a.columns: df_a['distance'] = 0.0
+                if 'pas' not in df_a.columns: df_a['pas'] = 0
+                if 'steps' in df_a.columns: df_a = df_a.drop(columns=['steps'])
+                
+            if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+            if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
+            
+            df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce'); df_a = df_a.dropna(subset=['date'])
+            df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
+            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce'); df_f = df_f.dropna(subset=['date'])
+            
+            return df_u, df_a, df_d, df_p, df_f
+        except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     def save_activity(new_row):
         try:
-            df = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
-            # Harmonisation new_row
-            for c in df.columns:
-                if c not in new_row.columns: new_row[c] = ""
-            
+            df = conn.read(worksheet="Activites", ttl=0)
+            if 'distance' not in df.columns: df['distance'] = 0.0
+            if 'pas' not in df.columns: df['pas'] = 0
             upd = pd.concat([df, new_row], ignore_index=True)
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
             conn.update(worksheet="Activites", data=upd)
@@ -205,7 +252,7 @@ def main():
 
     def save_post(image_b64, comment):
         try:
-            df = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
+            df = conn.read(worksheet="Posts", ttl=0)
             new = pd.DataFrame([{"id": str(uuid.uuid4()), "user": st.session_state.user, "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "image": image_b64, "comment": comment, "seen_by": st.session_state.user}])
             conn.update(worksheet="Posts", data=pd.concat([df, new], ignore_index=True))
             st.cache_data.clear(); return True
@@ -213,16 +260,24 @@ def main():
     
     def save_food(new_row):
         try:
-            df = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
-            # Harmonisation
-            for c in df.columns:
-                if c not in new_row.columns: new_row[c] = ""
-            
+            try:
+                df = conn.read(worksheet="Food", ttl=0)
+                df.columns = df.columns.str.strip()
+            except:
+                df = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
+            required = ["date", "user", "type_repas", "calories_est", "aliments"]
+            for col in required:
+                if col not in df.columns: df[col] = ""
+            for col in required:
+                if col not in new_row.columns: new_row[col] = ""
+            df = df.fillna("")
+            new_row = new_row.fillna("")
             upd = pd.concat([df, new_row], ignore_index=True)
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
             conn.update(worksheet="Food", data=upd)
             st.cache_data.clear(); return True
-        except: return False
+        except Exception as e:
+            return False
 
     def clean_old_posts(df_p):
         try:
@@ -236,7 +291,7 @@ def main():
 
     def mark_post_seen(post_id, current_user):
         try:
-            df = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
+            df = conn.read(worksheet="Posts", ttl=0)
             idx = df[df['id'] == post_id].index[0]
             viewers = str(df.at[idx, 'seen_by']).split(',')
             if current_user not in viewers:
@@ -246,7 +301,7 @@ def main():
 
     def save_user(u, p, data):
         try:
-            df = secure_read("Profils", ["user", "pin", "json_data"])
+            df = conn.read(worksheet="Profils", ttl=0)
             j = json.dumps(data)
             if not df.empty and u in df['user'].values: df.loc[df['user'] == u, 'json_data'] = j; df.loc[df['user'] == u, 'pin'] = p
             else: df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
@@ -255,13 +310,11 @@ def main():
 
     def change_username(old_u, new_u):
         try:
-            df_u = secure_read("Profils", ["user", "pin", "json_data"])
+            df_u = conn.read(worksheet="Profils", ttl=0)
             if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
-            df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
-            df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
-            df_p = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
-            df_f = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
-            
+            df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0); df_p = conn.read(worksheet="Posts", ttl=0)
+            try: df_f = conn.read(worksheet="Food", ttl=0)
+            except: df_f = pd.DataFrame()
             df_u.loc[df_u['user'] == old_u, 'user'] = new_u
             if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
             if not df_f.empty: df_f.loc[df_f['user'] == old_u, 'user'] = new_u
@@ -273,17 +326,15 @@ def main():
                 df_d.loc[df_d['createur'] == old_u, 'createur'] = new_u
                 def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
                 df_d['participants'] = df_d['participants'].apply(upd_csv_d)
-                
-            conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d); conn.update(worksheet="Posts", data=df_p); conn.update(worksheet="Food", data=df_f)
+            conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d); conn.update(worksheet="Posts", data=df_p)
+            if not df_f.empty: conn.update(worksheet="Food", data=df_f)
             st.cache_data.clear(); return "OK"
         except Exception as e: return str(e)
 
     def delete_current_user():
         try:
             user = st.session_state.user
-            df_u = secure_read("Profils", ["user", "pin", "json_data"])
-            df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
-            df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+            df_u = conn.read(worksheet="Profils", ttl=0); df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0)
             df_u = df_u[df_u['user'] != user]; df_a = df_a[df_a['user'] != user]
             def remove_p(p_str): parts = str(p_str).split(','); return ",".join([p for p in parts if p != user])
             df_d['participants'] = df_d['participants'].apply(remove_p)
@@ -293,14 +344,14 @@ def main():
 
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
-            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+            df = conn.read(worksheet="Defis", ttl=0)
             new = pd.DataFrame([{"id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), "sport_cible": sport_cible, "createur": st.session_state.user, "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"}])
             conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True)); st.cache_data.clear(); return True
         except: return False
 
     def join_challenge(c_id):
         try:
-            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"]); idx = df[df['id'] == c_id].index[0]
+            df = conn.read(worksheet="Defis", ttl=0); idx = df[df['id'] == c_id].index[0]
             parts = df.at[idx, 'participants'].split(',')
             if st.session_state.user not in parts: parts.append(st.session_state.user); df.at[idx, 'participants'] = ",".join(parts); conn.update(worksheet="Defis", data=df); st.cache_data.clear()
             return True
@@ -308,14 +359,17 @@ def main():
 
     def delete_challenge(c_id):
         try:
-            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"]); df = df[df['id'] != c_id]
+            df = conn.read(worksheet="Defis", ttl=0); df = df[df['id'] != c_id]
             conn.update(worksheet="Defis", data=df); st.cache_data.clear(); return True
         except: return False
 
     def get_user_badge(username, df_u):
         try:
-            row = df_u[df_u['user'] == username].iloc[0]; p_data = json.loads(row['json_data']); avatar = p_data.get('avatar', "")
-            if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
+            user_rows = df_u[df_u['user'] == username]
+            if not user_rows.empty:
+                row = user_rows.iloc[0]; p_data = json.loads(row['json_data']); avatar = p_data.get('avatar', "")
+                if not avatar: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
+            else: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         except: avatar = f"https://api.dicebear.com/7.x/adventurer/svg?seed={username}"
         return f"""<span style='display:inline-flex;align-items:center;border:1px solid rgba(128,128,128,0.3);border-radius:20px;padding:2px 10px;background:rgba(128,128,128,0.2);margin-right:5px;'><img src='{avatar}' style='width:25px;height:25px;border-radius:50%;margin-right:8px;object-fit:cover;background:white;'><span style='font-weight:bold;'>{username.capitalize()}</span></span>"""
 
@@ -327,9 +381,10 @@ def main():
     current_theme = "Sombre"
     if st.session_state.user:
         try:
-            # CHECK SÉCURISÉ : Ne déconnecte pas si erreur de lecture, garde le thème par défaut
-            if not df_u.empty and 'user' in df_u.columns and st.session_state.user in df_u['user'].values:
-                u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
+            # SECURITE: Verifier si l'utilisateur est bien dans la base chargée
+            user_rows = df_u[df_u['user'] == st.session_state.user]
+            if not user_rows.empty:
+                u_row = user_rows.iloc[0]
                 u_prof = json.loads(u_row['json_data'])
                 current_theme = u_prof.get('theme', 'Sombre')
         except: pass
@@ -356,7 +411,9 @@ def main():
         if menu == "Se connecter":
             if st.sidebar.button("Se connecter", key="btn_login"):
                 if not df_u.empty and u_input in df_u['user'].values:
-                    if df_u[df_u['user']==u_input].iloc[0]['pin'] == hash_pin(p_input): st.session_state.user = u_input; st.rerun()
+                    # SECURITE: Vérification que la ligne existe bien
+                    user_rows = df_u[df_u['user']==u_input]
+                    if not user_rows.empty and user_rows.iloc[0]['pin'] == hash_pin(p_input): st.session_state.user = u_input; st.rerun()
                     else: st.sidebar.error("Mauvais PIN")
                 else: st.sidebar.error("Utilisateur inconnu")
         elif menu == "Créer un compte":
@@ -377,8 +434,16 @@ def main():
         st.sidebar.markdown(f"👤 **{user.capitalize()}**")
         if st.sidebar.button("Déconnexion", key="btn_logout"): st.session_state.user = None; st.rerun()
         
-        row = df_u[df_u['user'] == user].iloc[0]
-        prof = json.loads(row['json_data'])
+        # CHARGEMENT ROBUSTE DES DONNEES UTILISATEUR
+        try:
+            user_row = df_u[df_u['user'] == user]
+            if not user_row.empty:
+                row = user_row.iloc[0]
+                prof = json.loads(row['json_data'])
+            else:
+                prof = {'w_init': 70, 'h': 175, 'sex': 'Homme', 'dob': '2000-01-01'}
+        except: prof = {'w_init': 70, 'h': 175, 'sex': 'Homme', 'dob': '2000-01-01'}
+
         my_df = df_a[df_a['user'] == user].copy()
         w_curr = float(my_df.iloc[-1]['poids']) if not my_df.empty else float(prof.get('w_init', 70))
         total_cal = my_df['calories'].sum()
@@ -562,7 +627,14 @@ def main():
 
         with tabs[6]: # STATS
             if not my_df.empty:
-                st.subheader("🏆 Records"); max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"; tot_sess = len(my_df)
+                st.subheader("🏆 Records")
+                # SECURITY CHECK FOR EMPTY SERIES
+                max_c = my_df['calories'].max() if not my_df['calories'].empty else 0
+                max_m = my_df['minutes'].max() if not my_df['minutes'].empty else 0
+                modes = my_df['sport'].mode()
+                fav = modes[0] if not modes.empty else "Aucun"
+                tot_sess = len(my_df)
+                
                 st.markdown(f"""<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;"><div class="stat-card"><div style="font-size: 2em;">🔥</div><div class="stat-val">{int(max_c)}</div><div class="stat-label">Record Calories</div></div><div class="stat-card"><div style="font-size: 2em;">⏱️</div><div class="stat-val">{int(max_m)} min</div><div class="stat-label">Record Durée</div></div><div class="stat-card"><div style="font-size: 2em;">❤️</div><div class="stat-val">{fav}</div><div class="stat-label">Sport Favori</div></div><div class="stat-card"><div style="font-size: 2em;">🏋️‍♂️</div><div class="stat-val">{tot_sess}</div><div class="stat-label">Total Sessions</div></div></div>""", unsafe_allow_html=True)
                 with st.expander("🔥 Info Afterburn"): st.info("L'Afterburn (EPOC) est ajouté automatiquement à vos calories !")
                 filter_option = st.selectbox("Période", ["Semaine", "Mois", "3 Mois", "Année", "Tout"], key="stats_filter")
@@ -583,8 +655,9 @@ def main():
                     df_chart_theo = my_df.copy()
                     if start_date: df_chart_theo = df_chart_theo[df_chart_theo['date'] >= start_date]
                     fig_w.add_trace(go.Scatter(x=df_chart_theo['date'], y=df_chart_theo['theo_weight'], mode='lines', name='Poids Théorique (Kcal)', line=dict(dash='dot', color='#FFA500')))
-                    last_theo = df_chart_theo['theo_weight'].iloc[-1]; last_real = df_chart['poids'].iloc[-1]
-                    if (last_real - last_theo) > 1.0: st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
+                    if not df_chart['poids'].empty:
+                        last_theo = df_chart_theo['theo_weight'].iloc[-1]; last_real = df_chart['poids'].iloc[-1]
+                        if (last_real - last_theo) > 1.0: st.warning(f"⚠️ **Attention : Écart de +{last_real - last_theo:.1f} kg par rapport à la théorie**\n\nCela peut être dû à :\n* Une sous-estimation des calories mangées (vérifie les quantités).\n* De la rétention d'eau (sel, stress, récupération).\n* Pas de panique, c'est souvent temporaire !")
                 max_val = df_chart['poids'].max() if not df_chart.empty else 100
                 fig_w.update_yaxes(range=[w_curr - 20, max_val * 1.1])
                 plotly_font_color = "white" if plotly_layout_dark else "black"; plotly_grid_color = "rgba(255,255,255,0.2)" if plotly_layout_dark else "#e0e0e0"
@@ -592,10 +665,8 @@ def main():
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
-                df_bar_daily = df_chart.copy()
-                df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
+                df_bar_daily = df_chart.copy(); df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
-                
                 df_food_daily = pd.DataFrame()
                 if not df_f.empty:
                     df_f_user = df_f[df_f['user'] == user].copy()

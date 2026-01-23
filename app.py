@@ -559,17 +559,17 @@ def main():
 
         tabs = st.tabs(["🏠 Tableau de Bord", "⚖️ Balance", "🍔 Bouffe", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
-       with tabs[0]: # DASHBOARD
+        with tabs[0]: # DASHBOARD
             st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
             st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
             
             lvl, pct, rem = get_level_progress(total_cal)
             st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
-            # --- CALCUL DU DÉFICIT COMPLEXE (Le code ajouté) ---
+            # --- CALCUL DU DÉFICIT COMPLEXE (AJOUTÉ) ---
             total_fat_loss_real = 0.0
             if not my_df.empty or not my_food.empty:
-                # 1. On détermine la date de début (premier log sport ou bouffe)
+                # 1. On détermine la date de début
                 d_start_s = my_df['date'].min() if not my_df.empty else datetime.now()
                 d_start_f = my_food['date'].min() if not my_food.empty else datetime.now()
                 start_calc = min(d_start_s, d_start_f).date()
@@ -605,7 +605,7 @@ def main():
                 # Conversion kcal -> kg de gras
                 total_fat_loss_real = cumul_deficit / 7700
 
-            # --- AFFICHAGE METRIQUES (Modifié pour inclure le nouveau compteur) ---
+            # --- AFFICHAGE METRIQUES (Modifié pour inclure le compteur) ---
             st.markdown("### 📊 Cumul Global")
             k1, k2, k3 = st.columns(3) # On passe de 2 à 3 colonnes
             
@@ -657,26 +657,6 @@ def main():
                     if km < dist: target_label = label; target_km = dist; break
                 st.markdown(f"<div class='glass'>🏃‍♂️ <b>{int(km)} km</b> parcourus<br>Cap sur : <b>{target_label}</b> ({int(target_km - km)} km restants)</div>", unsafe_allow_html=True)
                 st.progress(min(km/target_km, 1.0))
-            
-            # --- AFFICHAGE METRIQUES ---
-            st.markdown("### 📊 Cumul Global")
-            # Changement : 3 colonnes au lieu de 2
-            k1, k2, k3 = st.columns(3)
-            
-            k1.metric("Total Sport (Kcal)", f"{int(total_cal)} kcal")
-            
-            # Ancien calcul (basé uniquement sur le sport)
-            kg_fat_sport = total_cal / 7700
-            k2.metric("Gras (Sport seul)", f"{kg_fat_sport:.2f} kg", help="Calculé uniquement sur les calories brûlées en sport.")
-            
-            # Nouveau compteur (Déficit réel)
-            k3.metric("🔥 Perte Réelle Totale", f"{total_fat_loss_real:.2f} kg", delta="Déficit Global", help="Prend en compte : BMR + Sport - Repas. (7700kcal = 1kg)")
-            
-            st.divider()
-            # ... Le reste du code dashboard reste inchangé ...
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Aujourd'hui", f"{int(my_df[my_df['date'].dt.date == date.today()]['calories'].sum())} kcal")
-            # ... suite du code ...
 
         with tabs[1]: # BALANCE
             st.header("⚖️ Suivi du Poids")
@@ -1083,5 +1063,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-
-

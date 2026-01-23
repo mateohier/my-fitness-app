@@ -601,9 +601,14 @@ def main():
                     f_time = st.time_input("Heure", datetime.now().time())
                     st.markdown("### Ressenti du repas")
                     f_level = st.slider("Quelle taille faisait ce repas ?", 1, 7, 4)
+                    
+                    # Display scale permanently below slider
+                    st.markdown("##### 📏 Guide des portions :")
+                    for i in range(1, 8):
+                        st.markdown(f"<div style='font-size:0.8em; color:gray;'><b>Niveau {i}</b> : {FOOD_LABELS[i]} (~{FOOD_LEVELS[i]} kcal)</div>", unsafe_allow_html=True)
+                    
                     est_cal = FOOD_LEVELS[f_level]; est_label = FOOD_LABELS[f_level]
                     st.markdown(f"<h2 style='text-align:center; color:#FFA500;'>~ {est_cal} kcal</h2>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align:center; font-style:italic;'>{est_label}</p>", unsafe_allow_html=True)
                     if st.form_submit_button("Enregistrer ce repas"):
                         dt_food = datetime.combine(f_date, f_time)
                         new_food = pd.DataFrame([{"date": dt_food, "user": user, "type_repas": est_label, "calorie_est": est_cal}])
@@ -879,4 +884,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-

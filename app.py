@@ -142,7 +142,7 @@ def main():
     def calculate_bmr(weight, height, age, sex):
         try:
             val = (10 * float(weight)) + (6.25 * float(height)) - (5 * float(age))
-            return val + 5 if sex == "Homme" else val - 161
+            return (val + 5)*1.2 if sex == "Homme" else (val - 161)*1.2
         except: return 1500
 
     def get_level_progress(total_cal):
@@ -879,3 +879,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+

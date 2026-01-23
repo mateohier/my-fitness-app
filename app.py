@@ -16,7 +16,7 @@ from PIL import Image
 import io
 import base64
 
-# --- 1. CONFIGURATION & CONSTANTES ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
@@ -158,52 +158,45 @@ def main():
             return f"data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode()}"
         except: return None
 
-    # --- 3. GESTION DONNÉES ---
+    # --- 3. GESTION DONNÉES BLINDÉE ---
     conn = st.connection("gsheets", type=GSheetsConnection)
 
-    def get_data():
+    def secure_read(worksheet, cols):
+        """Lit une feuille et s'assure que toutes les colonnes existent."""
         try:
-            df_u = conn.read(worksheet="Profils", ttl=0)
-            df_a = conn.read(worksheet="Activites", ttl=0)
-            df_d = conn.read(worksheet="Defis", ttl=0)
-            try: df_p = conn.read(worksheet="Posts", ttl=0)
-            except: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
-            
-            # --- CORRECTION ET BLINDAGE FOOD ---
-            try:
-                df_f = conn.read(worksheet="Food", ttl=0)
-                df_f.columns = df_f.columns.str.strip() # Remove whitespaces
-            except:
-                df_f = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
-            
-            required_cols = ["date", "user", "type_repas", "calories_est", "aliments"]
-            for col in required_cols:
-                if col not in df_f.columns: df_f[col] = "" # Force create column if missing
-            
-            df_f = df_f[required_cols] # Enforce column order
+            df = conn.read(worksheet=worksheet, ttl=0)
+            df.columns = df.columns.str.strip() # Enlever espaces
+        except:
+            df = pd.DataFrame(columns=cols)
+        
+        # Ajout des colonnes manquantes
+        for c in cols:
+            if c not in df.columns:
+                df[c] = ""
+        
+        return df[cols]
 
-            if df_u.empty: df_u = pd.DataFrame(columns=["user", "pin", "json_data"])
-            if df_a.empty: df_a = pd.DataFrame(columns=["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
-            else:
-                if 'distance' not in df_a.columns: df_a['distance'] = 0.0
-                if 'pas' not in df_a.columns: df_a['pas'] = 0
-                if 'steps' in df_a.columns: df_a = df_a.drop(columns=['steps'])
-                
-            if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
-            if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
-            
-            df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce'); df_a = df_a.dropna(subset=['date'])
-            df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
-            df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce'); df_f = df_f.dropna(subset=['date'])
-            
-            return df_u, df_a, df_d, df_p, df_f
-        except: return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    def get_data():
+        df_u = secure_read("Profils", ["user", "pin", "json_data"])
+        df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+        df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+        df_p = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
+        df_f = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
+        
+        # Typage dates
+        df_a['date'] = pd.to_datetime(df_a['date'], errors='coerce'); df_a = df_a.dropna(subset=['date'])
+        df_p['date'] = pd.to_datetime(df_p['date'], errors='coerce')
+        df_f['date'] = pd.to_datetime(df_f['date'], errors='coerce'); df_f = df_f.dropna(subset=['date'])
+        
+        return df_u, df_a, df_d, df_p, df_f
 
     def save_activity(new_row):
         try:
-            df = conn.read(worksheet="Activites", ttl=0)
-            if 'distance' not in df.columns: df['distance'] = 0.0
-            if 'pas' not in df.columns: df['pas'] = 0
+            df = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+            # Harmonisation new_row
+            for c in df.columns:
+                if c not in new_row.columns: new_row[c] = ""
+            
             upd = pd.concat([df, new_row], ignore_index=True)
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
             conn.update(worksheet="Activites", data=upd)
@@ -212,7 +205,7 @@ def main():
 
     def save_post(image_b64, comment):
         try:
-            df = conn.read(worksheet="Posts", ttl=0)
+            df = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
             new = pd.DataFrame([{"id": str(uuid.uuid4()), "user": st.session_state.user, "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "image": image_b64, "comment": comment, "seen_by": st.session_state.user}])
             conn.update(worksheet="Posts", data=pd.concat([df, new], ignore_index=True))
             st.cache_data.clear(); return True
@@ -220,37 +213,16 @@ def main():
     
     def save_food(new_row):
         try:
-            # BLINDAGE DE L'ENREGISTREMENT
-            try:
-                df = conn.read(worksheet="Food", ttl=0)
-                df.columns = df.columns.str.strip()
-            except:
-                df = pd.DataFrame(columns=["date", "user", "type_repas", "calories_est", "aliments"])
-
-            # On s'assure que le DF de base a toutes les colonnes
-            required = ["date", "user", "type_repas", "calories_est", "aliments"]
-            for col in required:
-                if col not in df.columns:
-                    df[col] = ""
-            
-            # On s'assure que new_row a aussi toutes les colonnes (même vides)
-            for col in required:
-                if col not in new_row.columns:
-                    new_row[col] = ""
-            
-            # Nettoyage des NaN pour Google Sheets
-            df = df.fillna("")
-            new_row = new_row.fillna("")
+            df = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
+            # Harmonisation
+            for c in df.columns:
+                if c not in new_row.columns: new_row[c] = ""
             
             upd = pd.concat([df, new_row], ignore_index=True)
-            # Conversion date string pour éviter les erreurs JSON
             upd['date'] = pd.to_datetime(upd['date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-            
             conn.update(worksheet="Food", data=upd)
             st.cache_data.clear(); return True
-        except Exception as e:
-            print(f"SAVE ERROR: {e}")
-            return False
+        except: return False
 
     def clean_old_posts(df_p):
         try:
@@ -264,7 +236,7 @@ def main():
 
     def mark_post_seen(post_id, current_user):
         try:
-            df = conn.read(worksheet="Posts", ttl=0)
+            df = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
             idx = df[df['id'] == post_id].index[0]
             viewers = str(df.at[idx, 'seen_by']).split(',')
             if current_user not in viewers:
@@ -274,7 +246,7 @@ def main():
 
     def save_user(u, p, data):
         try:
-            df = conn.read(worksheet="Profils", ttl=0)
+            df = secure_read("Profils", ["user", "pin", "json_data"])
             j = json.dumps(data)
             if not df.empty and u in df['user'].values: df.loc[df['user'] == u, 'json_data'] = j; df.loc[df['user'] == u, 'pin'] = p
             else: df = pd.concat([df, pd.DataFrame([{"user": u, "pin": p, "json_data": j}])], ignore_index=True)
@@ -283,11 +255,12 @@ def main():
 
     def change_username(old_u, new_u):
         try:
-            df_u = conn.read(worksheet="Profils", ttl=0)
+            df_u = secure_read("Profils", ["user", "pin", "json_data"])
             if new_u in df_u['user'].values: return "Ce pseudo existe déjà"
-            df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0); df_p = conn.read(worksheet="Posts", ttl=0)
-            try: df_f = conn.read(worksheet="Food", ttl=0)
-            except: df_f = pd.DataFrame()
+            df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+            df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+            df_p = secure_read("Posts", ["id", "user", "date", "image", "comment", "seen_by"])
+            df_f = secure_read("Food", ["date", "user", "type_repas", "calories_est", "aliments"])
             
             df_u.loc[df_u['user'] == old_u, 'user'] = new_u
             if not df_a.empty: df_a.loc[df_a['user'] == old_u, 'user'] = new_u
@@ -301,15 +274,16 @@ def main():
                 def upd_csv_d(txt): return ",".join([new_u if x==old_u else x for x in str(txt).split(',')])
                 df_d['participants'] = df_d['participants'].apply(upd_csv_d)
                 
-            conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d); conn.update(worksheet="Posts", data=df_p)
-            if not df_f.empty: conn.update(worksheet="Food", data=df_f)
+            conn.update(worksheet="Profils", data=df_u); conn.update(worksheet="Activites", data=df_a); conn.update(worksheet="Defis", data=df_d); conn.update(worksheet="Posts", data=df_p); conn.update(worksheet="Food", data=df_f)
             st.cache_data.clear(); return "OK"
         except Exception as e: return str(e)
 
     def delete_current_user():
         try:
             user = st.session_state.user
-            df_u = conn.read(worksheet="Profils", ttl=0); df_a = conn.read(worksheet="Activites", ttl=0); df_d = conn.read(worksheet="Defis", ttl=0)
+            df_u = secure_read("Profils", ["user", "pin", "json_data"])
+            df_a = secure_read("Activites", ["date", "user", "sport", "minutes", "calories", "poids", "distance", "pas"])
+            df_d = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             df_u = df_u[df_u['user'] != user]; df_a = df_a[df_a['user'] != user]
             def remove_p(p_str): parts = str(p_str).split(','); return ",".join([p for p in parts if p != user])
             df_d['participants'] = df_d['participants'].apply(remove_p)
@@ -319,14 +293,14 @@ def main():
 
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
-            df = conn.read(worksheet="Defis", ttl=0)
+            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
             new = pd.DataFrame([{"id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), "sport_cible": sport_cible, "createur": st.session_state.user, "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"}])
             conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True)); st.cache_data.clear(); return True
         except: return False
 
     def join_challenge(c_id):
         try:
-            df = conn.read(worksheet="Defis", ttl=0); idx = df[df['id'] == c_id].index[0]
+            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"]); idx = df[df['id'] == c_id].index[0]
             parts = df.at[idx, 'participants'].split(',')
             if st.session_state.user not in parts: parts.append(st.session_state.user); df.at[idx, 'participants'] = ",".join(parts); conn.update(worksheet="Defis", data=df); st.cache_data.clear()
             return True
@@ -334,7 +308,7 @@ def main():
 
     def delete_challenge(c_id):
         try:
-            df = conn.read(worksheet="Defis", ttl=0); df = df[df['id'] != c_id]
+            df = secure_read("Defis", ["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"]); df = df[df['id'] != c_id]
             conn.update(worksheet="Defis", data=df); st.cache_data.clear(); return True
         except: return False
 
@@ -351,14 +325,14 @@ def main():
     clean_old_posts(df_p)
 
     current_theme = "Sombre"
-    # ANTI-DISCONNECTION FIX: Ne pas déconnecter l'user si l'API échoue temporairement
     if st.session_state.user:
         try:
+            # CHECK SÉCURISÉ : Ne déconnecte pas si erreur de lecture, garde le thème par défaut
             if not df_u.empty and 'user' in df_u.columns and st.session_state.user in df_u['user'].values:
                 u_row = df_u[df_u['user'] == st.session_state.user].iloc[0]
                 u_prof = json.loads(u_row['json_data'])
                 current_theme = u_prof.get('theme', 'Sombre')
-        except: pass # On garde juste le thème par défaut, on ne déconnecte PAS.
+        except: pass
 
     # --- CSS ---
     if current_theme == "Sombre":
@@ -618,8 +592,10 @@ def main():
                 c1.plotly_chart(fig_w, use_container_width=True)
                 
                 bmr_daily = int(calculate_bmr(w_curr, prof['h'], calculate_age(prof['dob']), prof['sex']))
-                df_bar_daily = df_chart.copy(); df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
+                df_bar_daily = df_chart.copy()
+                df_bar_daily['date_day'] = df_bar_daily['date'].dt.date
                 df_sport = df_bar_daily.groupby('date_day')['calories'].sum().reset_index()
+                
                 df_food_daily = pd.DataFrame()
                 if not df_f.empty:
                     df_f_user = df_f[df_f['user'] == user].copy()

@@ -24,7 +24,7 @@ LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 # CONSTANTE DE SECURITE (90% du total calculé = on enlève 10% par prudence)
-SAFETY_FACTOR = 0.9
+SAFETY_FACTOR = 0.85
 
 def main():
     # --- DEFINITION DES TITRES (Ordre dynamique) ---
@@ -1236,3 +1236,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+

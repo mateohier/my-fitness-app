@@ -66,7 +66,6 @@ def main():
         "Elliptique":  {"Force": 4, "Endurance": 8, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
         "Gymnastique": {"Force": 9, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
         "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
-        "Corde à sauter": {"Force": 4, "Endurance": 10, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 8, "Mental": 7, "Récupération": 6, "Concentration": 8},
         "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
@@ -79,7 +78,6 @@ def main():
         "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
         "Handball": 6.0,
         "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
-        "Corde à sauter": 0.0,
         "Sport de chambre": 0.0
     }
 
@@ -88,7 +86,7 @@ def main():
         "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
         "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
         "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
-        "Handball": 0.07, "Corde à sauter": 0.12,
+        "Handball": 0.07,
         "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
         "Sport de chambre": 0.04
     }
@@ -152,6 +150,7 @@ def main():
     def get_level_progress(total_cal):
         factor = 150 
         if total_cal == 0: return 1, 0.0, 100
+        # Cette formule permet des niveaux infinis (ex: 150 000 000 cal = niveau 1000)
         level = int((total_cal / factor) ** 0.5)
         if level == 0: level = 1
         cal_curr = factor * (level ** 2)
@@ -255,13 +254,11 @@ def main():
                 if 'pas' not in df_a.columns: df_a['pas'] = 0
                 if 'steps' in df_a.columns: df_a = df_a.drop(columns=['steps'])
             
-            # AJOUT: 'date_debut' dans le dataframe si vide
             if df_d.empty: 
                 df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut", "date_debut"])
             else:
-                # Si la colonne n'existe pas dans le Google Sheet (vieux défis), on l'ajoute
-                if 'date_debut' not in df_d.columns:
-                    df_d['date_debut'] = "2024-01-01" # Date par défaut pour les anciens défis
+                # Ajout rétroactif colonne date_debut si manquante
+                if 'date_debut' not in df_d.columns: df_d['date_debut'] = "2024-01-01"
 
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             if df_b.empty: df_b = pd.DataFrame(columns=["date", "user", "type_repas", "calorie_est"])
@@ -408,7 +405,6 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
-            # AJOUT : date_debut est fixé à aujourd'hui
             new = pd.DataFrame([{
                 "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
                 "sport_cible": sport_cible, "createur": st.session_state.user, 

@@ -164,26 +164,47 @@ def main():
         except: return 1500
 
     def get_level_progress(total_cal):
-        factor = 150 
-        if total_cal == 0: return 1, 0.0, 100
-        # Cette formule permet des niveaux infinis (ex: 150 000 000 cal = niveau 1000)
-        level = int((total_cal / factor) ** 0.5)
-        if level == 0: level = 1
-        cal_curr = factor * (level ** 2)
-        cal_next = factor * ((level + 1) ** 2)
-        pct = min(max((total_cal - cal_curr) / (cal_next - cal_curr), 0.0), 1.0)
-        return level, pct, int(cal_next - total_cal)
+        """
+        Calcule le niveau basé sur une courbe adaptée pour atteindre le
+        niveau 262 (Héros) en environ 3 ans (~470k kcal).
+        Formule : 5*L^2 + 495*L = Calories
+        """
+        if total_cal < 0: total_cal = 0
+        
+        # Résolution équation quadratique : 5x^2 + 495x - total_cal = 0
+        a = 5
+        b = 495
+        c = -total_cal
+        
+        delta = (b**2) - (4 * a * c)
+        if delta < 0: delta = 0
+        level = int((-b + (delta**0.5)) / (2 * a))
+        
+        # Calcul des bornes pour la barre de progression
+        # Calories pour atteindre le niveau ACTUEL
+        cal_curr = 5 * (level**2) + 495 * level
+        
+        # Calories pour atteindre le niveau SUIVANT
+        next_lvl = level + 1
+        cal_next = 5 * (next_lvl**2) + 495 * next_lvl
+        
+        pct = 0.0
+        if cal_next > cal_curr:
+            pct = (total_cal - cal_curr) / (cal_next - cal_curr)
+            
+        return level, min(max(pct, 0.0), 1.0), int(cal_next - total_cal)
 
     def get_status_from_level(lvl):
         """
         Détermine le titre en fonction du niveau.
-        Logique de progression des paliers (gaps) :
-        - Pour atteindre le titre 1 (Je sors du canapé) : 5 niveaux (Seuil = 1 + 5 = 6)
-        - Pour atteindre le titre 2 : +11 niveaux (Seuil = 6 + 11 = 17)
-        - Pour atteindre le titre 3 : +17 niveaux (Seuil = 17 + 17 = 34)
-        - Progression du gap : +6 à chaque étape (5, 11, 17, 23, 29...)
+        Logique :
+        - Statut 0 (Canapé Warrior) : Niv 1 à 5.
+        - Statut 1 : Atteint au Niv 6 (Gap = 5).
+        - Statut 2 : Atteint au Niv 17 (Gap = 11).
+        - Statut 3 : Atteint au Niv 34 (Gap = 17).
+        - Progression gap : +6 à chaque rang (5, 11, 17, 23, 29...).
         """
-        threshold = 1 # Niveau de départ (Niveau 1)
+        threshold = 1 # Niveau de départ
         gap = 5       # Premier saut (5 niveaux pour atteindre le statut 1)
         
         # On parcourt la liste des titres
@@ -201,11 +222,9 @@ def main():
             gap += 6 # L'écart grandit de 6 niveaux à chaque rang (5 -> 11 -> 17 -> 23...)
 
         # Gestion des niveaux infinis (au-delà de la liste définie)
-        # On continue la logique mathématique pour trouver le prestige
         base_t, _ = STATUS_TITLES[-1]
         prestige_count = 0
         
-        # Tant que le niveau est supérieur au seuil calculé, on incrémente le prestige
         while lvl >= threshold + gap:
             threshold += gap
             gap += 6

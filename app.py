@@ -43,26 +43,27 @@ def main():
 
     # --- CALENDRIER DES BOSS ---
     BOSS_CALENDAR = {
-        1: ("Yéti des Glaces", 40000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/1.jpg"),
-        2: ("Golem de Pierre", 45000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/2.jpg"),
-        3: ("Hydre des Marais", 50000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/3.jpg"),
-        4: ("Titan Colossal", 55000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/4.jpg"),
-        5: ("Reine des Enfers", 60000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/5.jpg"),
-        6: ("Dragon Solaire", 650000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/6.jpg"),
-        7: ("Kraken des Abysses", 70000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/7.jpg"),
-        8: ("Seigneur Volcanique", 75000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/8.jpg"),
-        9: ("Chevalier Noir", 80000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/9.jpg"),
-        10: ("Spectre d'Halloween", 85000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/10.jpg"),
-        11: ("Cyborg du Futur", 90000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/11.jpg"),
-        12: ("Père Fouettard Géant", 100000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
+        1: ("Yéti des Glaces", 50000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/1.jpg"),
+        2: ("Golem de Pierre", 60000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/2.jpg"),
+        3: ("Hydre des Marais", 70000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/3.jpg"),
+        4: ("Titan Colossal", 80000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/4.jpg"),
+        5: ("Reine des Enfers", 90000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/5.jpg"),
+        6: ("Dragon Solaire", 100000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/6.jpg"),
+        7: ("Kraken des Abysses", 110000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/7.jpg"),
+        8: ("Seigneur Volcanique", 120000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/8.jpg"),
+        9: ("Chevalier Noir", 130000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/9.jpg"),
+        10: ("Spectre d'Halloween", 140000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/10.jpg"),
+        11: ("Cyborg du Futur", 150000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/11.jpg"),
+        12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
     }
 
     # --- MAPPINGS (Optimisés pour réalisme) ---
     DNA_MAP = {
         # Sports Cardio intenses
-        "Course":          {"Force": 5, "Endurance": 25, "Vitesse": 14, "Agilité": 5, "Souplesse": 3, "Explosivité": 7, "Mental": 10, "Récupération": 8, "Concentration": 6},
+        # Course ajustée : Force 6 + Endurance 25.5 = 31.5 (vs 30 avant) -> +5% exact
+        "Course":          {"Force": 6, "Endurance": 25.5, "Vitesse": 10, "Agilité": 5, "Souplesse": 3, "Explosivité": 6, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Corde à sauter":  {"Force": 8, "Endurance": 28, "Vitesse": 9, "Agilité": 10, "Souplesse": 4, "Explosivité": 9, "Mental": 8, "Récupération": 6, "Concentration": 8},
-        "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse":8, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
+        "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Boxe":            {"Force": 12, "Endurance": 18, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Natation":        {"Force": 10, "Endurance": 17, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
         
@@ -84,14 +85,15 @@ def main():
         "Karaté":          {"Force": 10, "Endurance": 10, "Vitesse": 8, "Agilité": 8, "Souplesse": 7, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Volley":          {"Force": 8, "Endurance": 8, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
         "Gymnastique":     {"Force": 10, "Endurance": 8, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
-        "Danse":           {"Force": 6, "Endurance": 10, "Vitesse": 5, "Agilité": 12, "Souplesse": 9, "Explosivité": 5, "Mental": 6, "Récupération": 6, "Concentration": 8},
+        "Danse":           {"Force": 6, "Endurance": 10, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
         
-        # Activités Douces
+        # Activités Douces / Rééducation
         "Randonnée":       {"Force": 6, "Endurance": 10, "Vitesse": 2, "Agilité": 3, "Souplesse": 2, "Explosivité": 2, "Mental": 7, "Récupération": 8, "Concentration": 5},
         "Marche":          {"Force": 3, "Endurance": 8, "Vitesse": 2, "Agilité": 2, "Souplesse": 2, "Explosivité": 1, "Mental": 4, "Récupération": 10, "Concentration": 3},
         "Yoga":            {"Force": 5, "Endurance": 6, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Pilates":         {"Force": 6, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
-        "Sport de chambre": {"Force": 4, "Endurance": 7, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
+        "Sport de chambre": {"Force": 4, "Endurance": 7, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6},
+        "Rééducation sportive": {"Force": 3, "Endurance": 4, "Vitesse": 2, "Agilité": 4, "Souplesse": 7, "Explosivité": 2, "Mental": 6, "Récupération": 9, "Concentration": 8}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -104,7 +106,8 @@ def main():
         "Handball": 6.0,
         "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
         "Corde à sauter": 0.0,
-        "Sport de chambre": 0.0
+        "Sport de chambre": 0.0,
+        "Rééducation sportive": 0.0
     }
 
     EPOC_MAP = {
@@ -114,7 +117,7 @@ def main():
         "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
         "Handball": 0.07, "Corde à sauter": 0.12,
         "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
-        "Sport de chambre": 0.04
+        "Sport de chambre": 0.04, "Rééducation sportive": 0.03
     }
 
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
@@ -1236,8 +1239,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-
-
-
-
-

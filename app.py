@@ -24,6 +24,20 @@ LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 def main():
+    # --- DEFINITION DES NIVEAUX (1-10) ---
+    LEVEL_DEFINITIONS = {
+        1: ("Canapé Warrior", "Sortir du canapé, c’est déjà un exploit."),
+        2: ("Réveil Musculaire", "Ton corps se réveille et se rappelle qu’il existe."),
+        3: ("Bougeur Régulier", "Bouger devient naturel, la routine s’installe."),
+        4: ("Motivé", "Les entraînements ne font plus peur."),
+        5: ("En Forme", "Énergie et endurance commencent à se voir."),
+        6: ("Solide", "Force et régularité qui commencent à impressionner."),
+        7: ("Affûté", "Endurance et technique au rendez-vous."),
+        8: ("Bête de Sport", "Intensité élevée, performances visibles."),
+        9: ("Champion du Quotidien", "Ton niveau inspire les autres autour de toi."),
+        10: ("Héros de la Forme", "Niveau exceptionnel, respect total.")
+    }
+
     # --- CALENDRIER DES BOSS ---
     BOSS_CALENDAR = {
         1: ("Yéti des Glaces", 50000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/1.jpg"),
@@ -66,6 +80,7 @@ def main():
         "Elliptique":  {"Force": 4, "Endurance": 8, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
         "Gymnastique": {"Force": 9, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
         "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
+        "Corde à sauter": {"Force": 4, "Endurance": 10, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 8, "Mental": 7, "Récupération": 6, "Concentration": 8},
         "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
@@ -78,6 +93,7 @@ def main():
         "Judo": 0.0, "Karaté": 0.0, "Gymnastique": 0.0, "Volley": 3.0,
         "Handball": 6.0,
         "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
+        "Corde à sauter": 0.0,
         "Sport de chambre": 0.0
     }
 
@@ -86,7 +102,7 @@ def main():
         "Course": 0.07, "Vélo": 0.05, "Natation": 0.12, "Tennis": 0.05, "Football": 0.07, "Basket": 0.07,
         "Rameur": 0.08, "Elliptique": 0.05, "Badminton": 0.05, "Volley": 0.04,
         "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
-        "Handball": 0.07,
+        "Handball": 0.07, "Corde à sauter": 0.12,
         "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
         "Sport de chambre": 0.04
     }
@@ -405,6 +421,7 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
+            # AJOUT : date_debut est fixé à aujourd'hui
             new = pd.DataFrame([{
                 "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
                 "sport_cible": sport_cible, "createur": st.session_state.user, 
@@ -571,7 +588,19 @@ def main():
             st.markdown(f"<div class='quote-box'>{random.choice(['La douleur est temporaire.', 'Tu es une machine.', 'Go hard or go home.'])}</div>", unsafe_allow_html=True)
             
             lvl, pct, rem = get_level_progress(total_cal)
-            st.markdown(f"### ⚡ Niveau {lvl}"); st.progress(pct); st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
+            
+            # --- LOGIQUE AFFICHAGE NIVEAU ---
+            if lvl in LEVEL_DEFINITIONS:
+                lvl_title, lvl_desc = LEVEL_DEFINITIONS[lvl]
+            elif lvl > 10:
+                lvl_title, lvl_desc = f"Héros de la Forme (Prestige {lvl-10})", "Tu es au-delà des limites !"
+            else:
+                lvl_title, lvl_desc = "Débutant", "Chaque voyage commence par un pas."
+
+            st.markdown(f"### ⚡ Niveau {lvl} : {lvl_title}")
+            st.progress(pct)
+            st.caption(f"_{lvl_desc}_")
+            st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
             # --- CALCUL DU DÉFICIT COMPLEXE (Tab 0) ---
             total_fat_loss_real = 0.0
@@ -640,7 +669,13 @@ def main():
                 celebrations = []
                 for u, cal in all_totals.items():
                     u_lvl, _, _ = get_level_progress(cal)
-                    if u_lvl >= 5: celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est un vétéran de Niveau {u_lvl} !")
+                    
+                    # LOGIQUE CELEBRATION MISE A JOUR
+                    if u_lvl >= 5:
+                        # Récupère le titre ou "Titan" si > 10
+                        u_title_cel = LEVEL_DEFINITIONS.get(u_lvl, ("Titan", ""))[0] if u_lvl <= 10 else f"Titan (Niv. {u_lvl})"
+                        celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est maintenant **{u_title_cel}** !")
+                    
                     if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")
                 if celebrations: st.markdown(f"<div class='celeb-box'>{random.choice(celebrations)}</div>", unsafe_allow_html=True)
             

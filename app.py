@@ -24,19 +24,19 @@ LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 def main():
-    # --- DEFINITION DES NIVEAUX (1-10) ---
-    LEVEL_DEFINITIONS = {
-        1: ("Canapé Warrior", "Sortir du canapé, c’est déjà un exploit."),
-        2: ("Réveil Musculaire", "Ton corps se réveille et se rappelle qu’il existe."),
-        3: ("Bougeur Régulier", "Bouger devient naturel, la routine s’installe."),
-        4: ("Motivé", "Les entraînements ne font plus peur."),
-        5: ("En Forme", "Énergie et endurance commencent à se voir."),
-        6: ("Solide", "Force et régularité qui commencent à impressionner."),
-        7: ("Affûté", "Endurance et technique au rendez-vous."),
-        8: ("Bête de Sport", "Intensité élevée, performances visibles."),
-        9: ("Champion du Quotidien", "Ton niveau inspire les autres autour de toi."),
-        10: ("Héros de la Forme", "Niveau exceptionnel, respect total.")
-    }
+    # --- DEFINITION DES TITRES (Ordre dynamique) ---
+    STATUS_TITLES = [
+        ("Canapé Warrior", "Sortir du canapé, c’est déjà un exploit."),
+        ("Je sors du canapé", "Ton corps se réveille et se rappelle qu’il existe."),
+        ("Bougeur Régulier", "Bouger devient naturel, la routine s’installe."),
+        ("Motivé", "Les entraînements ne font plus peur."),
+        ("En Forme", "Énergie et endurance commencent à se voir."),
+        ("Solide", "Force et régularité qui commencent à impressionner."),
+        ("Affûté", "Endurance et technique au rendez-vous."),
+        ("Bête de Sport", "Intensité élevée, performances visibles."),
+        ("Champion du Quotidien", "Ton niveau inspire les autres autour de toi."),
+        ("Héros de la Forme", "Niveau exceptionnel, respect total.")
+    ]
 
     # --- CALENDRIER DES BOSS ---
     BOSS_CALENDAR = {
@@ -173,6 +173,45 @@ def main():
         cal_next = factor * ((level + 1) ** 2)
         pct = min(max((total_cal - cal_curr) / (cal_next - cal_curr), 0.0), 1.0)
         return level, pct, int(cal_next - total_cal)
+
+    def get_status_from_level(lvl):
+        """
+        Détermine le titre en fonction du niveau.
+        Logique de progression des paliers (gaps) :
+        - Pour atteindre le titre 1 (Je sors du canapé) : 5 niveaux (Seuil = 1 + 5 = 6)
+        - Pour atteindre le titre 2 : +11 niveaux (Seuil = 6 + 11 = 17)
+        - Pour atteindre le titre 3 : +17 niveaux (Seuil = 17 + 17 = 34)
+        - Progression du gap : +6 à chaque étape (5, 11, 17, 23, 29...)
+        """
+        threshold = 1 # Niveau de départ (Niveau 1)
+        gap = 5       # Premier saut (5 niveaux pour atteindre le statut 1)
+        
+        # On parcourt la liste des titres
+        for i in range(len(STATUS_TITLES)):
+            # Le seuil pour atteindre le titre SUIVANT (i+1)
+            next_threshold = threshold + gap
+            
+            # Si le niveau du joueur est inférieur au seuil requis pour le PROCHAIN titre, 
+            # il possède le titre actuel (i).
+            if lvl < next_threshold:
+                return STATUS_TITLES[i]
+            
+            # Préparation pour le prochain tour de boucle
+            threshold = next_threshold
+            gap += 6 # L'écart grandit de 6 niveaux à chaque rang (5 -> 11 -> 17 -> 23...)
+
+        # Gestion des niveaux infinis (au-delà de la liste définie)
+        # On continue la logique mathématique pour trouver le prestige
+        base_t, _ = STATUS_TITLES[-1]
+        prestige_count = 0
+        
+        # Tant que le niveau est supérieur au seuil calculé, on incrémente le prestige
+        while lvl >= threshold + gap:
+            threshold += gap
+            gap += 6
+            prestige_count += 1
+            
+        return f"{base_t} (Prestige {prestige_count + 1})", "Légende vivante."
 
     def check_achievements(df):
         badges = []
@@ -590,16 +629,11 @@ def main():
             lvl, pct, rem = get_level_progress(total_cal)
             
             # --- LOGIQUE AFFICHAGE NIVEAU ---
-            if lvl in LEVEL_DEFINITIONS:
-                lvl_title, lvl_desc = LEVEL_DEFINITIONS[lvl]
-            elif lvl > 10:
-                lvl_title, lvl_desc = f"Héros de la Forme (Prestige {lvl-10})", "Tu es au-delà des limites !"
-            else:
-                lvl_title, lvl_desc = "Débutant", "Chaque voyage commence par un pas."
+            user_title, user_desc = get_status_from_level(lvl)
 
-            st.markdown(f"### ⚡ Niveau {lvl} : {lvl_title}")
+            st.markdown(f"### ⚡ Niveau {lvl} : {user_title}")
             st.progress(pct)
-            st.caption(f"_{lvl_desc}_")
+            st.caption(f"_{user_desc}_")
             st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
             # --- CALCUL DU DÉFICIT COMPLEXE (Tab 0) ---
@@ -672,8 +706,7 @@ def main():
                     
                     # LOGIQUE CELEBRATION MISE A JOUR
                     if u_lvl >= 5:
-                        # Récupère le titre ou "Titan" si > 10
-                        u_title_cel = LEVEL_DEFINITIONS.get(u_lvl, ("Titan", ""))[0] if u_lvl <= 10 else f"Titan (Niv. {u_lvl})"
+                        u_title_cel = get_status_from_level(u_lvl)[0]
                         celebrations.append(f"🎖️ {get_user_badge(u, df_u)} est maintenant **{u_title_cel}** !")
                     
                     if cal > 10000: celebrations.append(f"🔥 {get_user_badge(u, df_u)} a brûlé plus de 10 000 kcal !")

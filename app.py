@@ -24,7 +24,7 @@ LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
 # CONSTANTE DE SECURITE (90% du total calculé = on enlève 10% par prudence)
-SAFETY_FACTOR = 0.85
+SAFETY_FACTOR = 0.9
 
 def main():
     # --- DEFINITION DES TITRES (Ordre dynamique) ---
@@ -62,7 +62,7 @@ def main():
         # Sports Cardio intenses
         "Course":          {"Force": 5, "Endurance": 25, "Vitesse": 10, "Agilité": 5, "Souplesse": 3, "Explosivité": 6, "Mental": 9, "Récupération": 8, "Concentration": 6},
         "Corde à sauter":  {"Force": 8, "Endurance": 28, "Vitesse": 9, "Agilité": 10, "Souplesse": 4, "Explosivité": 9, "Mental": 8, "Récupération": 6, "Concentration": 8},
-        "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
+        "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse":8, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Boxe":            {"Force": 12, "Endurance": 18, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Natation":        {"Force": 10, "Endurance": 17, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
         
@@ -84,7 +84,7 @@ def main():
         "Karaté":          {"Force": 10, "Endurance": 10, "Vitesse": 8, "Agilité": 8, "Souplesse": 7, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
         "Volley":          {"Force": 8, "Endurance": 8, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
         "Gymnastique":     {"Force": 10, "Endurance": 8, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
-        "Danse":           {"Force": 6, "Endurance": 10, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
+        "Danse":           {"Force": 6, "Endurance": 10, "Vitesse": 5, "Agilité": 12, "Souplesse": 9, "Explosivité": 5, "Mental": 6, "Récupération": 6, "Concentration": 8},
         
         # Activités Douces
         "Randonnée":       {"Force": 6, "Endurance": 10, "Vitesse": 2, "Agilité": 3, "Souplesse": 2, "Explosivité": 2, "Mental": 7, "Récupération": 8, "Concentration": 5},
@@ -1236,4 +1236,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+
 

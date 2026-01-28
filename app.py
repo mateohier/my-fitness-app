@@ -255,7 +255,14 @@ def main():
                 if 'pas' not in df_a.columns: df_a['pas'] = 0
                 if 'steps' in df_a.columns: df_a = df_a.drop(columns=['steps'])
             
-            if df_d.empty: df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut"])
+            # AJOUT: 'date_debut' dans le dataframe si vide
+            if df_d.empty: 
+                df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut", "date_debut"])
+            else:
+                # Si la colonne n'existe pas dans le Google Sheet (vieux défis), on l'ajoute
+                if 'date_debut' not in df_d.columns:
+                    df_d['date_debut'] = "2024-01-01" # Date par défaut pour les anciens défis
+
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
             if df_b.empty: df_b = pd.DataFrame(columns=["date", "user", "type_repas", "calorie_est"])
             if df_bal.empty: df_bal = pd.DataFrame(columns=["date", "user", "poids"])
@@ -401,10 +408,12 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
+            # AJOUT : date_debut est fixé à aujourd'hui
             new = pd.DataFrame([{
                 "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
                 "sport_cible": sport_cible, "createur": st.session_state.user, 
-                "participants": st.session_state.user, "date_fin": str(fin), "statut": "Actif"
+                "participants": st.session_state.user, "date_fin": str(fin), 
+                "statut": "Actif", "date_debut": datetime.now().strftime('%Y-%m-%d')
             }])
             conn.update(worksheet="Defis", data=pd.concat([df, new], ignore_index=True))
             st.cache_data.clear(); return True
@@ -853,7 +862,10 @@ def main():
                 completed_challenges = df_d[(df_d['date_fin'] < date.today().strftime('%Y-%m-%d'))]
                 for _, ch in completed_challenges.iterrows():
                     if user in str(ch['participants']):
-                        c_df = df_a[(df_a['date'] <= ch['date_fin']) & (df_a['user'] == user)]
+                        # FIX: Filtrer par date de début du défi si elle existe, sinon prendre tout l'historique
+                        start_d = pd.to_datetime(ch['date_debut']) if 'date_debut' in ch and pd.notna(ch['date_debut']) else pd.to_datetime('2000-01-01')
+                        c_df = df_a[(df_a['date'] <= ch['date_fin']) & (df_a['date'] >= start_d) & (df_a['user'] == user)]
+                        
                         if ch['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == ch['sport_cible']]
                         val = 0
                         if "Calories" in ch['type']: val = c_df['calories'].sum()
@@ -872,7 +884,11 @@ def main():
                 active_challenges = df_d[df_d['date_fin'] >= date.today().strftime('%Y-%m-%d')]
                 for _, r in active_challenges.iterrows():
                     parts = r['participants'].split(','); unit = "kcal" if "Calories" in r['type'] else ("km" if "Distance" in r['type'] else "min")
-                    c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['user'].isin(parts))]
+                    
+                    # FIX: Filtrer par date de début du défi
+                    start_d = pd.to_datetime(r['date_debut']) if 'date_debut' in r and pd.notna(r['date_debut']) else pd.to_datetime('2000-01-01')
+                    c_df = df_a[(df_a['date'] <= r['date_fin']) & (df_a['date'] >= start_d) & (df_a['user'].isin(parts))]
+                    
                     if r['sport_cible'] != "Tous les sports": c_df = c_df[c_df['sport'] == r['sport_cible']]
                     prog = c_df.groupby('user')['calories'].sum() if "Calories" in r['type'] else (c_df.groupby('user')['minutes'].sum() if "Durée" in r['type'] else c_df.apply(lambda row: (row['minutes']/60) * SPEED_MAP.get(row['sport'], 0), axis=1).groupby(c_df['user']).sum())
                     prog = prog.reindex(parts, fill_value=0)
@@ -908,6 +924,9 @@ def main():
                 
                 # 1. Données réelles (Balance)
                 df_w_chart = my_bal.copy()
+                # FIX: Trier par date pour éviter que le graphe ne boucle sur lui-même
+                df_w_chart = df_w_chart.sort_values(by='date')
+                
                 if start_date: df_w_chart = df_w_chart[df_w_chart['date'] >= start_date]
                 
                 target_w = float(prof.get('w_obj', 65.0))

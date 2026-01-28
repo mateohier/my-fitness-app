@@ -60,7 +60,7 @@ def main():
     # --- MAPPINGS (Optimisés pour réalisme) ---
     DNA_MAP = {
         # Sports Cardio intenses
-        "Course":          {"Force": 5, "Endurance": 25, "Vitesse": 10, "Agilité": 5, "Souplesse": 3, "Explosivité": 6, "Mental": 9, "Récupération": 8, "Concentration": 6},
+        "Course":          {"Force": 5, "Endurance": 25, "Vitesse": 14, "Agilité": 5, "Souplesse": 3, "Explosivité": 7, "Mental": 10, "Récupération": 8, "Concentration": 6},
         "Corde à sauter":  {"Force": 8, "Endurance": 28, "Vitesse": 9, "Agilité": 10, "Souplesse": 4, "Explosivité": 9, "Mental": 8, "Récupération": 6, "Concentration": 8},
         "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse":8, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
         "Boxe":            {"Force": 12, "Endurance": 18, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
@@ -1236,6 +1236,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+
 
 
 

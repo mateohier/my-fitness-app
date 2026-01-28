@@ -23,6 +23,9 @@ st.set_page_config(page_title="FollowFit", page_icon="✨", layout="wide")
 LOTTIE_SUCCESS = "https://assets5.lottiefiles.com/packages/lf20_u4yrau.json"
 BACKGROUND_URL = "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/AAAAAAAAAAAAAAAA.png"
 
+# CONSTANTE DE SECURITE (90% du total calculé = on enlève 10% par prudence)
+SAFETY_FACTOR = 0.9
+
 def main():
     # --- DEFINITION DES TITRES (Ordre dynamique) ---
     STATUS_TITLES = [
@@ -315,6 +318,7 @@ def main():
             if df_d.empty: 
                 df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut", "date_debut"])
             else:
+                # Ajout rétroactif colonne date_debut si manquante
                 if 'date_debut' not in df_d.columns: df_d['date_debut'] = "2024-01-01"
 
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
@@ -462,6 +466,7 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
+            # AJOUT : date_debut est fixé à aujourd'hui
             new = pd.DataFrame([{
                 "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
                 "sport_cible": sport_cible, "createur": st.session_state.user, 
@@ -617,7 +622,7 @@ def main():
         # --- ZONE DE MAINTENANCE (VISIBLE UNIQUEMENT PAR MAT) ---
         if user == "mat":
             with st.expander("⚠️ ADMIN ZONE - MISE À JOUR HISTORIQUE"):
-                st.warning("Attention : Recalcul global de l'historique avec les nouvelles stats (DNA_MAP).")
+                st.warning("Attention : Recalcul global de l'historique avec les nouvelles stats (DNA_MAP) et le facteur de sécurité (0.9).")
                 
                 if st.button("♻️ Lancer le recalcul"):
                     try:
@@ -653,7 +658,8 @@ def main():
                                 base_kcal = (bmr / 24) * ((force + endurance) / 3) * duree_h * 1.0 
                                 epoc = base_kcal * EPOC_MAP.get(sport, 0.05)
                                 
-                                return int(base_kcal + epoc)
+                                # APPLIQUER LE FACTEUR DE SECURITE ICI AUSSI
+                                return int((base_kcal + epoc) * SAFETY_FACTOR)
 
                             with st.spinner("Recalcul des calories en cours..."):
                                 df_act['calories'] = df_act.apply(update_row_calories, axis=1)
@@ -936,7 +942,8 @@ def main():
                 dt = datetime.combine(d, t)
                 base_kcal = (calculate_bmr(w_curr, prof['h'], 25, prof['sex'])/24) * ((DNA_MAP.get(s,{}).get("Force",5) + DNA_MAP.get(s,{}).get("Endurance",5))/3) * (m/60) * intensity_factor
                 epoc_bonus = base_kcal * EPOC_MAP.get(s, 0.05)
-                total_kcal = base_kcal + epoc_bonus
+                # APPLICATION DU FACTEUR DE SECURITE
+                total_kcal = (base_kcal + epoc_bonus) * SAFETY_FACTOR
                 new_row = pd.DataFrame([{"date": dt, "user": user, "sport": s, "minutes": m, "calories": int(total_kcal), "distance": dist, "pas": steps}])
                 
                 if save_activity(new_row):

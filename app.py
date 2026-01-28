@@ -54,34 +54,41 @@ def main():
         12: ("Père Fouettard Géant", 160000, "https://raw.githubusercontent.com/mateohier/my-fitness-app/refs/heads/main/12.jpg")
     }
 
-    # --- MAPPINGS ---
+    # --- MAPPINGS (Optimisés pour réalisme) ---
     DNA_MAP = {
-        "Musculation": {"Force": 10, "Endurance": 4, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
-        "Crossfit":    {"Force": 9, "Endurance": 8, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
-        "Course":      {"Force": 3, "Endurance": 25, "Vitesse": 7, "Agilité": 3, "Souplesse": 3, "Explosivité": 8, "Mental": 9, "Récupération": 8, "Concentration": 6},
-        "Vélo":        {"Force": 5, "Endurance": 10, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
-        "Natation":    {"Force": 10, "Endurance": 10, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
-        "Yoga":        {"Force": 4, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
-        "Boxe":        {"Force": 7, "Endurance": 9, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
-        "Escalade":    {"Force": 8, "Endurance": 6, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
-        "Tennis":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
-        "Football":    {"Force": 5, "Endurance": 8, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
-        "Basket":      {"Force": 5, "Endurance": 7, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
-        "Handball":    {"Force": 6, "Endurance": 7, "Vitesse": 7, "Agilité": 8, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
-        "Marche":      {"Force": 2, "Endurance": 5, "Vitesse": 2, "Agilité": 2, "Souplesse": 2, "Explosivité": 1, "Mental": 4, "Récupération": 10, "Concentration": 3},
-        "Danse":       {"Force": 4, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
-        "Pilates":     {"Force": 5, "Endurance": 4, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
-        "Ski":         {"Force": 6, "Endurance": 7, "Vitesse": 8, "Agilité": 7, "Souplesse": 3, "Explosivité": 5, "Mental": 6, "Récupération": 4, "Concentration": 8},
-        "Randonnée":   {"Force": 4, "Endurance": 9, "Vitesse": 2, "Agilité": 3, "Souplesse": 2, "Explosivité": 2, "Mental": 7, "Récupération": 8, "Concentration": 5},
-        "Judo":        {"Force": 9, "Endurance": 7, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 8, "Mental": 9, "Récupération": 4, "Concentration": 9},
-        "Karaté":      {"Force": 7, "Endurance": 7, "Vitesse": 8, "Agilité": 8, "Souplesse": 7, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
-        "Badminton":   {"Force": 3, "Endurance": 8, "Vitesse": 10, "Agilité": 10, "Souplesse": 5, "Explosivité": 8, "Mental": 7, "Récupération": 5, "Concentration": 8},
-        "Rameur":      {"Force": 7, "Endurance": 9, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
-        "Elliptique":  {"Force": 4, "Endurance": 8, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
-        "Gymnastique": {"Force": 9, "Endurance": 6, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
-        "Volley":      {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
-        "Corde à sauter": {"Force": 4, "Endurance": 10, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 8, "Mental": 7, "Récupération": 6, "Concentration": 8},
-        "Sport de chambre": {"Force": 3, "Endurance": 6, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
+        # Sports Cardio intenses
+        "Course":          {"Force": 5, "Endurance": 25, "Vitesse": 10, "Agilité": 5, "Souplesse": 3, "Explosivité": 6, "Mental": 9, "Récupération": 8, "Concentration": 6},
+        "Corde à sauter":  {"Force": 8, "Endurance": 28, "Vitesse": 9, "Agilité": 10, "Souplesse": 4, "Explosivité": 9, "Mental": 8, "Récupération": 6, "Concentration": 8},
+        "Crossfit":        {"Force": 15, "Endurance": 15, "Vitesse": 6, "Agilité": 6, "Souplesse": 5, "Explosivité": 9, "Mental": 9, "Récupération": 6, "Concentration": 7},
+        "Boxe":            {"Force": 12, "Endurance": 18, "Vitesse": 8, "Agilité": 9, "Souplesse": 6, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
+        "Natation":        {"Force": 10, "Endurance": 17, "Vitesse": 6, "Agilité": 6, "Souplesse": 7, "Explosivité": 6, "Mental": 9, "Récupération": 10, "Concentration": 8},
+        
+        # Sports Modérés / Cardio
+        "Vélo":            {"Force": 8, "Endurance": 16, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
+        "Rameur":          {"Force": 10, "Endurance": 14, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
+        "Tennis":          {"Force": 8, "Endurance": 13, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
+        "Football":        {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
+        "Basket":          {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
+        "Handball":        {"Force": 8, "Endurance": 13, "Vitesse": 7, "Agilité": 8, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
+        "Ski":             {"Force": 9, "Endurance": 12, "Vitesse": 8, "Agilité": 7, "Souplesse": 3, "Explosivité": 5, "Mental": 6, "Récupération": 4, "Concentration": 8},
+        "Badminton":       {"Force": 6, "Endurance": 12, "Vitesse": 10, "Agilité": 10, "Souplesse": 5, "Explosivité": 8, "Mental": 7, "Récupération": 5, "Concentration": 8},
+        "Elliptique":      {"Force": 6, "Endurance": 15, "Vitesse": 4, "Agilité": 2, "Souplesse": 2, "Explosivité": 2, "Mental": 5, "Récupération": 7, "Concentration": 4},
+        
+        # Sports de Force / Technique
+        "Musculation":     {"Force": 15, "Endurance": 5, "Vitesse": 3, "Agilité": 2, "Souplesse": 3, "Explosivité": 6, "Mental": 7, "Récupération": 5, "Concentration": 8},
+        "Escalade":        {"Force": 12, "Endurance": 8, "Vitesse": 3, "Agilité": 8, "Souplesse": 9, "Explosivité": 6, "Mental": 10, "Récupération": 4, "Concentration": 10},
+        "Judo":            {"Force": 12, "Endurance": 9, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 8, "Mental": 9, "Récupération": 4, "Concentration": 9},
+        "Karaté":          {"Force": 10, "Endurance": 10, "Vitesse": 8, "Agilité": 8, "Souplesse": 7, "Explosivité": 9, "Mental": 9, "Récupération": 5, "Concentration": 9},
+        "Volley":          {"Force": 8, "Endurance": 8, "Vitesse": 6, "Agilité": 8, "Souplesse": 5, "Explosivité": 9, "Mental": 7, "Récupération": 5, "Concentration": 7},
+        "Gymnastique":     {"Force": 10, "Endurance": 8, "Vitesse": 5, "Agilité": 10, "Souplesse": 10, "Explosivité": 9, "Mental": 9, "Récupération": 4, "Concentration": 10},
+        "Danse":           {"Force": 6, "Endurance": 10, "Vitesse": 5, "Agilité": 10, "Souplesse": 9, "Explosivité": 4, "Mental": 6, "Récupération": 6, "Concentration": 8},
+        
+        # Activités Douces
+        "Randonnée":       {"Force": 6, "Endurance": 10, "Vitesse": 2, "Agilité": 3, "Souplesse": 2, "Explosivité": 2, "Mental": 7, "Récupération": 8, "Concentration": 5},
+        "Marche":          {"Force": 3, "Endurance": 8, "Vitesse": 2, "Agilité": 2, "Souplesse": 2, "Explosivité": 1, "Mental": 4, "Récupération": 10, "Concentration": 3},
+        "Yoga":            {"Force": 5, "Endurance": 6, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
+        "Pilates":         {"Force": 6, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
+        "Sport de chambre": {"Force": 4, "Endurance": 7, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -164,44 +171,27 @@ def main():
         except: return 1500
 
     def get_level_progress(total_cal):
-        """
-        Calcule le niveau basé sur une courbe adaptée pour atteindre le
-        niveau 262 (Héros) en environ 3 ans (~470k kcal).
-        Formule : 5*L^2 + 495*L = Calories
-        """
-        if total_cal < 0: total_cal = 0
+        factor = 150 
+        if total_cal == 0: return 1, 0.0, 100
+        # Cette formule permet des niveaux infinis (ex: 470 000 cal = niveau 262 en 3 ans)
+        # 5*L^2 + 495*L = Calories
+        level = int((-495 + (495**2 - 4 * 5 * (-total_cal))**0.5) / 10)
+        if level == 0: level = 1
         
-        # Résolution équation quadratique : 5x^2 + 495x - total_cal = 0
-        a = 5
-        b = 495
-        c = -total_cal
-        
-        delta = (b**2) - (4 * a * c)
-        if delta < 0: delta = 0
-        level = int((-b + (delta**0.5)) / (2 * a))
-        
-        # Calcul des bornes pour la barre de progression
-        # Calories pour atteindre le niveau ACTUEL
         cal_curr = 5 * (level**2) + 495 * level
-        
-        # Calories pour atteindre le niveau SUIVANT
         next_lvl = level + 1
         cal_next = 5 * (next_lvl**2) + 495 * next_lvl
         
-        pct = 0.0
-        if cal_next > cal_curr:
-            pct = (total_cal - cal_curr) / (cal_next - cal_curr)
-            
-        return level, min(max(pct, 0.0), 1.0), int(cal_next - total_cal)
+        pct = min(max((total_cal - cal_curr) / (cal_next - cal_curr), 0.0), 1.0)
+        return level, pct, int(cal_next - total_cal)
 
     def get_status_from_level(lvl):
         """
         Détermine le titre en fonction du niveau.
-        Logique :
-        - Statut 0 (Canapé Warrior) : Niv 1 à 5.
-        - Statut 1 : Atteint au Niv 6 (Gap = 5).
-        - Statut 2 : Atteint au Niv 17 (Gap = 11).
-        - Statut 3 : Atteint au Niv 34 (Gap = 17).
+        Logique de progression des paliers :
+        - Statut 0 : Niv 1 à 5 (Gap=5).
+        - Statut 1 : Atteint au Niv 6 (Gap=11).
+        - Statut 2 : Atteint au Niv 17 (Gap=17).
         - Progression gap : +6 à chaque rang (5, 11, 17, 23, 29...).
         """
         threshold = 1 # Niveau de départ
@@ -209,22 +199,16 @@ def main():
         
         # On parcourt la liste des titres
         for i in range(len(STATUS_TITLES)):
-            # Le seuil pour atteindre le titre SUIVANT (i+1)
             next_threshold = threshold + gap
-            
-            # Si le niveau du joueur est inférieur au seuil requis pour le PROCHAIN titre, 
-            # il possède le titre actuel (i).
             if lvl < next_threshold:
                 return STATUS_TITLES[i]
             
-            # Préparation pour le prochain tour de boucle
             threshold = next_threshold
-            gap += 6 # L'écart grandit de 6 niveaux à chaque rang (5 -> 11 -> 17 -> 23...)
+            gap += 6 # L'écart grandit de 6 niveaux à chaque rang
 
-        # Gestion des niveaux infinis (au-delà de la liste définie)
+        # Gestion des niveaux infinis
         base_t, _ = STATUS_TITLES[-1]
         prestige_count = 0
-        
         while lvl >= threshold + gap:
             threshold += gap
             gap += 6
@@ -331,7 +315,6 @@ def main():
             if df_d.empty: 
                 df_d = pd.DataFrame(columns=["id", "titre", "type", "objectif", "sport_cible", "createur", "participants", "date_fin", "statut", "date_debut"])
             else:
-                # Ajout rétroactif colonne date_debut si manquante
                 if 'date_debut' not in df_d.columns: df_d['date_debut'] = "2024-01-01"
 
             if df_p.empty: df_p = pd.DataFrame(columns=["id", "user", "date", "image", "comment", "seen_by"])
@@ -479,7 +462,6 @@ def main():
     def create_challenge(titre, type_def, obj, sport_cible, fin):
         try:
             df = conn.read(worksheet="Defis", ttl=0)
-            # AJOUT : date_debut est fixé à aujourd'hui
             new = pd.DataFrame([{
                 "id": str(uuid.uuid4()), "titre": titre, "type": type_def, "objectif": float(obj), 
                 "sport_cible": sport_cible, "createur": st.session_state.user, 
@@ -631,6 +613,61 @@ def main():
         
         total_cal = my_df['calories'].sum()
         streak_user, streak_team = calculate_advanced_streaks(df_a, user)
+        
+        # --- ZONE DE MAINTENANCE (VISIBLE UNIQUEMENT PAR MAT) ---
+        if user == "mat":
+            with st.expander("⚠️ ADMIN ZONE - MISE À JOUR HISTORIQUE"):
+                st.warning("Attention : Recalcul global de l'historique avec les nouvelles stats (DNA_MAP).")
+                
+                if st.button("♻️ Lancer le recalcul"):
+                    try:
+                        # 1. Lire les données
+                        df_act = conn.read(worksheet="Activites", ttl=0)
+                        df_prof = conn.read(worksheet="Profils", ttl=0)
+                        
+                        if not df_act.empty and not df_prof.empty:
+                            # 2. Fonction de recalcul
+                            def update_row_calories(row):
+                                u = row['user']
+                                u_data = df_prof[df_prof['user'] == u]
+                                if u_data.empty: return row['calories']
+                                
+                                prof_json = json.loads(u_data.iloc[0]['json_data'])
+                                
+                                # Valeurs par défaut si données manquantes
+                                w = float(prof_json.get('w_init', 70)) 
+                                h = float(prof_json.get('h', 175))
+                                a = calculate_age(prof_json.get('dob', '2000-01-01'))
+                                s = prof_json.get('sex', 'Homme')
+                                bmr = calculate_bmr(w, h, a, s)
+                                
+                                sport = row['sport']
+                                # Utilise les nouvelles stats définies plus haut dans ton code
+                                stats = DNA_MAP.get(sport, {"Force": 5, "Endurance": 5}) 
+                                
+                                force = stats.get('Force', 5)
+                                endurance = stats.get('Endurance', 5)
+                                duree_h = row['minutes'] / 60
+                                
+                                # Intensité forcée à 1.0 (Moyenne)
+                                base_kcal = (bmr / 24) * ((force + endurance) / 3) * duree_h * 1.0 
+                                epoc = base_kcal * EPOC_MAP.get(sport, 0.05)
+                                
+                                return int(base_kcal + epoc)
+
+                            with st.spinner("Recalcul des calories en cours..."):
+                                df_act['calories'] = df_act.apply(update_row_calories, axis=1)
+                                conn.update(worksheet="Activites", data=df_act)
+                                st.cache_data.clear()
+                                
+                            st.success("✅ Base de données mise à jour avec succès !")
+                            time.sleep(2)
+                            st.rerun()
+                        else:
+                            st.error("Pas de données.")
+                    except Exception as e:
+                        st.error(f"Erreur : {e}")
+        # --- FIN ZONE MAINTENANCE ---
         
         DNA_KEYS = ["Force", "Endurance", "Vitesse", "Agilité", "Souplesse", "Explosivité", "Mental", "Récupération", "Concentration"]
         dna = {k: 0 for k in DNA_KEYS}
@@ -1192,4 +1229,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
-

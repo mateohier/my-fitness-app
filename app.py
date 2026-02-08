@@ -70,6 +70,7 @@ def main():
         # Sports Modérés / Cardio
         "Vélo":            {"Force": 8, "Endurance": 16, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
         "Rameur":          {"Force": 10, "Endurance": 14, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
+        "Fitness":         {"Force": 6, "Endurance": 7, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 5, "Mental": 6, "Récupération": 7, "Concentration": 6},
         "Tennis":          {"Force": 8, "Endurance": 13, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
         "Football":        {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
         "Basket":          {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
@@ -93,7 +94,7 @@ def main():
         "Yoga":            {"Force": 5, "Endurance": 6, "Vitesse": 1, "Agilité": 6, "Souplesse": 10, "Explosivité": 1, "Mental": 9, "Récupération": 10, "Concentration": 10},
         "Pilates":         {"Force": 6, "Endurance": 5, "Vitesse": 1, "Agilité": 6, "Souplesse": 9, "Explosivité": 2, "Mental": 8, "Récupération": 9, "Concentration": 9},
         "Sport de chambre": {"Force": 4, "Endurance": 7, "Vitesse": 4, "Agilité": 5, "Souplesse": 7, "Explosivité": 4, "Mental": 5, "Récupération": 9, "Concentration": 6},
-        "Rééducation sportive": {"Force": 6, "Endurance": 6, "Vitesse": 6, "Agilité": 6, "Souplesse": 6, "Explosivité": 6, "Mental": 10, "Récupération": 10, "Concentration": 10}
+        "Rééducation sportive": {"Force": 3, "Endurance": 4, "Vitesse": 2, "Agilité": 4, "Souplesse": 7, "Explosivité": 2, "Mental": 6, "Récupération": 9, "Concentration": 8}
     }
     SPORTS_LIST = sorted(list(DNA_MAP.keys()))
 
@@ -107,7 +108,8 @@ def main():
         "Badminton": 4.0, "Rameur": 8.0, "Elliptique": 8.0,
         "Corde à sauter": 0.0,
         "Sport de chambre": 0.0,
-        "Rééducation sportive": 0.0
+        "Rééducation sportive": 0.0,
+        "Fitness": 0.0
     }
 
     EPOC_MAP = {
@@ -117,7 +119,8 @@ def main():
         "Ski": 0.06, "Escalade": 0.05, "Danse": 0.04, "Gymnastique": 0.06,
         "Handball": 0.07, "Corde à sauter": 0.12,
         "Marche": 0.01, "Yoga": 0.02, "Pilates": 0.02, "Randonnée": 0.03,
-        "Sport de chambre": 0.04, "Rééducation sportive": 0.03
+        "Sport de chambre": 0.04, "Rééducation sportive": 0.03,
+        "Fitness": 0.06
     }
 
     ACTIVITY_OPTS = ["Sédentaire (1.2)", "Légèrement actif (1.375)", "Actif (1.55)", "Très actif (1.725)"]
@@ -205,14 +208,19 @@ def main():
         
         # On parcourt la liste des titres
         for i in range(len(STATUS_TITLES)):
+            # Le seuil pour atteindre le titre SUIVANT (i+1)
             next_threshold = threshold + gap
+            
+            # Si le niveau du joueur est inférieur au seuil requis pour le PROCHAIN titre, 
+            # il possède le titre actuel (i).
             if lvl < next_threshold:
                 return STATUS_TITLES[i]
             
+            # Préparation pour le prochain tour de boucle
             threshold = next_threshold
-            gap += 6 # L'écart grandit de 6 niveaux à chaque rang
+            gap += 6 # L'écart grandit de 6 niveaux à chaque rang (5 -> 11 -> 17 -> 23...)
 
-        # Gestion des niveaux infinis
+        # Gestion des niveaux infinis (au-delà de la liste définie)
         base_t, _ = STATUS_TITLES[-1]
         prestige_count = 0
         while lvl >= threshold + gap:

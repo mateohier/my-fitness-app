@@ -70,7 +70,7 @@ def main():
         # Sports Modérés / Cardio
         "Vélo":            {"Force": 8, "Endurance": 16, "Vitesse": 6, "Agilité": 3, "Souplesse": 2, "Explosivité": 4, "Mental": 7, "Récupération": 9, "Concentration": 5},
         "Rameur":          {"Force": 10, "Endurance": 14, "Vitesse": 5, "Agilité": 3, "Souplesse": 3, "Explosivité": 6, "Mental": 8, "Récupération": 6, "Concentration": 6},
-        "Fitness":         {"Force": 4, "Endurance": 6, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 5, "Mental": 6, "Récupération": 7, "Concentration": 6},
+        "Fitness":         {"Force": 5, "Endurance": 6, "Vitesse": 5, "Agilité": 7, "Souplesse": 6, "Explosivité": 5, "Mental": 6, "Récupération": 7, "Concentration": 6},
         "Tennis":          {"Force": 8, "Endurance": 13, "Vitesse": 8, "Agilité": 9, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 9},
         "Football":        {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 7, "Souplesse": 4, "Explosivité": 7, "Mental": 7, "Récupération": 5, "Concentration": 7},
         "Basket":          {"Force": 7, "Endurance": 14, "Vitesse": 8, "Agilité": 8, "Souplesse": 5, "Explosivité": 8, "Mental": 6, "Récupération": 5, "Concentration": 7},
@@ -1247,4 +1247,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erreur fatale capturée : {e}")
         st.markdown(f"Une erreur est survenue: {e}")
+
 

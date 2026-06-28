@@ -8,7 +8,6 @@ import hashlib
 import time
 import json
 import random
-import numpy as np
 import requests
 import uuid
 from streamlit_lottie import st_lottie
@@ -153,16 +152,18 @@ def main():
     def hash_pin(pin): return hashlib.sha256(str(pin).encode()).hexdigest()
 
     def safe_date_convert(df, col_name):
-        """Force la conversion en datetime et supprime les erreurs"""
-        if df.empty: return df
+        """Force la conversion en datetime et supprime les erreurs.
+        Convertit le dtype même si le DataFrame est vide, pour que
+        l'accesseur .dt reste utilisable partout sans crash."""
         if col_name in df.columns:
             df[col_name] = pd.to_datetime(df[col_name], errors='coerce')
-            df = df.dropna(subset=[col_name])
+            if not df.empty:
+                df = df.dropna(subset=[col_name])
         return df
 
     def load_lottieurl(url):
         try:
-            r = requests.get(url)
+            r = requests.get(url, timeout=5)
             if r.status_code != 200: return None
             return r.json()
         except Exception: return None
@@ -170,7 +171,8 @@ def main():
     def calculate_age(dob_str):
         try:
             dob = datetime.strptime(str(dob_str), "%Y-%m-%d").date()
-            return date.today().year - dob.year
+            today = date.today()
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
         except Exception: return 25
 
     def calculate_bmr(weight, height, age, sex):
@@ -180,7 +182,6 @@ def main():
         except Exception: return 1500
 
     def get_level_progress(total_cal):
-        factor = 150 
         if total_cal == 0: return 1, 0.0, 100
         # Cette formule permet des niveaux infinis (ex: 470 000 cal = niveau 262 en 3 ans)
         # 5*L^2 + 495*L = Calories
@@ -625,6 +626,12 @@ def main():
         
         # Gestion des données Balance
         my_bal = df_bal[df_bal['user'] == user].copy() if not df_bal.empty else pd.DataFrame(columns=["date", "user", "poids"])
+
+        # Normalisation : garantit un dtype datetime sur 'date' même quand c'est vide
+        my_df = safe_date_convert(my_df, 'date')
+        my_food = safe_date_convert(my_food, 'date')
+        my_bal = safe_date_convert(my_bal, 'date')
+        my_bal = my_bal.sort_values(by='date') if not my_bal.empty else my_bal
         
         # Poids actuel : dernier poids saisi dans Balance ou poids initial
         w_curr = float(my_bal.iloc[-1]['poids']) if not my_bal.empty else float(prof.get('w_init', 70))
@@ -1137,8 +1144,8 @@ def main():
             st.divider()
             with st.expander("➕ Lancer un nouveau défi"):
                 with st.form("new_def"):
-                    dt = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin")
-                    if st.form_submit_button("Créer"): create_challenge(dt, type_def, obj, sport_target, fin); st.success("Lancé !"); time.sleep(1); st.rerun()
+                    def_titre = st.text_input("Nom"); type_def = st.selectbox("Cible", ["Calories (kcal)", "Durée (min)", "Distance (km)"]); sport_target = st.selectbox("Sport", ["Tous les sports"] + SPORTS_LIST); obj = st.number_input("Objectif", 10.0, 50000.0, 500.0); fin = st.date_input("Fin")
+                    if st.form_submit_button("Créer"): create_challenge(def_titre, type_def, obj, sport_target, fin); st.success("Lancé !"); time.sleep(1); st.rerun()
             st.subheader("Défis en cours")
             if not df_d.empty:
                 active_challenges = df_d[df_d['date_fin'] >= date.today().strftime('%Y-%m-%d')]
@@ -1339,7 +1346,7 @@ def main():
                 try: w_init_val = float(prof.get('w_init', 70.0))
                 except Exception: w_init_val = 70.0
                 nd = c2.date_input("Naissance", datetime.strptime(prof.get('dob','2000-01-01'),"%Y-%m-%d")); ns = c1.selectbox("Sexe",["Homme","Femme"],0 if prof.get('sex')=="Homme" else 1)
-                nh = c2.number_input("Taille",100,250, h_val); nw = c1.number_input("Obj Poids",40.0,150.0, w_obj_val)
+                nh = c2.number_input("Taille",100,250, h_val); nw = c1.number_input("Obj Poids",30.0,200.0, w_obj_val)
                 ni = c1.number_input("Poids de départ (kg)", 30.0, 200.0, w_init_val)
                 na = c2.selectbox("Activité",ACTIVITY_OPTS)
                 current_theme_idx = 0 if prof.get('theme', 'Sombre') == "Sombre" else 1
@@ -1350,7 +1357,7 @@ def main():
                 try: d_obj_default = datetime.strptime(prof.get('date_obj', (date.today() + timedelta(days=150)).strftime('%Y-%m-%d')), "%Y-%m-%d").date()
                 except Exception: d_obj_default = date.today() + timedelta(days=150)
                 n_dobj = c2.date_input("Date cible de l'objectif", d_obj_default)
-                n_av = st.file_uploader("Avatar", type=['png','jpg']); np = st.text_input("Nouveau PIN", type="password", max_chars=4)
+                n_av = st.file_uploader("Avatar", type=['png','jpg']); new_pin = st.text_input("Nouveau PIN", type="password", max_chars=4)
                 if st.form_submit_button("Sauvegarder"):
                     if new_pseudo != user:
                         res = change_username(user, new_pseudo)
@@ -1363,7 +1370,7 @@ def main():
                     refresh_df = conn.read(worksheet="Profils", ttl=0)
                     if not refresh_df.empty and user in refresh_df['user'].values: current_pin = refresh_df[refresh_df['user'] == user].iloc[0]['pin']
                     ps = current_pin
-                    if np and len(np)==4: ps = hash_pin(np)
+                    if new_pin and len(new_pin)==4: ps = hash_pin(new_pin)
                     save_user(user, ps, prof); st.success("Mis à jour !"); st.rerun()
             st.divider()
             if st.button("Supprimer mon compte"): 

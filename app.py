@@ -693,6 +693,94 @@ def main():
                             st.error("Pas de données.")
                     except Exception as e:
                         st.error(f"Erreur : {e}")
+
+            with st.expander("🧹 ADMIN ZONE - PURGE DES COMPTES INACTIFS"):
+                st.warning("Supprime DÉFINITIVEMENT toutes les données (profil, séances, repas, poids, posts) des comptes inactifs depuis plus de N mois. Action irréversible — rien n'est supprimé tant que vous ne cliquez pas sur le bouton de confirmation.")
+
+                n_months = st.number_input("Inactif depuis plus de (mois)", min_value=1, max_value=60, value=12, key="purge_months")
+
+                def _last_activity_map():
+                    """Dernière date d'activité par utilisateur, tous suivis confondus."""
+                    last = {}
+                    for sheet in ["Activites", "Bouffe", "Balance", "Posts"]:
+                        try:
+                            d = conn.read(worksheet=sheet, ttl=0)
+                            d = safe_date_convert(d, 'date')
+                            if not d.empty and 'user' in d.columns:
+                                for u_name, ts in d.groupby('user')['date'].max().items():
+                                    if pd.notna(ts) and (u_name not in last or ts > last[u_name]):
+                                        last[u_name] = ts
+                        except Exception:
+                            pass
+                    return last
+
+                def _purge(users_to_delete):
+                    dset = set(users_to_delete)
+                    df_u2 = conn.read(worksheet="Profils", ttl=0)
+                    df_a2 = conn.read(worksheet="Activites", ttl=0)
+                    df_d2 = conn.read(worksheet="Defis", ttl=0)
+                    df_b2 = conn.read(worksheet="Bouffe", ttl=0)
+                    df_bal2 = conn.read(worksheet="Balance", ttl=0)
+                    df_p2 = conn.read(worksheet="Posts", ttl=0)
+
+                    if not df_u2.empty: df_u2 = df_u2[~df_u2['user'].isin(dset)]
+                    if not df_a2.empty: df_a2 = df_a2[~df_a2['user'].isin(dset)]
+                    if not df_b2.empty: df_b2 = df_b2[~df_b2['user'].isin(dset)]
+                    if not df_bal2.empty: df_bal2 = df_bal2[~df_bal2['user'].isin(dset)]
+                    if not df_p2.empty:
+                        df_p2 = df_p2[~df_p2['user'].isin(dset)]
+                        if 'seen_by' in df_p2.columns:
+                            df_p2['seen_by'] = df_p2['seen_by'].apply(lambda t: ",".join([x for x in str(t).split(',') if x not in dset]))
+                    if not df_d2.empty and 'participants' in df_d2.columns:
+                        df_d2['participants'] = df_d2['participants'].apply(lambda t: ",".join([x for x in str(t).split(',') if x not in dset]))
+
+                    conn.update(worksheet="Profils", data=df_u2)
+                    conn.update(worksheet="Activites", data=df_a2)
+                    conn.update(worksheet="Defis", data=df_d2)
+                    conn.update(worksheet="Bouffe", data=df_b2)
+                    conn.update(worksheet="Balance", data=df_bal2)
+                    conn.update(worksheet="Posts", data=df_p2)
+                    st.cache_data.clear()
+
+                # ÉTAPE 1 : recherche (ne supprime rien, prépare seulement l'aperçu)
+                if st.button("🔎 Rechercher les comptes inactifs"):
+                    try:
+                        cutoff = pd.Timestamp.now() - pd.DateOffset(months=int(n_months))
+                        prof_df = conn.read(worksheet="Profils", ttl=0)
+                        all_users = list(prof_df['user']) if (not prof_df.empty and 'user' in prof_df.columns) else []
+                        last_map = _last_activity_map()
+                        inactive, unknown = [], []
+                        for u_name in all_users:
+                            if u_name == user:   # ne jamais cibler le compte admin connecté
+                                continue
+                            ts = last_map.get(u_name)
+                            if ts is None:
+                                unknown.append(u_name)
+                            elif ts < cutoff:
+                                inactive.append((u_name, ts.strftime('%Y-%m-%d')))
+                        st.session_state['purge_list'] = inactive
+                        st.session_state['purge_unknown'] = unknown
+                        st.session_state['purge_confirm'] = False
+                    except Exception as e:
+                        st.error(f"Erreur lors de l'analyse : {e}")
+
+                # ÉTAPE 2 : aperçu + confirmation + suppression (uniquement sur clic explicite)
+                if 'purge_list' in st.session_state:
+                    inactive = st.session_state['purge_list']
+                    if inactive:
+                        st.write(f"**{len(inactive)} compte(s) inactif(s)** depuis plus de {int(n_months)} mois :")
+                        st.dataframe(pd.DataFrame(inactive, columns=["Compte", "Dernière activité"]), use_container_width=True, hide_index=True)
+                        confirm = st.checkbox("Je confirme vouloir supprimer DÉFINITIVEMENT ces comptes et toutes leurs données", key="purge_confirm")
+                        if st.button("🗑️ Supprimer définitivement", type="primary", disabled=not confirm):
+                            _purge([u_name for u_name, _ in inactive])
+                            for k in ['purge_list', 'purge_unknown', 'purge_confirm']:
+                                st.session_state.pop(k, None)
+                            st.success("✅ Comptes inactifs supprimés.")
+                            time.sleep(2); st.rerun()
+                    else:
+                        st.info("Aucun compte inactif trouvé pour ce seuil.")
+                    if st.session_state.get('purge_unknown'):
+                        st.caption("Comptes sans aucune donnée enregistrée (âge indéterminé, **non supprimés** par sécurité) : " + ", ".join(st.session_state['purge_unknown']))
         # --- FIN ZONE MAINTENANCE ---
         
         DNA_KEYS = ["Force", "Endurance", "Vitesse", "Agilité", "Souplesse", "Explosivité", "Mental", "Récupération", "Concentration"]

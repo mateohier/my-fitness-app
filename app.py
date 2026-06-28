@@ -790,7 +790,7 @@ def main():
             h = r['minutes'] / 60
             for k in DNA_KEYS: dna[k] += s_dna.get(k, 1) * h
 
-        tabs = st.tabs(["🏠 Tableau de Bord", "🎯 Objectifs", "⚖️ Balance", "🍔 Bouffe", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
+        tabs = st.tabs(["🏠 Tableau de Bord", "🎯 Objectifs", "🏋️ Programme", "⚖️ Balance", "🍔 Bouffe", "📸 Partage", "➕ Séance", "👹 Boss", "⚔️ Défis", "📈 Statistiques", "🏆 Classement", "⚙️ Profil"])
 
         with tabs[0]: # DASHBOARD
             st.markdown(f"""<div style="display:flex;align-items:center;font-size:24px;font-weight:bold;margin-bottom:20px;">👋 Bienvenue &nbsp; {get_user_badge(user, df_u)}</div>""", unsafe_allow_html=True)
@@ -1021,7 +1021,78 @@ def main():
 
             st.caption("ℹ️ Ces calculs sont des estimations indicatives et ne remplacent pas un suivi médical ou diététique personnalisé.")
 
-        with tabs[2]: # BALANCE
+        with tabs[2]: # PROGRAMME
+            st.header("🏋️ Programme d'entraînement")
+            st.caption("Un programme hebdomadaire simple et épuré, basé sur les sports que vous aimez.")
+
+            # 1) Sports préférés déduits de l'historique (sports pratiqués = sports appréciés)
+            inferred = []
+            if not my_df.empty:
+                counts = my_df['sport'].value_counts()
+                inferred = [s for s in counts.index.tolist() if s in SPORTS_LIST][:5]
+
+            if inferred:
+                st.caption("Sports détectés dans votre historique (modifiables ci-dessous) :")
+            else:
+                st.info("Aucun historique pour le moment — choisissez simplement vos sports préférés ci-dessous.")
+
+            fav_sports = st.multiselect("Vos sports préférés", options=SPORTS_LIST, default=inferred)
+            days_per_week = st.slider("Jours d'entraînement par semaine", 2, 6, 4)
+
+            # 2) Helpers : intensité (via EPOC), focus (via stat dominante), durée suggérée
+            def _intensity(sport):
+                e = EPOC_MAP.get(sport, 0.05)
+                if e >= 0.10: return "Intense"
+                if e >= 0.05: return "Modéré"
+                return "Doux"
+
+            def _focus(sport):
+                stats = DNA_MAP.get(sport, {})
+                if not stats: return "Mixte"
+                top = max(stats, key=stats.get)
+                return {"Force": "Renforcement", "Endurance": "Cardio", "Souplesse": "Mobilité",
+                        "Explosivité": "Explosivité", "Agilité": "Agilité"}.get(top, "Mixte")
+
+            def _duration(sport):
+                return {"Intense": 35, "Modéré": 45, "Doux": 30}[_intensity(sport)]
+
+            if not fav_sports:
+                st.warning("Sélectionnez au moins un sport pour générer le programme.")
+            else:
+                # 3) Répartition des jours d'entraînement dans la semaine (avec jours de repos)
+                JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+                TEMPLATES = {2: [1, 4], 3: [0, 2, 4], 4: [0, 1, 3, 5], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5]}
+                train_idx = TEMPLATES.get(days_per_week, [0, 2, 4])
+
+                # 4) Affectation des séances en alternant journées intenses / légères
+                intense_pool = [s for s in fav_sports if _intensity(s) == "Intense"]
+                light_pool = [s for s in fav_sports if _intensity(s) != "Intense"]
+                seq, use_intense, ii, li = [], True, 0, 0
+                for _ in train_idx:
+                    if use_intense and intense_pool:
+                        seq.append(intense_pool[ii % len(intense_pool)]); ii += 1
+                    elif light_pool:
+                        seq.append(light_pool[li % len(light_pool)]); li += 1
+                    elif intense_pool:
+                        seq.append(intense_pool[ii % len(intense_pool)]); ii += 1
+                    use_intense = not use_intense
+                assign = dict(zip(train_idx, seq))
+
+                # 5) Tableau hebdomadaire épuré
+                rows = []
+                for i, jour in enumerate(JOURS):
+                    if i in assign:
+                        sp = assign[i]
+                        rows.append({"Jour": jour, "Séance": sp, "Type": _focus(sp),
+                                     "Durée": f"{_duration(sp)} min", "Intensité": _intensity(sp)})
+                    else:
+                        rows.append({"Jour": jour, "Séance": "Repos / récup active", "Type": "—",
+                                     "Durée": "—", "Intensité": "—"})
+                st.table(pd.DataFrame(rows).set_index("Jour"))
+
+                st.caption("💡 Échauffement de 5–10 min avant chaque séance, et respectez les jours de repos pour récupérer. Adaptez selon vos sensations.")
+
+        with tabs[3]: # BALANCE
             st.header("⚖️ Suivi du Poids")
             st.caption("Suivez votre progression ici.")
             
@@ -1063,10 +1134,44 @@ def main():
             else:
                 st.info("Aucune pesée enregistrée.")
         
-        with tabs[3]: # BOUFFE
+        with tabs[4]: # BOUFFE
             st.header("🍔 Suivi Alimentaire (Est.)")
             st.caption("Une méthode simple basée sur le ressenti.")
-            
+
+            # --- SAISIE GROUPÉE (plusieurs jours d'un coup, pour rattraper une période oubliée) ---
+            with st.expander("📅 Saisie groupée (plusieurs jours)"):
+                st.caption("Renseignez rapidement une période entière avec le même apport chaque jour. Les valeurs s'ajoutent aux repas déjà saisis sur ces dates.")
+                cby1, cby2 = st.columns(2)
+                b_start = cby1.date_input("Du", value=date.today() - timedelta(days=7), key="batch_start")
+                b_end = cby2.date_input("Au", value=date.today(), key="batch_end")
+                b_mode = st.radio("Type d'apport par jour", ["Valeur exacte (kcal)", "Niveau de portion"], horizontal=True, key="batch_mode")
+                if b_mode == "Niveau de portion":
+                    b_level = st.slider("Niveau de portion", 1, 7, 4, key="batch_level")
+                    day_cal = FOOD_LEVELS[b_level]; day_label = FOOD_LABELS[b_level]
+                    st.caption(f"≈ {day_cal} kcal/jour")
+                else:
+                    b_kcal = st.number_input("kcal par jour", 0, 10000, 2000, step=50, key="batch_kcal")
+                    day_cal = int(b_kcal); day_label = f"📅 Saisie groupée ({day_cal} kcal)"
+
+                if st.button("Enregistrer la période", key="batch_submit"):
+                    if b_end < b_start:
+                        st.error("La date de fin doit être postérieure ou égale à la date de début.")
+                    else:
+                        days = pd.date_range(b_start, b_end)
+                        if len(days) > 366:
+                            st.error("Période trop longue (max 366 jours). Réduisez l'intervalle.")
+                        else:
+                            new_rows = pd.DataFrame([
+                                {"date": datetime(d.year, d.month, d.day, 12, 0, 0), "user": user,
+                                 "type_repas": day_label, "calorie_est": day_cal}
+                                for d in days
+                            ])
+                            if save_food(new_rows):
+                                st.success(f"✅ {len(days)} jour(s) enregistré(s) à {day_cal} kcal/jour.")
+                                time.sleep(1); st.rerun()
+                            else:
+                                st.error("Échec de l'enregistrement.")
+
             c_f1, c_f2 = st.columns([1, 2])
             with c_f1:
                 with st.form("food_form"):
@@ -1119,7 +1224,7 @@ def main():
                     final_df = pd.concat([other_users_data, to_keep_food], ignore_index=True)
                     conn.update(worksheet="Bouffe", data=final_df); st.cache_data.clear(); st.success("Historique repas mis à jour !"); time.sleep(1); st.rerun()
 
-        with tabs[4]: # PARTAGE
+        with tabs[5]: # PARTAGE
             st.header("📸 Mur de Partage (7 jours)")
             with st.expander("📷 Poster une photo"):
                 with st.form("post_form"):
@@ -1139,7 +1244,7 @@ def main():
                     st.markdown(f"""<div class='post-card'><div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>{get_user_badge(r['user'], df_u)}<span style='opacity:0.6; font-size:0.8em;'>{r['date']}</span></div><img src='{r['image']}' style='width:100%; border-radius:5px; margin-bottom:10px;'><p style='font-size:1.1em;'>{r['comment']}</p><hr style='border-color:#555;'><div style='display:flex; flex-wrap:wrap; align-items:center;'><span style='margin-right:10px; opacity:0.6; font-size:0.9em;'>Vu par :</span>{''.join([get_user_badge(v, df_u) for v in viewers if v])}</div></div>""", unsafe_allow_html=True)
             else: st.info("Aucun post récent. Soyez le premier !")
 
-        with tabs[5]: # SEANCE
+        with tabs[6]: # SEANCE
             st.subheader("Ajouter une séance")
             c1, c2 = st.columns(2)
             d = c1.date_input("Date", date.today())
@@ -1195,7 +1300,7 @@ def main():
                     conn.update(worksheet="Activites", data=pd.concat([df_a[df_a['user'] != user], to_keep], ignore_index=True))
                     st.cache_data.clear(); st.success("Mise à jour réussie !"); st.rerun()
 
-        with tabs[6]: # BOSS
+        with tabs[7]: # BOSS
             curr_month_num = datetime.now().month
             boss_name, boss_max_hp, boss_img = BOSS_CALENDAR.get(curr_month_num, ("Monstre", 200000, ""))
             st.header(f"👹 BOSS DU MOIS : {boss_name.upper()}")
@@ -1210,7 +1315,7 @@ def main():
             if not df_month.empty:
                 for i, (u, val) in enumerate(df_month.groupby("user")['calories'].sum().sort_values(ascending=False).head(5).items()): c_stat.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** : {int(val)} dégâts", unsafe_allow_html=True)
 
-        with tabs[7]: # DEFIS
+        with tabs[8]: # DEFIS
             st.header("⚔️ Salle des Défis")
             st.subheader("🏆 Vos Victoires"); wins = 0
             if not df_d.empty and not df_a.empty:
@@ -1260,7 +1365,7 @@ def main():
                             pct = min(val/float(r['objectif']), 1.0); st.markdown(f"{get_user_badge(u, df_u)} : {int(val)} {unit}", unsafe_allow_html=True); st.progress(pct)
                     st.divider()
 
-        with tabs[8]: # STATS
+        with tabs[9]: # STATS
             if not my_df.empty:
                 st.subheader("🏆 Records")
                 max_c = my_df['calories'].max(); max_m = my_df['minutes'].max(); fav = my_df['sport'].mode()[0] if not my_df['sport'].mode().empty else "Aucun"
@@ -1406,7 +1511,7 @@ def main():
                 )
                 c2.plotly_chart(fig_bar, use_container_width=True, config={'staticPlot': True})
 
-        with tabs[9]: # CLASSEMENT
+        with tabs[10]: # CLASSEMENT
             st.header("🏛️ Hall of Fame")
             if not df_a.empty:
                 try:
@@ -1422,7 +1527,7 @@ def main():
                 if not w_df.empty:
                     for i, (u, c) in enumerate(w_df.groupby("user")['calories'].sum().sort_values(ascending=False).items()): st.markdown(f"**{i+1}. {get_user_badge(u, df_u)}** - {int(c)} kcal", unsafe_allow_html=True)
 
-        with tabs[10]: # PROFIL
+        with tabs[11]: # PROFIL
             st.subheader("📝 Profil")
             with st.form("prof"):
                 c1, c2 = st.columns(2)

@@ -806,44 +806,6 @@ def main():
             st.caption(f"_{user_desc}_")
             st.caption(f"Objectif Niveau {lvl+1} : Encore **{rem} kcal** à brûler ! 🔥")
             
-            # --- CALCUL DU DÉFICIT COMPLEXE (Tab 0) ---
-            total_fat_loss_real = 0.0
-            if not my_df.empty or not my_food.empty:
-                # 1. On détermine la date de début
-                d_start_s = my_df['date'].min() if not my_df.empty else datetime.now()
-                d_start_f = my_food['date'].min() if not my_food.empty else datetime.now()
-                start_calc = min(d_start_s, d_start_f).date()
-                end_calc = date.today()
-                
-                # 2. BMR Utilisateur
-                u_bmr = calculate_bmr(w_curr, prof.get('h', 175), calculate_age(prof.get('dob', '2000-01-01')), prof.get('sex', 'Homme'))
-                
-                # 3. On groupe les données par jour
-                df_s_group = my_df.copy(); df_s_group['day'] = df_s_group['date'].dt.date
-                s_by_day = df_s_group.groupby('day')['calories'].sum()
-                
-                df_f_group = my_food.copy(); df_f_group['day'] = df_f_group['date'].dt.date
-                f_by_day = df_f_group.groupby('day')['calorie_est'].sum()
-                logged_days = set(df_f_group['day'].unique())
-                
-                # 4. Boucle jour par jour pour additionner le déficit
-                cumul_deficit = 0
-                for single_date in pd.date_range(start_calc, end_calc):
-                    d = single_date.date()
-                    s_val = s_by_day.get(d, 0)
-                    f_val = f_by_day.get(d, 0)
-                    
-                    if d in logged_days:
-                        # Si repas noté : (BMR + Sport) - Bouffe
-                        day_res = (u_bmr + s_val) - f_val
-                    else:
-                        # Si rien noté : On ne compte que le sport (Prudence)
-                        day_res = s_val
-                    
-                    cumul_deficit += day_res
-                
-                # Conversion kcal -> kg de gras
-                total_fat_loss_real = cumul_deficit / 7700
 
             # --- AFFICHAGE METRIQUES (Modifié pour inclure le compteur) ---
             st.markdown("### 📊 Cumul Global")
@@ -856,8 +818,20 @@ def main():
             kg_fat_sport = total_cal / 7700
             k2.metric("Gras (Sport seul)", f"{kg_fat_sport:.2f} kg", help="Calculé uniquement sur l'activité physique.")
             
-            # Colonne 3 : NOUVELLE (Calcul Complexe)
-            k3.metric("🔥 Perte Réelle (Déficit)", f"{total_fat_loss_real:.2f} kg", delta="BMR + Sport - Repas", help="Prend en compte votre métabolisme et vos repas enregistrés.")
+            # Colonne 3 : variation RÉELLE du poids (initial -> actuel), reliée à l'objectif
+            w_start_real = float(prof.get('w_init', w_curr))
+            w_goal_real = float(prof.get('w_obj', w_curr))
+            real_delta = w_start_real - w_curr  # > 0 : perte de poids ; < 0 : prise de poids
+            if real_delta >= 0:
+                if w_curr <= w_goal_real:
+                    sub = "objectif atteint 🎉"
+                else:
+                    sub = f"reste {w_curr - w_goal_real:.1f} kg avant l'objectif"
+                k3.metric("🔥 Graisse perdue (réel)", f"{real_delta:.1f} kg", delta=sub, delta_color="off",
+                          help=f"Différence entre votre poids initial ({w_start_real:.0f} kg) et votre poids actuel ({w_curr:.0f} kg). Objectif : {w_goal_real:.0f} kg.")
+            else:
+                k3.metric("⚠️ Excédent pris (réel)", f"{abs(real_delta):.1f} kg", delta=f"objectif : {w_goal_real:.0f} kg", delta_color="off",
+                          help=f"Vous êtes passé de {w_start_real:.0f} kg à {w_curr:.0f} kg. Mettez à jour votre poids dans l'onglet ⚖️ Balance.")
             
             st.divider()
             
